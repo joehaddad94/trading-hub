@@ -1,0 +1,19 @@
+{
+  "name": "trading-app",
+  "private": true,
+  "description": "Personal trading tracker, news calendar and replay backtester",
+  "scripts": {
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "lint": "biome check .",
+    "format": "biome format --write .",
+    "typecheck": "turbo run typecheck",
+    "test": "turbo run test",
+    "test:e2e": "turbo run test:e2e",
+    "boundaries": "depcruise apps packages --config packages/config/dependency-cruiser.cjs",
+    "db:generate": "drizzle-kit generate --config packages/db/drizzle.config.ts"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}
