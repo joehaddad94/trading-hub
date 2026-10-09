@@ -1,11 +1,28 @@
 {
   "$schema": "https://turbo.build/schema.json",
+  "agentGuidance": false,
+  "globalPassThroughEnv": ["SKIP_ENV_VALIDATION", "CI"],
   "tasks": {
-    "build": { "dependsOn": ["^build"], "outputs": [".next/**", "!.next/cache/**", "dist/**"] },
-    "dev": { "cache": false, "persistent": true },
+    "build": {
+      "dependsOn": ["^build"],
+      "outputs": [".next/**", "!.next/cache/**", "dist/**"],
+      "env": ["NEXT_PUBLIC_*", "SENTRY_*", "ALLOWED_EMAIL"]
+    },
+    "dev": {
+      "cache": false,
+      "persistent": true
+    },
     "lint": {},
-    "typecheck": { "dependsOn": ["^build"] },
-    "test": { "outputs": ["coverage/**"] },
-    "test:e2e": { "cache": false }
+    "typecheck": {
+      "dependsOn": ["^build"]
+    },
+    "test": {
+      "outputs": ["coverage/**"]
+    },
+    "test:e2e": {
+      "dependsOn": ["build"],
+      "cache": false,
+      "passThroughEnv": ["NEXT_PUBLIC_*", "ALLOWED_EMAIL", "SUPABASE_SERVICE_ROLE_KEY", "PLAYWRIGHT_*"]
+    }
   }
 }

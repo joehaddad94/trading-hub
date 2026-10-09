@@ -1,0 +1,4 @@
+{
+  "extends": "@trading/config/tsconfig.base.json",
+  "include": ["src", "drizzle.config.ts"]
+}

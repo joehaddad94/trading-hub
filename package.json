@@ -2,6 +2,7 @@
   "name": "trading-app",
   "private": true,
   "description": "Personal trading tracker, news calendar and replay backtester",
+  "packageManager": "pnpm@10.28.0",
   "scripts": {
     "dev": "turbo run dev",
     "build": "turbo run build",
@@ -15,5 +16,17 @@
   },
   "engines": {
     "node": ">=22"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.5.15",
+    "@types/node": "^26.6.5",
+    "@vitest/coverage-v8": "^5.0.3",
+    "dependency-cruiser": "^18.5.0",
+    "drizzle-kit": "^0.31.11",
+    "supabase": "2.120.0",
+    "tsx": "^4.23.15",
+    "turbo": "^2.11.7",
+    "typescript": "^6.0.3",
+    "vitest": "^5.0.3"
   }
 }
