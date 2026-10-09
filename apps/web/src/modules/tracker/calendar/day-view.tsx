@@ -1,4 +1,4 @@
-import { rMultiple, SESSION_LABELS, sessionOf } from '@trading/core';
+import { IMPACT_COLOURS, rMultiple, SESSION_LABELS, sessionOf } from '@trading/core';
 import type { DayDetail, DayTrade, ScopeAccount } from '@trading/tracker/server';
 import Decimal from 'decimal.js';
 import type { Route } from 'next';
@@ -25,7 +25,7 @@ const money = (v: Decimal.Value) => formatMoney(new Decimal(v).toFixed(2));
 
 /** Day view (§8.2): side panel on desktop, full screen on phone. */
 export function DayView({ detail, accounts, closeHref, saveNote }: Props) {
-  const { stats, trades, rules, statusEvents, note, date } = detail;
+  const { stats, trades, rules, statusEvents, note, date, events } = detail;
   const byId = new Map(accounts.map((a, i) => [a.id, { ...a, colour: ACCOUNT_COLOURS[i % ACCOUNT_COLOURS.length] }]));
   const balance = Decimal.sum(0, ...stats.accountIds.map((id) => byId.get(id)?.startingBalance ?? 0));
   const title = formatBeirut(new Date(`${date}T12:00:00Z`), 'EEEE d MMMM yyyy');
@@ -136,6 +136,26 @@ export function DayView({ detail, accounts, closeHref, saveNote }: Props) {
               <li key={`${e.accountId}-${e.status}`}>
                 {e.login} <span className="capitalize">{e.status.replace(/_/g, ' ')}</span>
                 {e.reason ? ` — ${e.reason}` : ''} · {time(e.at)}
+              </li>
+            ))}
+          </ul>
+        </Section>
+      )}
+
+      {events.length > 0 && (
+        <Section title="News">
+          <ul className="flex flex-col gap-1 text-sm" data-testid="day-news">
+            {events.map((e) => (
+              <li key={e.id} className="flex items-center gap-2">
+                <span className="tabular-nums">{e.impact === 'holiday' ? 'All day' : time(e.eventAt)}</span>
+                <span
+                  className="inline-block h-2.5 w-2.5 shrink-0 rounded-sm"
+                  style={{ background: IMPACT_COLOURS[e.impact] }}
+                  title={`${e.impact} impact`}
+                />
+                <span className="font-medium">{e.currency}</span>
+                <span className="min-w-0 truncate">{e.title}</span>
+                {e.isRestricted && <span title="Restricted">🔒</span>}
               </li>
             ))}
           </ul>

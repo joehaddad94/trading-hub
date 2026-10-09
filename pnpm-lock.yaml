@@ -244,6 +244,9 @@ importers:
       '@trading/db':
         specifier: workspace:*
         version: link:../db
+      '@trading/news':
+        specifier: workspace:*
+        version: link:../news
       decimal.js:
         specifier: ^10.6.0
         version: 10.6.0

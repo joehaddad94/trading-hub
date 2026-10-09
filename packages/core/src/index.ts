@@ -56,6 +56,17 @@ export {
   resolveDuplicates,
 } from './news/news';
 export {
+  eventsAroundTrade,
+  hasNewsAddon,
+  NEWS_ADDON_CODE,
+  type NearbyEvent,
+  type NewsAnalytics,
+  type NewsSplit,
+  newsAnalytics,
+  restrictionApplies,
+  type TradeTimes,
+} from './news/trades';
+export {
   activeRestrictions,
   type CalendarEvent,
   countdown,

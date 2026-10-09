@@ -1,4 +1,6 @@
 export {
+  type AccountRestriction,
+  accountRestrictions,
   DEFAULT_NEWS_SETTINGS,
   type EventDetail,
   type EventQuery,
@@ -15,5 +17,6 @@ export {
   newsHubSummary,
   occurrences,
   saveNewsSettings,
+  setAccountRestriction,
   tradesAround,
 } from './news';

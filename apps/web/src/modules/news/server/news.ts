@@ -3,6 +3,7 @@ import * as Sentry from '@sentry/nextjs';
 import { weekRange } from '@trading/core';
 import type { NewsFilters } from '@trading/news';
 import {
+  accountRestrictions,
   eventDetail,
   eventTitles,
   getNewsSettings,
@@ -13,6 +14,7 @@ import {
   newsHubSummary,
   occurrences,
   saveNewsSettings,
+  setAccountRestriction,
 } from '@trading/news/server';
 import { connection } from 'next/server';
 import { getDb } from '@/lib/server/db';
@@ -73,4 +75,16 @@ export async function getNewsHubSummary(now = new Date()): Promise<NewsHubSummar
     Sentry.captureException(error);
     return null;
   }
+}
+
+export async function getAccountRestrictions() {
+  await connection();
+  const db = getDb();
+  return db ? accountRestrictions(db) : [];
+}
+
+export async function writeAccountRestriction(accountId: string, value: boolean | null) {
+  const db = getDb();
+  if (!db) throw new Error('The database is not configured.');
+  await setAccountRestriction(db, accountId, value);
 }

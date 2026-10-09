@@ -57,6 +57,13 @@
       "when": 1791586789887,
       "tag": "20261009225949_economic_events",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1791587742111,
+      "tag": "20261009231542_account_news_restriction",
+      "breakpoints": true
     }
   ]
 }

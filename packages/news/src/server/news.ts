@@ -2,10 +2,12 @@ import {
   activeRestrictions,
   type CalendarEvent,
   dayRange,
+  hasNewsAddon,
   mondayOf,
   NEWS_DAYS,
   type NewsImpact,
   nextEvent,
+  restrictionApplies,
   tradingDay,
   weekDates,
   weekRange,
@@ -231,4 +233,41 @@ export async function newsHubSummary(db: Executor, now: Date): Promise<NewsHubSu
     currencies: settings.currencies,
     lastSync: await lastNewsSync(db),
   };
+}
+
+export type AccountRestriction = {
+  id: string;
+  login: number;
+  phase: string;
+  status: string;
+  newsAddon: boolean;
+  override: boolean | null;
+  /** Effective: whether restriction-window badges show for this account's trades. */
+  applies: boolean;
+};
+
+/** Per-account restriction setting (news spec §5), with the default worked out from phase and add-on. */
+export async function accountRestrictions(db: Executor): Promise<AccountRestriction[]> {
+  const rows = await db
+    .select({
+      id: accounts.id,
+      login: accounts.login,
+      phase: accounts.phase,
+      status: accounts.status,
+      override: accounts.newsRestriction,
+      rulesRaw: sql<unknown>`(
+        select r.raw from rule_snapshots r where r.account_id = "accounts"."id" order by r.taken_at desc limit 1
+      )`,
+    })
+    .from(accounts)
+    .orderBy(desc(accounts.lastSeenAt), asc(accounts.login));
+  return rows.map(({ rulesRaw, ...a }) => {
+    const newsAddon = hasNewsAddon(rulesRaw);
+    return { ...a, newsAddon, applies: restrictionApplies({ phase: a.phase, newsAddon, override: a.override }) };
+  });
+}
+
+/** `null` returns the account to its default. */
+export async function setAccountRestriction(db: Executor, accountId: string, value: boolean | null) {
+  await db.update(accounts).set({ newsRestriction: value }).where(eq(accounts.id, accountId));
 }

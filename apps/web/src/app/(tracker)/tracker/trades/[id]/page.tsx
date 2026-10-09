@@ -8,10 +8,12 @@ import { formatBeirut, formatMoney } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { formatHold, formatR } from '@/modules/tracker/calendar/format';
 import { StatusBadge } from '@/modules/tracker/components/account-badge';
+import { TradeNewsSection } from '@/modules/tracker/components/trade-news';
 import { JournalForm } from '@/modules/tracker/journal/journal-form';
 import { Screenshots } from '@/modules/tracker/journal/screenshots';
 import { accountLabel } from '@/modules/tracker/scope-label';
 import { getTradeJournal } from '@/modules/tracker/server/journal';
+import { getTradeNews } from '@/modules/tracker/server/news';
 import {
   deleteScreenshotAction,
   finishScreenshotUploadAction,
@@ -33,7 +35,7 @@ const plain = (v: string | null | undefined) => (v ? new Decimal(v).toString() :
 export default async function TradePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   if (!z.uuid().safeParse(id).success) notFound();
-  const data = await getTradeJournal(id);
+  const [data, news] = await Promise.all([getTradeJournal(id), getTradeNews(id)]);
   if (!data) notFound();
   const { trade: t, account, entry } = data;
   const net = new Decimal(t.netProfit);
@@ -67,6 +69,7 @@ export default async function TradePage({ params }: { params: Promise<{ id: stri
             data-testid="trade-net"
           >
             {formatMoney(t.netProfit)} · {formatR(r)}
+            {news && <TradeNewsSection news={news} />}
             {t.riskSource === 'estimated' && (
               <span className="ml-1 rounded bg-muted px-1 font-normal text-muted-foreground text-xs">est.</span>
             )}

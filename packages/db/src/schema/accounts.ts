@@ -40,6 +40,8 @@ export const accounts = pgTable(
     statusReason: text(),
     statusChangedAt: tstz(),
     defaultRiskPct: numeric({ precision: 5, scale: 2 }).notNull().default('0.5'),
+    /** News restriction badges (news spec §5): null = default (on for funded accounts without the ANT add-on). */
+    newsRestriction: boolean(),
     firstSeenAt: tstz().notNull().defaultNow(),
     lastSeenAt: tstz().notNull().defaultNow(),
     closedAt: tstz(),

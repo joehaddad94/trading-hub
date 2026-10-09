@@ -27,6 +27,7 @@ export function CalendarGrid({ data, cell, accounts, selectedDay, dayHref }: Cal
   const loginOf = new Map(accounts.map((a) => [a.id, accountLabel(a)]));
   const statusDays = new Set(statusEvents.map((e) => e.day));
   const warnings = new Set(warningDays);
+  const newsDays = new Set(data.newsDays);
   const columns = calendar.weekdays.length;
 
   const cellProps = (d: CalendarDay, index: number): DayCellProps => {
@@ -44,7 +45,7 @@ export function CalendarGrid({ data, cell, accounts, selectedDay, dayHref }: Cal
       tone: s ? (s.net.gt(0) ? 'win' : s.net.lt(0) ? 'loss' : 'flat') : null,
       intensity: d.intensity,
       icons: {
-        news: s?.hasNews ?? false,
+        news: (s?.hasNews ?? false) || (d.inMonth && newsDays.has(d.date)),
         journaled: s?.journaled ?? false,
         warning: warnings.has(d.date),
         status: d.inMonth && statusDays.has(d.date),

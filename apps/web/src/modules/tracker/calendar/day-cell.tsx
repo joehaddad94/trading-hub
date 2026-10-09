@@ -114,7 +114,7 @@ export function DayCell(props: DayCellProps) {
             {day}
           </span>
           <span className="flex gap-px text-[9px] leading-none md:text-xs" aria-hidden>
-            {icons.news && <span title="News trade">📰</span>}
+            {icons.news && <span title="Red-folder news">📰</span>}
             {icons.journaled && <span title="Journaled">📝</span>}
             {icons.warning && <span title="Close to a rule limit">⚠️</span>}
             {icons.status && <span title="Account status changed">🔄</span>}

@@ -24,6 +24,8 @@ import {
   ruleSnapshots,
   trades,
 } from '@trading/db/schema';
+import type { NewsEvent } from '@trading/news/server';
+import { dayEvents, redFolderDays } from './news';
 import type { ResolvedScope, ScopeAccount } from './scope';
 
 /** A trade with everything the day view lists (§8.2). */
@@ -192,6 +194,8 @@ export type CalendarMonthData = {
   warningDays: string[];
   /** Sum of starting balances in scope, for the "% of balance" cell mode. */
   startingBalanceTotal: string;
+  /** Days with a red folder in the counted currencies (news spec §4: 📰 even without a news trade). */
+  newsDays: string[];
 };
 
 /** The §8.2 month for a scope. */
@@ -232,6 +236,7 @@ export async function calendarMonth(
     statusEvents,
     warningDays: [...warningDays],
     startingBalanceTotal: sumMoney(scope.accounts.map((a) => a.startingBalance)).toFixed(2),
+    newsDays: await redFolderDays(db, range.start, range.end, boundary),
   };
 }
 
@@ -242,6 +247,8 @@ export type DayDetail = {
   rules: { accountId: string; usage: RuleUsage }[];
   statusEvents: StatusEvent[];
   note: { notes: string | null; mood: string | null; marketContext: string | null } | null;
+  /** The day's economic events (news spec §4 day view). */
+  events: NewsEvent[];
 };
 
 /** Everything the §8.2 day view shows. */
@@ -267,6 +274,7 @@ export async function calendarDay(
     rules: contexts.map((ctx) => ({ accountId: ctx.account.id, usage: ruleUsageForDay(ctx, date, boundary) })),
     statusEvents: await loadStatusEvents(db, scope.accountIds, start, end, boundary),
     note: note ?? null,
+    events: await dayEvents(db, start, end),
   };
 }
 
