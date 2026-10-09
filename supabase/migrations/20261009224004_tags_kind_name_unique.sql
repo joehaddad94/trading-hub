@@ -1,0 +1,1 @@
+ALTER TABLE "tags" ADD CONSTRAINT "tags_kind_name_unique" UNIQUE("kind","name");

@@ -30,6 +30,21 @@ function LinkKeepingParams({ href, keep, ...props }: LinkProps & { keep: string[
   return <Link href={(query ? `${href}?${query}` : href) as Route} {...props} />;
 }
 
+function ItemLabel({ item }: { item: NavItem }) {
+  if (!item.badge) return item.label;
+  return (
+    <>
+      {item.label}
+      <span
+        className="ml-1.5 rounded-full bg-amber-500/20 px-1.5 text-[11px] text-amber-400 tabular-nums"
+        data-testid={`nav-badge-${item.label.toLowerCase()}`}
+      >
+        {item.badge}
+      </span>
+    </>
+  );
+}
+
 function isActive(pathname: string, href: string, rootHref: string) {
   return href === rootHref ? pathname === href : pathname === href || pathname.startsWith(`${href}/`);
 }
@@ -50,7 +65,7 @@ export function ModuleSidebar({ items, rootHref, keep }: { items: NavItem[]; roo
             isActive(pathname, item.href, rootHref) && 'bg-accent font-medium',
           )}
         >
-          {item.label}
+          <ItemLabel item={item} />
         </NavLink>
       ))}
     </nav>
@@ -78,7 +93,7 @@ export function ModuleBottomTabs({ items, rootHref, keep }: { items: NavItem[]; 
             isActive(pathname, item.href, rootHref) && 'font-medium text-foreground',
           )}
         >
-          {item.label}
+          <ItemLabel item={item} />
         </NavLink>
       ))}
       <details className="group relative">
@@ -93,7 +108,7 @@ export function ModuleBottomTabs({ items, rootHref, keep }: { items: NavItem[]; 
               keep={keep}
               className="flex h-11 items-center rounded-sm px-3 text-sm hover:bg-accent"
             >
-              {item.label}
+              <ItemLabel item={item} />
             </NavLink>
           ))}
         </div>

@@ -220,6 +220,12 @@ function TradeRow({
           </div>
         ))}
       </dl>
+      <Link
+        href={`/tracker/trades/${t.id}` as Route}
+        className="mt-2 inline-flex h-11 items-center text-sm underline-offset-4 hover:underline md:h-8"
+      >
+        {t.journaled ? 'Open journal' : 'Journal this trade'} →
+      </Link>
     </li>
   );
 }

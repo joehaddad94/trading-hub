@@ -76,7 +76,11 @@ export function TradesTable({
                       '—'
                     )}
                   </td>
-                  <td className="p-2">{t.symbol}</td>
+                  <td className="p-2">
+                    <Link href={`/tracker/trades/${t.id}` as Route} className="font-medium hover:underline">
+                      {t.symbol}
+                    </Link>
+                  </td>
                   <td className="p-2 capitalize">{t.side}</td>
                   <td className="p-2 text-right tabular-nums">{t.lots}</td>
                   <td className="p-2">{SESSION_LABELS[sessionOf(t.openedAt)]}</td>
@@ -110,9 +114,9 @@ export function TradesTable({
           return (
             <li key={t.id} className="rounded-lg border p-3 text-sm" data-testid="trade-row">
               <div className="flex items-center justify-between gap-2">
-                <span className="font-medium">
+                <Link href={`/tracker/trades/${t.id}` as Route} className="font-medium hover:underline">
                   {t.symbol} <span className="capitalize">{t.side}</span> · {t.lots}
-                </span>
+                </Link>
                 <span
                   className={cn('font-semibold tabular-nums', net.gt(0) && 'text-profit', net.lt(0) && 'text-loss')}
                 >

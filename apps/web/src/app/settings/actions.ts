@@ -4,6 +4,8 @@ import * as Sentry from '@sentry/nextjs';
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import type { ActionResult } from '@/lib/action-result';
+import { tagSchema } from '@/modules/tracker/journal/schema';
+import { removeTag, writeTag, writeTagName } from '@/modules/tracker/server/journal';
 import { saveAccountRisk, saveDayAndScratch, saveSymbolSpec } from '@/modules/tracker/server/settings-admin';
 
 const decimal = (max: number, scale: number) =>
@@ -63,5 +65,34 @@ export async function saveAccountRiskAction(_prev: Result | null, form: FormData
   return run(async () => {
     const n = await saveAccountRisk(parsed.data);
     return `Saved. Risk re-resolved on ${n} trades.`;
+  });
+}
+
+export async function createTagAction(_prev: Result | null, form: FormData): Promise<Result> {
+  const parsed = tagSchema.safeParse(Object.fromEntries(form));
+  if (!parsed.success) return { ok: false, error: z.prettifyError(parsed.error) };
+  return run(async () => {
+    await writeTag(parsed.data.name, parsed.data.kind);
+    return 'Tag added.';
+  });
+}
+
+const tagEdit = z.object({
+  id: z.uuid(),
+  name: tagSchema.shape.name,
+  intent: z.enum(['rename', 'delete']),
+});
+
+/** Rename or delete a tag. Deleting removes it from every trade's journal; trades themselves are untouched. */
+export async function editTagAction(_prev: Result | null, form: FormData): Promise<Result> {
+  const parsed = tagEdit.safeParse(Object.fromEntries(form));
+  if (!parsed.success) return { ok: false, error: z.prettifyError(parsed.error) };
+  return run(async () => {
+    if (parsed.data.intent === 'delete') {
+      await removeTag(parsed.data.id);
+      return 'Tag deleted.';
+    }
+    await writeTagName(parsed.data.id, parsed.data.name);
+    return 'Renamed.';
   });
 }

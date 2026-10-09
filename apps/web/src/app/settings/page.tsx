@@ -5,17 +5,30 @@ import { ActionForm } from '@/components/action-form';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { accountLabel } from '@/modules/tracker/scope-label';
+import { getTags } from '@/modules/tracker/server/journal';
 import { getSettings } from '@/modules/tracker/server/settings';
 import { listAccountRisk, listSymbolSpecs } from '@/modules/tracker/server/settings-admin';
 import { ImportOnOpen } from '@/shell/import-on-open';
 import { ModuleHeader } from '@/shell/module-header';
 import { SyncBanner } from '@/shell/sync-banner';
-import { saveAccountRiskAction, saveGeneralSettings, saveSymbolSpecAction } from './actions';
+import {
+  createTagAction,
+  editTagAction,
+  saveAccountRiskAction,
+  saveGeneralSettings,
+  saveSymbolSpecAction,
+} from './actions';
+import { TagEditor } from './tag-editor';
 
-/** Settings (§8.3 screen 12): day boundary, scratch threshold, symbol point values, default risk per account. */
+/** Settings (§8.3 screen 12): day boundary, scratch threshold, symbol point values, default risk, journal tags. */
 export default async function SettingsPage() {
   await connection();
-  const [settings, specs, risks] = await Promise.all([getSettings(), listSymbolSpecs(), listAccountRisk()]);
+  const [settings, specs, risks, tags] = await Promise.all([
+    getSettings(),
+    listSymbolSpecs(),
+    listAccountRisk(),
+    getTags(),
+  ]);
   return (
     <div className="flex min-h-dvh flex-col">
       <ModuleHeader moduleId="settings" />
@@ -132,6 +145,16 @@ export default async function SettingsPage() {
               </li>
             ))}
           </ul>
+        </section>
+
+        <section className="rounded-lg border p-4" aria-labelledby="tags">
+          <h3 id="tags" className="mb-1 font-medium">
+            Journal tags
+          </h3>
+          <p className="mb-3 text-muted-foreground text-xs">
+            Setups and context tags for the trade journal. Mistakes typed on a trade are added here automatically.
+          </p>
+          <TagEditor tags={tags} create={createTagAction} edit={editTagAction} />
         </section>
       </main>
     </div>

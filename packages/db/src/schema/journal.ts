@@ -1,5 +1,17 @@
 import { sql } from 'drizzle-orm';
-import { boolean, check, date, index, integer, numeric, pgTable, primaryKey, text, uuid } from 'drizzle-orm/pg-core';
+import {
+  boolean,
+  check,
+  date,
+  index,
+  integer,
+  numeric,
+  pgTable,
+  primaryKey,
+  text,
+  unique,
+  uuid,
+} from 'drizzle-orm/pg-core';
 import { id, money, price, timestamps } from './_shared';
 import { tagKind } from './enums';
 import { trades } from './trades';
@@ -12,7 +24,7 @@ export const tags = pgTable(
     kind: tagKind().notNull(),
     ...timestamps,
   },
-  (t) => [index().on(t.kind)],
+  (t) => [index().on(t.kind), unique('tags_kind_name_unique').on(t.kind, t.name)],
 );
 
 export const journalEntries = pgTable(

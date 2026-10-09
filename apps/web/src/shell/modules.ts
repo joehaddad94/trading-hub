@@ -2,7 +2,8 @@ import type { Route } from 'next';
 
 export type ModuleId = 'tracker' | 'news' | 'backtest';
 
-export type NavItem = { href: Route; label: string };
+/** `badge`: a count shown next to the label (e.g. trades still to journal). */
+export type NavItem = { href: Route; label: string; badge?: number };
 
 export type ModuleDef = {
   id: ModuleId;

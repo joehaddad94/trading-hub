@@ -36,6 +36,20 @@
       "when": 1791584617668,
       "tag": "20261009222337_app_settings",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1791585505555,
+      "tag": "20261009223825_journal_screenshots_bucket",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1791585604365,
+      "tag": "20261009224004_tags_kind_name_unique",
+      "breakpoints": true
     }
   ]
 }
