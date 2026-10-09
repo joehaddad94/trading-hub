@@ -1,3 +1,5 @@
-// One file per domain (accounts, trades, imports, …) re-exported here.
-// Tables arrive with the Tracker foundation step (tracker spec §5).
-export {};
+export * from './accounts';
+export * from './enums';
+export * from './imports';
+export * from './journal';
+export * from './trades';

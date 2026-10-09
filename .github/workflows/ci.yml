@@ -15,6 +15,8 @@ jobs:
     env:
       NEXT_TELEMETRY_DISABLED: '1'
       ALLOWED_EMAIL: owner@example.com
+      # Matches private.app_config's default; DB integration tests run against the local Supabase.
+      TEST_DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:54322/postgres
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -53,5 +55,3 @@ jobs:
           name: playwright-report
           path: apps/web/test-results
           retention-days: 7
-
-  # DB integration tests (migrations, RLS) join this job in M2.
