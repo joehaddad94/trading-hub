@@ -11,6 +11,7 @@ import {
   trades,
 } from '@trading/db/schema';
 import type { ImportPlan, PlannedAccount } from '../plan';
+import { applyNews, type NewsSummary } from './news';
 import { refreshTradeRisk } from './risk';
 import { learnSymbolSpecs } from './symbols';
 
@@ -24,6 +25,7 @@ export type WriteSummary = {
   cashflows: number;
   statusChanges: number;
   markedMissing: number[];
+  news: NewsSummary | null;
 };
 
 /**
@@ -40,6 +42,7 @@ export async function applyImportPlan(db: Db, plan: ImportPlan): Promise<WriteSu
       cashflows: 0,
       statusChanges: 0,
       markedMissing: [],
+      news: null,
     };
     const idsByExternal = new Map<number, string>();
 
@@ -165,6 +168,7 @@ export async function applyImportPlan(db: Db, plan: ImportPlan): Promise<WriteSu
     }
 
     if (plan.fileStatus === 'ok') summary.markedMissing = await markMissing(tx, firmId, plan);
+    if (plan.news) summary.news = await applyNews(tx, plan.news, plan.generatedAt, plan.fileStatus === 'ok');
     await learnSymbolSpecs(tx, firmId);
     await refreshTradeRisk(tx, [...idsByExternal.values()]);
 

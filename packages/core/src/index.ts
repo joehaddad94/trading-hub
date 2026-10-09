@@ -46,6 +46,15 @@ export {
 } from './metrics/profile';
 export { isFullStopLoss, median, type RiskContext, type RiskInput, type RiskSource, resolveRisk } from './metrics/risk';
 export { money, sumMoney } from './money/money';
+export {
+  type DedupeEvent,
+  DUPLICATE_WINDOW_MS,
+  IMPACT_COLOURS,
+  IMPACT_FROM_FIRM,
+  type NewsImpact,
+  newsRange,
+  resolveDuplicates,
+} from './news/news';
 export { DEFAULT_SCOPE, parseScope, type Scope, serializeScope } from './scope/scope';
 export { derivePointValue, type PointValueSample } from './symbols/point-value';
 export {

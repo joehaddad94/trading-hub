@@ -50,6 +50,13 @@
       "when": 1791585604365,
       "tag": "20261009224004_tags_kind_name_unique",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1791586789887,
+      "tag": "20261009225949_economic_events",
+      "breakpoints": true
     }
   ]
 }

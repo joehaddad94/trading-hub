@@ -5,7 +5,15 @@ import {
   normalizeTrade,
   parseServerTime,
 } from '@trading/contract';
-import { type AccountPhase, type AccountStatus, mapAccountStatus, phaseFromPlanType } from '@trading/core';
+import {
+  type AccountPhase,
+  type AccountStatus,
+  IMPACT_FROM_FIRM,
+  mapAccountStatus,
+  type NewsImpact,
+  newsRange,
+  phaseFromPlanType,
+} from '@trading/core';
 import Decimal from 'decimal.js';
 
 /**
@@ -63,6 +71,23 @@ export type PlannedCashflow = {
   raw: unknown;
 };
 
+export type PlannedNewsEvent = {
+  externalId: number;
+  title: string;
+  currency: string;
+  impact: NewsImpact;
+  /** From the unix `timestamp` — true UTC for news (CLAUDE.md rule 13). */
+  eventAt: Date;
+  forecast: string | null;
+  previous: string | null;
+  isRestricted: boolean;
+  restrictionLabel: string | null;
+  raw: unknown;
+};
+
+/** News spec §1.2: the synced range (UTC days) and every event the firm listed in it. */
+export type PlannedNews = { range: { start: Date; end: Date } | null; events: PlannedNewsEvent[] };
+
 export type ImportPlan = {
   firm: string;
   generatedAt: Date;
@@ -70,6 +95,7 @@ export type ImportPlan = {
   fileStatus: 'ok' | 'partial' | 'error';
   accounts: PlannedAccount[];
   cashflows: PlannedCashflow[];
+  news: PlannedNews | null;
   rejectedAccounts: { login: number; reason: string }[];
   warnings: string[];
 };
@@ -112,9 +138,33 @@ export function planImport(file: ExportFile): ImportPlan {
       externalRef: `fundednext:payment:${p.id}`,
       raw: p,
     })),
+    news: file.news ? planNews(file.news, warnings) : null,
     rejectedAccounts,
     warnings,
   };
+}
+
+function planNews(news: NonNullable<ExportFile['news']>, warnings: string[]): PlannedNews {
+  if (news.timezone && news.timezone !== 'Etc/UTC' && news.timezone !== 'UTC') {
+    warnings.push(`News queried in ${news.timezone}; event times come from the unix timestamp and stay UTC`);
+  }
+  const byId = new Map<number, PlannedNewsEvent>();
+  for (const e of news.events) {
+    byId.set(e.id, {
+      externalId: e.id,
+      title: e.title.trim(),
+      currency: e.country.trim().toUpperCase(),
+      impact: IMPACT_FROM_FIRM[e.impact] ?? 'low',
+      eventAt: new Date(e.timestamp * 1000),
+      forecast: e.forecast || null,
+      previous: e.previous || null,
+      isRestricted: e.is_restricted === 1 || e.is_restricted === true,
+      restrictionLabel: e.restriction ?? null,
+      raw: e,
+    });
+  }
+  if (byId.size < news.events.length) warnings.push(`${news.events.length - byId.size} repeated news id(s) ignored`);
+  return { range: news.range ? newsRange(news.range) : null, events: [...byId.values()] };
 }
 
 function planAccount(account: ExportAccount, offset: string): PlannedAccount {

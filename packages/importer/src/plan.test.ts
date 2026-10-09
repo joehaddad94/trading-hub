@@ -82,6 +82,37 @@ describe('planImport — Phase 0 fixture', () => {
   });
 });
 
+describe('planImport — news', () => {
+  const plan = planImport(fixture());
+
+  it('plans the news range and events with UTC times from the unix timestamp', () => {
+    expect(plan.news?.range).toEqual({
+      start: new Date('2026-10-05T00:00:00Z'),
+      end: new Date('2026-10-10T00:00:00Z'),
+    });
+    expect(plan.news?.events).toHaveLength(11);
+    const ism = plan.news?.events.find((e) => e.externalId === 1893744);
+    expect(ism).toMatchObject({
+      title: 'ISM Services PMI',
+      currency: 'USD',
+      impact: 'medium',
+      eventAt: new Date('2026-10-05T14:00:00Z'),
+      forecast: '55.1',
+      isRestricted: false,
+    });
+  });
+
+  it('ignores a repeated id and warns', () => {
+    const file = fixture();
+    const first = file.news?.events[0];
+    if (!file.news || !first) throw new Error('fixture changed');
+    file.news.events.push({ ...first });
+    const p = planImport(file);
+    expect(p.news?.events).toHaveLength(11);
+    expect(p.warnings.some((w) => w.includes('repeated news id'))).toBe(true);
+  });
+});
+
 describe('planImport — checksum rejection', () => {
   it('rejects an account whose trades were mistyped, keeping the others', () => {
     const file = fixture();
