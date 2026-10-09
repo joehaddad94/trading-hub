@@ -126,7 +126,8 @@ The News module is its own workspace with its own navigation (Week view, Event h
 
 - `is_restricted` marks events where FundedNext's news rules apply. The **window length** (minutes before/after) and **which instruments** it covers are FundedNext rules — **do not hard-code them**. Store them as settings (`news_restriction_minutes_before`, `..._after`, applicable currencies) with defaults Joe confirms (see §8).
 - Joe's funded account (7002880) has the **News Trading Allowed** add-on (`ANT`), so restriction windows may not apply to it — the restriction setting must be **per account**, defaulting to off for accounts with `ANT = 1`.
-- Restricted events of other currencies (e.g. CAD, GBP, JPY high-impact were restricted in Oct 2026 data) are shown, but whether they affect US30/NAS100 depends on the firm's rules → setting.
+- **Build the badges in N3 anyway** (decided 9 Oct 2026), behind the per-account setting. Defaults: **off** for accounts with `ANT = 1` and for challenge-phase accounts (P1/P2), since FundedNext's rule applies only on the funded account; **on** for funded accounts without `ANT`. With Joe's current accounts nothing is flagged by default — that is expected, not a bug.
+- Restricted events of other currencies (e.g. CAD, GBP, JPY high-impact were restricted in Oct 2026 data) are shown, but they do not affect US30/NAS100: FundedNext counts only events that directly correlate with the instrument (verified 9 Oct 2026, §8). Keep it a setting in case the rule changes.
 
 ---
 
