@@ -157,6 +157,8 @@ export type AccountDetail = AccountSummary & {
     dailyLossPct: string | null;
     maxLossPct: string | null;
     profitTargetPct: string | null;
+    /** When the export these limits came from was generated (limits come from data, never hard-coded). */
+    takenAt: Date;
     /** Usage on the last trading day (or today when nothing traded yet). */
     lastDay: string;
     usage: RuleUsage;
@@ -186,6 +188,7 @@ export async function accountDetail(
       daily: ruleSnapshots.dailyLossLimit,
       max: ruleSnapshots.maxLossLimit,
       target: ruleSnapshots.profitTarget,
+      takenAt: ruleSnapshots.takenAt,
     })
     .from(ruleSnapshots)
     .where(eq(ruleSnapshots.accountId, summary.id))
@@ -231,7 +234,14 @@ export async function accountDetail(
     ),
     rules:
       rules && usage
-        ? { dailyLossPct: rules.daily, maxLossPct: rules.max, profitTargetPct: rules.target, lastDay, usage }
+        ? {
+            dailyLossPct: rules.daily,
+            maxLossPct: rules.max,
+            profitTargetPct: rules.target,
+            takenAt: rules.takenAt,
+            lastDay,
+            usage,
+          }
         : null,
     timeline: lifecycle(summary, history),
   };

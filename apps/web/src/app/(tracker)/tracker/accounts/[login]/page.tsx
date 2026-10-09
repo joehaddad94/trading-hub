@@ -137,7 +137,14 @@ function OverviewTab({ a }: { a: Detail }) {
         </dl>
       </section>
       <section className="rounded-lg border p-4" data-testid="rule-limits">
-        <h3 className="mb-2 font-medium">Rule limits</h3>
+        <h3 className="mb-2 font-medium">
+          Rule limits
+          {a.rules && (
+            <span className="ml-2 font-normal text-muted-foreground text-xs">
+              from the export of {formatBeirut(a.rules.takenAt, 'd MMM yyyy HH:mm')}
+            </span>
+          )}
+        </h3>
         {!a.rules || !u ? (
           <p className="text-muted-foreground text-sm">No rule data in the exports for this account.</p>
         ) : (

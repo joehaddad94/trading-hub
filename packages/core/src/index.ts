@@ -36,6 +36,7 @@ export {
   type TradeStats,
   tradeStats,
 } from './metrics/metrics';
+export { type Cashflow, type CashflowKind, type MoneySummary, moneySummary } from './metrics/money';
 export {
   biggestDeltas,
   type ProfileKey,

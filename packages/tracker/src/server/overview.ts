@@ -1,8 +1,7 @@
 import { type Drawdown, equityCurve, maxDrawdown, type TradeStats, tradeStats } from '@trading/core';
 import type { Executor } from '@trading/db';
-import { sql } from '@trading/db/orm';
-import { cashflows } from '@trading/db/schema';
-import Decimal from 'decimal.js';
+import type Decimal from 'decimal.js';
+import { money } from './money';
 import type { ResolvedScope } from './scope';
 import { DEFAULT_SETTINGS, type TrackerSettings } from './settings';
 import { scopedTrades } from './trades';
@@ -19,17 +18,10 @@ export type OverviewData = {
   netPropResult: NetPropResult;
 };
 
-/** Net prop result (§6): Σ payouts − Σ fees, across every account ever. Fees are stored negative. */
+/** Net prop result (§6): Σ payouts − Σ fees, across every account ever (one definition: core `moneySummary`). */
 export async function netPropResult(db: Executor): Promise<NetPropResult> {
-  const [row] = await db
-    .select({
-      payouts: sql<string>`coalesce(sum(${cashflows.amountUsd}) filter (where ${cashflows.amountUsd} > 0), 0)::text`,
-      fees: sql<string>`coalesce(sum(${cashflows.amountUsd}) filter (where ${cashflows.amountUsd} < 0), 0)::text`,
-    })
-    .from(cashflows);
-  const payouts = new Decimal(row?.payouts ?? 0);
-  const fees = new Decimal(row?.fees ?? 0).abs();
-  return { payouts, fees, net: payouts.minus(fees) };
+  const { summary } = await money(db, null);
+  return { payouts: summary.payouts, fees: summary.fees, net: summary.net };
 }
 
 /** Tracker Overview (§8.3 screen 1), scoped. */

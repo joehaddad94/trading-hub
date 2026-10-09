@@ -21,6 +21,7 @@ export {
 } from './calendar';
 export { type TrackerHubSummary, trackerHubSummary } from './hub';
 export * from './journal';
+export * from './money';
 export { type NetPropResult, netPropResult, type OverviewData, overview } from './overview';
 export { accountsById, listScopeAccounts, type ResolvedScope, resolveScope, type ScopeAccount } from './scope';
 export {
