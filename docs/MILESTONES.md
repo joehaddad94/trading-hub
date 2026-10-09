@@ -21,8 +21,8 @@ A milestone marked **⛔ Blocked** needs an answer from Joe (see "Open questions
 
 | # | Milestone | Spec | State |
 |---|---|---|---|
-| M1 | Scaffold | arch §12.1 | ✅ Done (local; push blocked) |
-| M2 | Database schema + RLS | tracker §5, §5.1 | ✅ Done (local; push blocked) |
+| M1 | Scaffold | arch §12.1 | ✅ Done — PR #1 |
+| M2 | Database schema + RLS | tracker §5, §5.1 | ✅ Done — PR #1 |
 | M3 | Export contract + import planner (pure) | tracker §4 | Not started |
 | M4 | Import pipeline | tracker phase 1 | Not started |
 | M5 | Sync health & alerts | tracker phase 2, §7 | Not started |
@@ -155,6 +155,6 @@ Things that stopped a step. Work continues on the next milestone; each entry is 
 
 | Date | Milestone | What | Needs |
 |---|---|---|---|
-| 2026-10-09 | M1 | `git push` to github.com/joehaddad94/trading-hub refused (403: Claude has no GitHub access to the repo). Commits are kept locally and as a git bundle in the project files (`trading-hub/backup/trading-hub.bundle`). | Joe reconnects GitHub / installs the Claude GitHub App on the repo |
+| 2026-10-09 | M1 | ~~`git push` refused (403, no GitHub access).~~ Resolved same day: Joe reconnected GitHub; pushed as PR #1. | — |
 | 2026-10-09 | M1 | Signed-in Playwright tests can't run in the cloud container (Supabase Docker images can't be pulled); they run in CI. | First CI run after the push |
 | 2026-10-09 | M2 | `supabase db reset` can't run in the cloud container. Migrations and the 11 DB integration tests were verified on a plain Postgres 16 with a Supabase stub (`scripts/db-plain-postgres.sh`); CI runs them on real Supabase. | First CI run after the push |
