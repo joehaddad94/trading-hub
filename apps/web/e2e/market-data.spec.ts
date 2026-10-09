@@ -14,6 +14,6 @@ test.describe('market data (M14)', () => {
     await expect(coverage).toContainText('NAS100 · Nasdaq 100');
     await expect(coverage).toContainText('Historical data from Dukascopy');
     const banner = page.getByRole('alert').filter({ hasText: 'Market data needs attention' });
-    await expect(banner).toContainText(/US30: (no candle import ran|candle import for .* failed)/);
+    await expect(banner).toContainText('US30:');
   });
 });

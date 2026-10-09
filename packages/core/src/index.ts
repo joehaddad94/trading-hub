@@ -93,4 +93,12 @@ export {
 } from './sync/health';
 export { lastExpectedRun, PRODUCER_TZ } from './sync/schedule';
 export { type DayBoundary, DEFAULT_DAY_BOUNDARY, dayRange, monthRange, tradingDay } from './time/days';
-export { SESSION_LABELS, SESSION_TZ, SESSIONS, type SessionName, sessionOf } from './time/sessions';
+export {
+  SESSION_LABELS,
+  SESSION_TZ,
+  SESSIONS,
+  type SessionName,
+  type SessionRun,
+  sessionOf,
+  sessionRuns,
+} from './time/sessions';

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { dayRange, monthRange, tradingDay } from './days';
-import { sessionOf } from './sessions';
+import { sessionOf, sessionRuns } from './sessions';
 
 describe('sessionOf (kill zones, America/New_York)', () => {
   // 9 Oct 2026: New York is UTC-4 (EDT)
@@ -76,5 +76,18 @@ describe('dayRange', () => {
     const ny = dayRange('2026-10-12', { timeZone: 'America/New_York', rolloverHour: 17 });
     expect(ny.start.toISOString()).toBe('2026-10-11T21:00:00.000Z');
     expect(ny.end.toISOString()).toBe('2026-10-12T21:00:00.000Z');
+  });
+});
+
+describe('sessionRuns', () => {
+  it('groups consecutive bars by kill zone; outside bars break runs', () => {
+    // 2026-10-07 (EDT): London 06:00–09:00 UTC, NY AM 13:30–16:00 UTC.
+    const at = (iso: string) => Date.parse(`2026-10-07T${iso}:00Z`);
+    const bars = ['05:45', '06:00', '06:15', '08:45', '09:00', '13:15', '13:30', '13:45'].map(at);
+    expect(sessionRuns(bars)).toEqual([
+      { name: 'london', from: at('06:00'), to: at('08:45') },
+      { name: 'ny_am', from: at('13:30'), to: at('13:45') },
+    ]);
+    expect(sessionRuns([])).toEqual([]);
   });
 });

@@ -26,3 +26,26 @@ export function sessionOf(openedAt: Date): SessionName {
   const minute = ny.getHours() * 60 + ny.getMinutes();
   return SESSIONS.find((s) => minute >= s.start && minute < s.end)?.name ?? 'outside';
 }
+
+export type SessionRun = { name: Exclude<SessionName, 'outside'>; from: number; to: number };
+
+/**
+ * Consecutive bars in the same kill zone, for session shading on the chart (backtester spec §2.2).
+ * `from`/`to` are the first and last bar timestamps of each run; a bar outside every zone ends a run.
+ */
+export function sessionRuns(timestamps: number[]): SessionRun[] {
+  const runs: SessionRun[] = [];
+  let open: SessionRun | null = null;
+  for (const ts of timestamps) {
+    const name = sessionOf(new Date(ts));
+    if (name === 'outside') {
+      open = null;
+    } else if (open && open.name === name) {
+      open.to = ts;
+    } else {
+      open = { name, from: ts, to: ts };
+      runs.push(open);
+    }
+  }
+  return runs;
+}
