@@ -1,11 +1,11 @@
 'use server';
 
 import * as Sentry from '@sentry/nextjs';
-import { importUploadedFile } from '@trading/importer/server';
+import { importUploadedFile, sendTestAlert } from '@trading/importer/server';
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import { getDb } from '@/lib/server/db';
-import { importFromInbox } from '@/lib/server/imports';
+import { importFromInbox, runHealthCheck } from '@/lib/server/imports';
 
 export type ActionResult<T> = { ok: true; data: T } | { ok: false; error: string };
 
@@ -50,4 +50,23 @@ function describe(result: string, error: string | undefined) {
   if (result === 'already_imported') return 'This file was already imported; nothing changed.';
   if (result === 'partial') return `Imported with warnings:\n${error ?? ''}`;
   return 'Imported.';
+}
+
+export async function runHealthCheckAction(_prev: ActionResult<string> | null): Promise<ActionResult<string>> {
+  const result = await runHealthCheck();
+  revalidatePath('/settings/imports');
+  if (!result) return { ok: false, error: 'The health check could not run.' };
+  if (result.conditions.length === 0) return { ok: true, data: 'Healthy: no sync problems found.' };
+  return {
+    ok: true,
+    data: `${result.conditions.length} problem(s):\n${result.conditions.map((c) => c.message).join('\n')}`,
+  };
+}
+
+export async function sendTestAlertAction(_prev: ActionResult<string> | null): Promise<ActionResult<string>> {
+  const db = getDb();
+  if (!db) return { ok: false, error: 'The database is not configured.' };
+  await sendTestAlert(db, new Date());
+  revalidatePath('/settings/imports');
+  return { ok: true, data: 'Test alert sent to the in-app channel.' };
 }

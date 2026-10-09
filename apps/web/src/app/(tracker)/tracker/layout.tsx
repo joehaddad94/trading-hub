@@ -3,6 +3,7 @@ import { ImportOnOpen } from '@/shell/import-on-open';
 import { ModuleHeader } from '@/shell/module-header';
 import { ModuleBottomTabs, ModuleSidebar } from '@/shell/module-nav';
 import { getModule } from '@/shell/modules';
+import { SyncBanner } from '@/shell/sync-banner';
 
 export default function TrackerLayout({ children }: { children: ReactNode }) {
   const mod = getModule('tracker');
@@ -11,6 +12,7 @@ export default function TrackerLayout({ children }: { children: ReactNode }) {
       {/* The account scope selector (§8.1) mounts in the header in M6. */}
       <ImportOnOpen />
       <ModuleHeader moduleId="tracker" />
+      <SyncBanner />
       <div className="flex flex-1">
         <ModuleSidebar items={mod.nav} rootHref={mod.href} />
         <main className="flex-1 pb-16 md:pb-0">{children}</main>

@@ -4,7 +4,7 @@ import { useActionState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { type ActionResult, syncNow, uploadExport } from './actions';
+import { type ActionResult, runHealthCheckAction, sendTestAlertAction, syncNow, uploadExport } from './actions';
 
 function Result({ state }: { state: ActionResult<string> | null }) {
   if (!state) return null;
@@ -44,5 +44,28 @@ export function UploadForm() {
       </Button>
       <Result state={state} />
     </form>
+  );
+}
+
+export function HealthForms() {
+  const [check, checkAction, checking] = useActionState(runHealthCheckAction, null);
+  const [test, testAction, testing] = useActionState(sendTestAlertAction, null);
+  return (
+    <div className="flex flex-col gap-3">
+      <div className="flex flex-wrap gap-2">
+        <form action={checkAction}>
+          <Button type="submit" variant="secondary" disabled={checking}>
+            {checking ? 'Checking…' : 'Run health check'}
+          </Button>
+        </form>
+        <form action={testAction}>
+          <Button type="submit" variant="outline" disabled={testing}>
+            {testing ? 'Sending…' : 'Send test alert'}
+          </Button>
+        </form>
+      </div>
+      <Result state={check} />
+      <Result state={test} />
+    </div>
   );
 }

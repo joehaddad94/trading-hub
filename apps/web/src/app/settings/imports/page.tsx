@@ -2,18 +2,22 @@ import { connection } from 'next/server';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { formatBeirut } from '@/lib/format';
 import { getDb } from '@/lib/server/db';
-import { getInbox, listRecentImports } from '@/lib/server/imports';
+import { getInbox, getRecentAlerts, listRecentImports } from '@/lib/server/imports';
+import { ImportOnOpen } from '@/shell/import-on-open';
 import { ModuleHeader } from '@/shell/module-header';
-import { SyncNowForm, UploadForm } from './import-forms';
+import { SyncBanner } from '@/shell/sync-banner';
+import { HealthForms, SyncNowForm, UploadForm } from './import-forms';
 
 export default async function ImportsPage() {
   await connection();
   const db = getDb();
-  const rows = await listRecentImports();
+  const [rows, alerts] = await Promise.all([listRecentImports(), getRecentAlerts()]);
 
   return (
     <div className="flex min-h-dvh flex-col">
       <ModuleHeader moduleId="settings" />
+      <SyncBanner />
+      <ImportOnOpen />
       <main className="mx-auto flex w-full max-w-4xl flex-col gap-4 p-4 md:p-6">
         <h2 className="font-semibold text-xl">Imports &amp; health</h2>
 
@@ -26,6 +30,28 @@ export default async function ImportsPage() {
           </CardHeader>
           <CardContent>
             <SyncNowForm />
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Sync health</CardTitle>
+            <CardDescription>Checks run daily and on every page load. Alerts are in-app only for now.</CardDescription>
+          </CardHeader>
+          <CardContent className="flex flex-col gap-4">
+            <HealthForms />
+            {alerts.length > 0 && (
+              <ul className="flex flex-col divide-y text-sm">
+                {alerts.map((a) => (
+                  <li key={a.id} className="flex flex-col gap-0.5 py-2">
+                    <span className="font-medium">
+                      {a.kind} <span className="font-normal text-muted-foreground">· {formatBeirut(a.sentAt)}</span>
+                    </span>
+                    <span className="break-words text-muted-foreground">{a.message}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
           </CardContent>
         </Card>
 

@@ -25,7 +25,7 @@ A milestone marked **⛔ Blocked** needs an answer from Joe (see "Open questions
 | M2 | Database schema + RLS | tracker §5, §5.1 | ✅ Done — PR #1 |
 | M3 | Export contract + import planner (pure) | tracker §4 | ✅ Done — PR #1 |
 | M4 | Import pipeline | tracker phase 1 | ✅ Done — PR #1 |
-| M5 | Sync health & alerts | tracker phase 2, §7 | Not started |
+| M5 | Sync health & alerts | tracker phase 2, §7 | ✅ Done — PR #1 |
 | M6 | Metrics + global scope + hub summaries | tracker §6, §8.0, §8.1 | Not started |
 | M7 | Trading calendar | tracker §8.2 | Not started |
 | M8 | Overview, accounts, trades | tracker phase 3, §8.3 screens 1–5 | Not started |

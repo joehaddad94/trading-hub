@@ -1,5 +1,5 @@
 import { sql } from 'drizzle-orm';
-import { boolean, check, integer, jsonb, pgTable, text, uniqueIndex, uuid } from 'drizzle-orm/pg-core';
+import { boolean, check, index, integer, jsonb, pgTable, text, uniqueIndex, uuid } from 'drizzle-orm/pg-core';
 import { id, money, timestamps, tstz } from './_shared';
 import { accounts, firms } from './accounts';
 import { cashflowKind, importResult } from './enums';
@@ -34,19 +34,30 @@ export const syncHealth = pgTable(
     lastCheckAt: tstz(),
     lastAlertAt: tstz(),
     consecutiveFailures: integer().notNull().default(0),
+    /** Run-level failure not tied to one file: 'drive_access' or 'import_failed'. Cleared by a good run. */
+    lastRunErrorKind: text(),
+    lastRunError: text(),
+    lastRunErrorAt: tstz(),
+    /** Set while any §7 condition holds; drives the "recovered" message. */
+    unhealthySince: tstz(),
+    activeConditions: jsonb(),
     ...timestamps,
   },
   (t) => [check('sync_health_single_row', sql`${t.id}`)],
 );
 
-export const alertsLog = pgTable('alerts_log', {
-  id: id(),
-  kind: text().notNull(),
-  message: text().notNull(),
-  channel: text().notNull(),
-  sentAt: tstz().notNull().defaultNow(),
-  ...timestamps,
-});
+export const alertsLog = pgTable(
+  'alerts_log',
+  {
+    id: id(),
+    kind: text().notNull(),
+    message: text().notNull(),
+    channel: text().notNull(),
+    sentAt: tstz().notNull().defaultNow(),
+    ...timestamps,
+  },
+  (t) => [index().on(t.kind, t.sentAt)],
+);
 
 export const cashflows = pgTable('cashflows', {
   id: id(),
