@@ -1,0 +1,21 @@
+{
+  "name": "@trading/contract",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./fixtures/*": "./fixtures/*"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --coverage"
+  },
+  "dependencies": {
+    "decimal.js": "^10.6.0",
+    "zod": "^4.6.5"
+  },
+  "devDependencies": {
+    "@trading/config": "workspace:*"
+  }
+}

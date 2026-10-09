@@ -23,7 +23,7 @@ A milestone marked **⛔ Blocked** needs an answer from Joe (see "Open questions
 |---|---|---|---|
 | M1 | Scaffold | arch §12.1 | ✅ Done — PR #1 |
 | M2 | Database schema + RLS | tracker §5, §5.1 | ✅ Done — PR #1 |
-| M3 | Export contract + import planner (pure) | tracker §4 | Not started |
+| M3 | Export contract + import planner (pure) | tracker §4 | ✅ Done — PR #1 |
 | M4 | Import pipeline | tracker phase 1 | Not started |
 | M5 | Sync health & alerts | tracker phase 2, §7 | Not started |
 | M6 | Metrics + global scope + hub summaries | tracker §6, §8.0, §8.1 | Not started |
@@ -159,3 +159,4 @@ Things that stopped a step. Work continues on the next milestone; each entry is 
 | 2026-10-09 | M1 | Signed-in Playwright tests can't run in the cloud container (Supabase Docker images can't be pulled); they run in CI. | First CI run after the push |
 | 2026-10-09 | M2 | `supabase db reset` can't run in the cloud container. Migrations and the 11 DB integration tests were verified on a plain Postgres 16 with a Supabase stub (`scripts/db-plain-postgres.sh`); CI runs them on real Supabase. | First CI run after the push |
 | 2026-10-09 | M1 | GitHub Actions jobs on PR #1 fail before any step (no runner assigned, empty logs): account-level refusal, likely billing/spending limit or Actions disabled. Local gate used instead; later milestones keep adding commits to PR #1 since nothing can merge green. | Joe checks the run page reason and fixes Actions |
+| 2026-10-09 | M3 | Payout rows: no payout exists in the data yet, so their shape is unverified. They are validated loosely and kept raw only (importer warning); mapping lands when a real payout appears. Firm status-history labels (e.g. "Migration Request") don't map cleanly to §5.1 statuses; they're stored with the raw label as the reason. | A real payout in an export |
