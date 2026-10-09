@@ -3,10 +3,12 @@
 export {
   and,
   asc,
+  between,
   desc,
   eq,
   gt,
   gte,
+  ilike,
   inArray,
   isNotNull,
   isNull,

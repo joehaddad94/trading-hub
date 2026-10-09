@@ -80,6 +80,9 @@ importers:
       '@trading/importer':
         specifier: workspace:*
         version: link:../../packages/importer
+      '@trading/news':
+        specifier: workspace:*
+        version: link:../../packages/news
       '@trading/tracker':
         specifier: workspace:*
         version: link:../../packages/tracker
@@ -216,6 +219,22 @@ importers:
       postgres:
         specifier: ^3.4.9
         version: 3.4.9
+
+  packages/news:
+    dependencies:
+      '@trading/core':
+        specifier: workspace:*
+        version: link:../core
+      '@trading/db':
+        specifier: workspace:*
+        version: link:../db
+    devDependencies:
+      '@trading/config':
+        specifier: workspace:*
+        version: link:../config
+      '@trading/importer':
+        specifier: workspace:*
+        version: link:../importer
 
   packages/tracker:
     dependencies:

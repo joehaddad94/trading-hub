@@ -23,6 +23,7 @@
     "@trading/core": "workspace:*",
     "@trading/db": "workspace:*",
     "@trading/importer": "workspace:*",
+    "@trading/news": "workspace:*",
     "@trading/tracker": "workspace:*",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",

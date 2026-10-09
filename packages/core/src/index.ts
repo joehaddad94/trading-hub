@@ -55,6 +55,21 @@ export {
   newsRange,
   resolveDuplicates,
 } from './news/news';
+export {
+  activeRestrictions,
+  type CalendarEvent,
+  countdown,
+  groupWeek,
+  mondayOf,
+  NEWS_DAYS,
+  type NewsDay,
+  nextEvent,
+  parseWeek,
+  type RestrictionWindow,
+  shiftWeek,
+  weekDates,
+  weekRange,
+} from './news/week';
 export { DEFAULT_SCOPE, parseScope, type Scope, serializeScope } from './scope/scope';
 export { derivePointValue, type PointValueSample } from './symbols/point-value';
 export {

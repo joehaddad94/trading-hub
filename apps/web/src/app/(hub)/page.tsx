@@ -2,16 +2,19 @@ import Link from 'next/link';
 import { connection } from 'next/server';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { NewsHubCardSummary } from '@/modules/news/components/hub-card-summary';
+import { getNewsHubSummary } from '@/modules/news/server/news';
 import { TrackerHubCardSummary } from '@/modules/tracker/components/hub-card-summary';
 import { getTrackerHubSummary } from '@/modules/tracker/server/hub';
 import { ImportOnOpen } from '@/shell/import-on-open';
 import { MODULES } from '@/shell/modules';
 import { SyncBanner, SyncStatusLine } from '@/shell/sync-banner';
 
-/** Tracker spec §8.0 hub. News and Backtest summaries arrive with their milestones (M12, M21). */
+/** Tracker spec §8.0 hub. The Backtest summary arrives with M21. */
 export default async function HubPage() {
   await connection();
-  const tracker = await getTrackerHubSummary();
+  const now = new Date();
+  const [tracker, news] = await Promise.all([getTrackerHubSummary(), getNewsHubSummary(now)]);
   return (
     <>
       <SyncBanner />
@@ -35,7 +38,7 @@ export default async function HubPage() {
               </CardHeader>
               <CardContent className="text-muted-foreground text-sm">
                 {m.id === 'tracker' && <TrackerHubCardSummary summary={tracker} />}
-                {m.id === 'news' && <span>No data yet.</span>}
+                {m.id === 'news' && <NewsHubCardSummary summary={news} now={now} />}
                 {m.id === 'backtest' && (
                   <>
                     <span>No sessions yet.</span> <span className="md:hidden">Best on desktop.</span>
