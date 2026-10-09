@@ -155,5 +155,5 @@ Things that stopped a step. Work continues on the next milestone; each entry is 
 
 | Date | Milestone | What | Needs |
 |---|---|---|---|
-| 2026-10-09 | M1 | `git push` to github.com/joehaddad94/trading-hub refused (403: Claude has no GitHub access to the repo). Commits are kept locally and as a git bundle in the project files (`trading-hub/trading-hub.bundle`). | Joe reconnects GitHub / installs the Claude GitHub App on the repo |
+| 2026-10-09 | M1 | `git push` to github.com/joehaddad94/trading-hub refused (403: Claude has no GitHub access to the repo). Commits are kept locally and as a git bundle in the project files (`trading-hub/backup/trading-hub.bundle`). | Joe reconnects GitHub / installs the Claude GitHub App on the repo |
 | 2026-10-09 | M1 | Signed-in Playwright tests can't run in the cloud container (Supabase Docker images can't be pulled); they run in CI. | First CI run after the push |
