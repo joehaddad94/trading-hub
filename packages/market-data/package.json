@@ -1,0 +1,25 @@
+{
+  "name": "@trading/market-data",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./server": "./src/server/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --coverage"
+  },
+  "dependencies": {
+    "@trading/core": "workspace:*",
+    "@trading/db": "workspace:*",
+    "dukascopy-node": "1.50.0",
+    "@date-fns/tz": "^1.5.0",
+    "decimal.js": "^10.6.0",
+    "@trading/importer": "workspace:*"
+  },
+  "devDependencies": {
+    "@trading/config": "workspace:*"
+  }
+}

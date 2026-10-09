@@ -9,10 +9,11 @@ const nextConfig: NextConfig = {
     '@trading/db',
     '@trading/contract',
     '@trading/importer',
+    '@trading/market-data',
     '@trading/news',
     '@trading/tracker',
   ],
-  serverExternalPackages: ['@googleapis/drive'],
+  serverExternalPackages: ['@googleapis/drive', 'dukascopy-node'],
 };
 
 export default nextConfig;

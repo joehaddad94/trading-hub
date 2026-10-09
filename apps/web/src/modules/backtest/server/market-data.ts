@@ -1,0 +1,55 @@
+import 'server-only';
+import * as Sentry from '@sentry/nextjs';
+import { type CandleCondition, previousUtcDay } from '@trading/market-data';
+import {
+  candleCoverage,
+  checkCandleHealth,
+  dukascopyProvider,
+  getCandleConditions,
+  type IngestResult,
+  ingestDay,
+} from '@trading/market-data/server';
+import { getDb } from '@/lib/server/db';
+
+/** `ok` is false when the job crashed or any instrument's fetch failed. */
+export type CandleJobRun = { ok: boolean; day: string; results: IngestResult[]; error?: string };
+
+/**
+ * Daily candle job (backtester spec §1.3): previous UTC day for each instrument, then the gap/alert check.
+ * Idempotent (upserts). Provider failures become `failed` runs; anything not ok is reported to Sentry.
+ */
+export async function runCandleJob(now = new Date()): Promise<CandleJobRun> {
+  const db = getDb();
+  const day = previousUtcDay(now);
+  if (!db) return { ok: false, day, results: [], error: 'DATABASE_URL is not configured.' };
+  try {
+    const results = await ingestDay(db, dukascopyProvider, day, { now });
+    for (const r of results.filter((x) => x.status !== 'ok')) {
+      Sentry.captureMessage(`cron/candles ${r.code} ${day}: ${r.status}${r.error ? ` — ${r.error}` : ''}`, 'error');
+    }
+    return { ok: results.every((r) => r.status !== 'failed'), day, results };
+  } catch (error) {
+    Sentry.captureException(error);
+    return { ok: false, day, results: [], error: (error as Error).message };
+  } finally {
+    await checkCandleHealth(db, now).catch((e: unknown) => Sentry.captureException(e));
+  }
+}
+
+export type CandleStatus = {
+  conditions: CandleCondition[];
+  coverage: Awaited<ReturnType<typeof candleCoverage>>;
+};
+
+/** Backtest Lab: data health banner + coverage. Cheap reads, no side effects. */
+export async function getCandleStatus(now = new Date()): Promise<CandleStatus | null> {
+  const db = getDb();
+  if (!db) return null;
+  try {
+    const [conditions, coverage] = await Promise.all([getCandleConditions(db, now), candleCoverage(db)]);
+    return { conditions, coverage };
+  } catch (error) {
+    Sentry.captureException(error);
+    return null;
+  }
+}

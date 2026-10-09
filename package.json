@@ -14,7 +14,8 @@
     "test:e2e": "turbo run test:e2e",
     "boundaries": "depcruise apps packages --config packages/config/dependency-cruiser.cjs",
     "db:generate": "drizzle-kit generate --config packages/db/drizzle.config.ts",
-    "db:reprocess": "tsx scripts/reprocess-imports.ts"
+    "db:reprocess": "tsx scripts/reprocess-imports.ts",
+    "db:backfill-candles": "tsx scripts/backfill-candles.ts"
   },
   "engines": {
     "node": ">=22"
@@ -31,6 +32,7 @@
     "tsx": "^4.23.15",
     "turbo": "^2.11.7",
     "typescript": "^6.0.3",
-    "vitest": "^5.0.3"
+    "vitest": "^5.0.3",
+    "@trading/market-data": "workspace:*"
   }
 }

@@ -30,4 +30,10 @@ test.describe('signed out', () => {
     const wrong = await request.get('/api/cron/import', { headers: { authorization: 'Bearer nope' } });
     expect(wrong.status()).toBe(401);
   });
+
+  test('the candle cron refuses a request without the secret', async ({ request }) => {
+    expect((await request.get('/api/cron/candles')).status()).toBe(401);
+    const wrong = await request.get('/api/cron/candles', { headers: { authorization: 'Bearer nope' } });
+    expect(wrong.status()).toBe(401);
+  });
 });
