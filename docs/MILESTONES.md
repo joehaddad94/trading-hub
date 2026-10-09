@@ -28,7 +28,7 @@ A milestone marked **⛔ Blocked** needs an answer from Joe (see "Open questions
 | M5 | Sync health & alerts | tracker phase 2, §7 | ✅ Done — PR #1 |
 | M6 | Metrics + global scope + hub summaries | tracker §6, §8.0, §8.1 | ✅ Done — PR #1 |
 | M7 | Trading calendar | tracker §8.2 | ✅ Done — PR #1 |
-| M8 | Overview, accounts, trades | tracker phase 3, §8.3 screens 1–5 | Not started |
+| M8 | Overview, accounts, trades | tracker phase 3, §8.3 screens 1–5 | ✅ Done — PR #1 |
 | M9 | Journal | tracker phase 4 | Not started |
 | M10 | Money & rules | tracker phase 5 | Not started |
 | M11 | News data | news N1 | Not started |
@@ -164,3 +164,4 @@ Things that stopped a step. Work continues on the next milestone; each entry is 
 | 2026-10-09 | M6 | Which `reason_code` means "closed by stop loss" is unverified (tracker §6 step 3), so `STOP_LOSS_REASON_CODES` (packages/importer/src/server/risk.ts) is empty: every trade's risk is `estimated` at 0.5% of starting balance ($125 on a 25K) until Joe journals an initial SL or the code is confirmed. Decision taken meanwhile: an estimated risk never makes a trade a scratch, otherwise small wins drop out of the win rate (17.65% instead of FundedNext's 35.29%). | Joe confirms the SL reason code (a trade he knows hit its stop) |
 | 2026-10-09 | M6 | §8.1 R view toggle: the mixed demo + real notice is shown; the $ ↔ R switch lands with the first screens that chart dollar sums (M7 calendar, M8 overview). | — (scheduled) |
 | 2026-10-09 | M7 | Calendar decisions taken without Joe (easy to change): day buckets are computed on the server with the shared `tradingDay` (not in SQL) so one definition serves every screen; the ⚠️ rule-proximity icon shows at ≥ 80% of the daily-loss limit or within 20% of the max-loss amount; limits are taken as % of starting balance; the day-boundary setting UI lands in M8 (default Beirut midnight is wired). Trade rows in the day view link to trade detail once M9 adds that page. | Joe's review |
+| 2026-10-09 | M8 | Decisions taken without Joe (easy to change): symbol point values are learned from the export itself (|profit| ÷ (|price move| × lots) agrees on **$10 per point per lot for NDX100 and US30**) and stored as verified; Settings can override them. Demo vs Funded lives at `/tracker/accounts/compare` (a tab on Accounts). Trades filter in memory on the server (fine at personal volume; revisit past ~20k trades). DB test packages now run one at a time (`turbo --concurrency=1`) because parallel fixture imports deadlocked. | Joe's review |

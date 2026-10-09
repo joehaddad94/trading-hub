@@ -51,16 +51,21 @@ describe.skipIf(!url)('trade risk (§6)', () => {
       expect(await refreshTradeRisk(tx, [t.account_id])).toBe(1);
       expect(await refreshTradeRisk(tx, [t.account_id])).toBe(0);
 
-      // Entry 30778, initial SL 30808 (sell), 0.25 lots, $1/point/lot → $7.50.
+      // Point values were learned from the export: $10 per point per lot on both symbols.
+      const specs = await tx.execute<{ symbol: string; v: string; verified: boolean }>(
+        sql`select symbol, point_value_per_lot::text as v, verified from symbol_specs order by symbol`,
+      );
+      expect(specs).toEqual([
+        { symbol: 'NDX100', v: '10.0000', verified: true },
+        { symbol: 'US30', v: '10.0000', verified: true },
+      ]);
+      // Entry 30778, initial SL 30808 (sell), 0.25 lots, $10/point/lot → $75.00.
       await tx.execute(sql`update journal_entries set initial_sl = 30808 where trade_id = ${t.id}`);
-      await tx.execute(sql`
-        insert into symbol_specs (firm_id, symbol, point_value_per_lot, verified)
-        select firm_id, ${t.symbol}, 1, true from accounts where id = ${t.account_id}`);
       await refreshTradeRisk(tx, [t.account_id]);
       const [row] = await tx.execute<{ risk_usd: string; risk_source: string }>(
         sql`select risk_usd::text, risk_source::text from trades where id = ${t.id}`,
       );
-      expect(row).toEqual({ risk_usd: '7.50', risk_source: 'journal_sl' });
+      expect(row).toEqual({ risk_usd: '75.00', risk_source: 'journal_sl' });
       expect(await refreshTradeRisk(tx, [])).toBe(0);
     });
   });

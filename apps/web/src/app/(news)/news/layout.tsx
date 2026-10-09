@@ -15,7 +15,7 @@ export default function NewsLayout({ children }: { children: ReactNode }) {
       <ModuleTopTabs items={mod.nav} rootHref={mod.href} />
       <div className="flex flex-1">
         <ModuleSidebar items={mod.nav} rootHref={mod.href} />
-        <main className="flex-1">{children}</main>
+        <main className="min-w-0 flex-1">{children}</main>
       </div>
     </div>
   );

@@ -194,9 +194,7 @@ function TradeRow({
     <li className="rounded-md border p-2 text-sm">
       <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
         {account ? <AccountBadge account={account} colour={account.colour} /> : <span>—</span>}
-        <span
-          className={cn('font-semibold tabular-nums', net.gt(0) && 'text-emerald-400', net.lt(0) && 'text-red-400')}
-        >
+        <span className={cn('font-semibold tabular-nums', net.gt(0) && 'text-profit', net.lt(0) && 'text-loss')}>
           {formatMoney(t.netProfit)}
           {pct ? ` · ${pct}%` : ''} · {formatR(r)}
           {t.riskSource === 'estimated' && (

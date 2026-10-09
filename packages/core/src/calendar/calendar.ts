@@ -40,8 +40,8 @@ export type DayStats = TradeStats & {
   followedPlan: boolean | null;
 };
 
-export function dayStats(date: string, trades: CalendarTrade[]): DayStats {
-  const stats = tradeStats(trades);
+export function dayStats(date: string, trades: CalendarTrade[], scratchThresholdR?: number): DayStats {
+  const stats = tradeStats(trades, scratchThresholdR);
   const byNet = [...trades].sort((a, b) => new Decimal(b.netProfit).comparedTo(a.netProfit));
   const holds = trades.map((t) => t.closedAt.getTime() - t.openedAt.getTime());
   const byAccount = new Map<string, Decimal>();
@@ -111,9 +111,12 @@ export const weekdayOf = (date: string) => {
   return d === 0 ? 7 : d;
 };
 
-function periodSummary(days: DayStats[]): PeriodSummary {
+function periodSummary(days: DayStats[], scratchThresholdR?: number): PeriodSummary {
   return {
-    ...tradeStats(days.flatMap((d) => d.entries)),
+    ...tradeStats(
+      days.flatMap((d) => d.entries),
+      scratchThresholdR,
+    ),
     tradingDays: days.length,
     greenDays: days.filter((d) => d.net.gt(0)).length,
     redDays: days.filter((d) => d.net.lt(0)).length,
@@ -126,6 +129,7 @@ export type BuildMonthInput = {
   trades: CalendarTrade[];
   today: Date;
   boundary?: DayBoundary;
+  scratchThresholdR?: number;
 };
 
 /** The §8.2 month grid with weekly and monthly summaries. Day buckets use the configured day boundary. */
@@ -135,6 +139,7 @@ export function buildMonth({
   trades,
   today,
   boundary = DEFAULT_DAY_BOUNDARY,
+  scratchThresholdR,
 }: BuildMonthInput): MonthCalendar {
   const monthPrefix = `${year}-${pad(month)}-`;
   const byDay = new Map<string, CalendarTrade[]>();
@@ -143,7 +148,7 @@ export function buildMonth({
     if (!key.startsWith(monthPrefix)) continue;
     byDay.set(key, [...(byDay.get(key) ?? []), t]);
   }
-  const statsByDay = new Map([...byDay.entries()].map(([date, ts]) => [date, dayStats(date, ts)]));
+  const statsByDay = new Map([...byDay.entries()].map(([date, ts]) => [date, dayStats(date, ts, scratchThresholdR)]));
   const maxAbs = Decimal.max(0, ...[...statsByDay.values()].map((s) => s.net.abs()));
   const todayKey = tradingDay(today, boundary);
   const weekend = [...statsByDay.keys()].some((d) => weekdayOf(d) > 5);
@@ -177,17 +182,17 @@ export function buildMonth({
     }
     if (days.some((d) => d.inMonth)) {
       const traded = days.flatMap((d) => (d.stats ? [d.stats] : []));
-      weeks.push({ days, summary: periodSummary(traded) });
+      weeks.push({ days, summary: periodSummary(traded, scratchThresholdR) });
     }
     if (cursor.toISOString().slice(0, 10) > isoDate(year, month, daysInMonth)) break;
   }
 
   const ordered = [...statsByDay.values()].sort((a, b) => a.date.localeCompare(b.date));
-  return { year, month, weekdays, weeks, summary: monthSummary(ordered) };
+  return { year, month, weekdays, weeks, summary: monthSummary(ordered, scratchThresholdR) };
 }
 
-export function monthSummary(days: DayStats[]): MonthSummary {
-  const base = periodSummary(days);
+export function monthSummary(days: DayStats[], scratchThresholdR?: number): MonthSummary {
+  const base = periodSummary(days, scratchThresholdR);
   const byNet = [...days].sort((a, b) => b.net.comparedTo(a.net));
   const answered = days.filter((d) => d.followedPlan !== null);
   let green = 0;

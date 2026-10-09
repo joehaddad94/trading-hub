@@ -29,6 +29,13 @@
       "when": 1791582391844,
       "tag": "20261009214631_sync_health_conditions",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1791584617668,
+      "tag": "20261009222337_app_settings",
+      "breakpoints": true
     }
   ]
 }

@@ -36,9 +36,17 @@ export {
   type TradeStats,
   tradeStats,
 } from './metrics/metrics';
+export {
+  biggestDeltas,
+  type ProfileKey,
+  type ProfileTrade,
+  type TradingProfile,
+  tradingProfile,
+} from './metrics/profile';
 export { isFullStopLoss, median, type RiskContext, type RiskInput, type RiskSource, resolveRisk } from './metrics/risk';
 export { money, sumMoney } from './money/money';
 export { DEFAULT_SCOPE, parseScope, type Scope, serializeScope } from './scope/scope';
+export { derivePointValue, type PointValueSample } from './symbols/point-value';
 export {
   ALERT_COOLDOWN_MS,
   evaluateSyncHealth,

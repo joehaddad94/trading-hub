@@ -106,7 +106,7 @@ function Week({
   cell: CellMode;
   total: string;
 }) {
-  const tone = summary.net.gt(0) ? 'text-emerald-400' : summary.net.lt(0) ? 'text-red-400' : 'text-muted-foreground';
+  const tone = summary.net.gt(0) ? 'text-profit' : summary.net.lt(0) ? 'text-loss' : 'text-muted-foreground';
   return (
     <>
       {children}

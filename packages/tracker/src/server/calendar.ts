@@ -52,7 +52,8 @@ const tagNames = sql<string[]>`coalesce((
   where tt.trade_id = "trades"."id"
 ), '{}')`;
 
-async function loadTrades(db: Executor, scope: ResolvedScope, from: Date, to: Date): Promise<DayTrade[]> {
+/** Closed trades in scope with journal facts and tags, by close time, optionally within [from, to). */
+export async function loadTrades(db: Executor, scope: ResolvedScope, from?: Date, to?: Date): Promise<DayTrade[]> {
   if (scope.accountIds.length === 0) return [];
   const rows = await db
     .select({
@@ -85,8 +86,8 @@ async function loadTrades(db: Executor, scope: ResolvedScope, from: Date, to: Da
       and(
         inArray(trades.accountId, scope.accountIds),
         eq(trades.source, scope.source),
-        gte(trades.closedAt, from),
-        lt(trades.closedAt, to),
+        from ? gte(trades.closedAt, from) : undefined,
+        to ? lt(trades.closedAt, to) : undefined,
       ),
     )
     .orderBy(asc(trades.closedAt), asc(trades.ticket));
@@ -197,12 +198,19 @@ export type CalendarMonthData = {
 export async function calendarMonth(
   db: Executor,
   scope: ResolvedScope,
-  opts: { year: number; month: number; now: Date; boundary?: DayBoundary },
+  opts: { year: number; month: number; now: Date; boundary?: DayBoundary; scratchThresholdR?: number },
 ): Promise<CalendarMonthData> {
   const boundary = opts.boundary ?? DEFAULT_DAY_BOUNDARY;
   const range = monthRange(opts.year, opts.month, boundary);
   const monthTrades = await loadTrades(db, scope, range.start, range.end);
-  const calendar = buildMonth({ year: opts.year, month: opts.month, trades: monthTrades, today: opts.now, boundary });
+  const calendar = buildMonth({
+    year: opts.year,
+    month: opts.month,
+    trades: monthTrades,
+    today: opts.now,
+    boundary,
+    ...(opts.scratchThresholdR === undefined ? {} : { scratchThresholdR: opts.scratchThresholdR }),
+  });
   const statusEvents = await loadStatusEvents(db, scope.accountIds, range.start, range.end, boundary);
 
   const traded = [...new Set(monthTrades.map((t) => t.accountId))];
@@ -242,10 +250,11 @@ export async function calendarDay(
   scope: ResolvedScope,
   date: string,
   boundary: DayBoundary = DEFAULT_DAY_BOUNDARY,
+  scratchThresholdR?: number,
 ): Promise<DayDetail> {
   const { start, end } = dayRange(date, boundary);
   const dayTrades = await loadTrades(db, scope, start, end);
-  const stats = dayStats(date, dayTrades);
+  const stats = dayStats(date, dayTrades, scratchThresholdR);
   const contexts = await loadRuleContexts(db, scope, stats.accountIds);
   const [note] = await db
     .select({ notes: dailyNotes.notes, mood: dailyNotes.mood, marketContext: dailyNotes.marketContext })

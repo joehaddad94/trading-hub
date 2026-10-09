@@ -1,12 +1,15 @@
 import { cn } from '@/lib/utils';
 import { accountLabel } from '../scope-label';
 
+/** §5.1 badge colours. */
 const STATUS_STYLES: Record<string, string> = {
-  active: 'bg-emerald-500/15 text-emerald-400',
-  passed: 'bg-sky-500/15 text-sky-400',
-  breached: 'bg-red-500/15 text-red-400',
+  active: 'bg-sky-500/15 text-sky-400',
+  passed: 'bg-profit/15 text-profit',
+  breached: 'bg-loss/15 text-loss',
+  merged: 'bg-muted text-muted-foreground',
   paused: 'bg-amber-500/15 text-amber-400',
-  merged: 'bg-violet-500/15 text-violet-400',
+  closed_other: 'bg-muted text-muted-foreground',
+  missing: 'border border-amber-500 text-amber-400',
 };
 
 export function StatusBadge({ status }: { status: string }) {

@@ -4,11 +4,12 @@
   "private": true,
   "type": "module",
   "exports": {
+    ".": "./src/index.ts",
     "./server": "./src/server/index.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run --coverage"
   },
   "dependencies": {
     "@trading/core": "workspace:*",

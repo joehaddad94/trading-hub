@@ -53,7 +53,7 @@ export function DailyNoteForm({
           {pending ? 'Saving…' : 'Save note'}
         </Button>
         {state && (
-          <p role="status" className={state.ok ? 'text-emerald-400 text-sm' : 'text-red-400 text-sm'}>
+          <p role="status" className={state.ok ? 'text-profit text-sm' : 'text-loss text-sm'}>
             {state.ok ? state.data : state.error}
           </p>
         )}

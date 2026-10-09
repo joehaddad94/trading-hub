@@ -12,6 +12,7 @@ import {
 } from '@trading/db/schema';
 import type { ImportPlan, PlannedAccount } from '../plan';
 import { refreshTradeRisk } from './risk';
+import { learnSymbolSpecs } from './symbols';
 
 export type Tx = Parameters<Parameters<Database['transaction']>[0]>[0];
 type Db = Database | Tx;
@@ -164,6 +165,7 @@ export async function applyImportPlan(db: Db, plan: ImportPlan): Promise<WriteSu
     }
 
     if (plan.fileStatus === 'ok') summary.markedMissing = await markMissing(tx, firmId, plan);
+    await learnSymbolSpecs(tx, firmId);
     await refreshTradeRisk(tx, [...idsByExternal.values()]);
 
     return summary;
