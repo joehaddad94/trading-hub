@@ -17,6 +17,7 @@ jobs:
       ALLOWED_EMAIL: owner@example.com
       # Matches private.app_config's default; DB integration tests run against the local Supabase.
       TEST_DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:54322/postgres
+      DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:54322/postgres
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4

@@ -1,0 +1,2 @@
+DROP INDEX "account_status_history_account_id_changed_at_index";--> statement-breakpoint
+CREATE UNIQUE INDEX "account_status_history_dedupe_key" ON "account_status_history" USING btree ("account_id","source","changed_at","status");

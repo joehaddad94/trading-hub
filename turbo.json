@@ -1,7 +1,17 @@
 {
   "$schema": "https://turbo.build/schema.json",
   "agentGuidance": false,
-  "globalPassThroughEnv": ["SKIP_ENV_VALIDATION", "CI"],
+  "globalPassThroughEnv": [
+    "CI",
+    "CRON_SECRET",
+    "DATABASE_URL",
+    "DATABASE_URL_DIRECT",
+    "DRIVE_INBOX_FOLDER_ID",
+    "DRIVE_PROCESSED_FOLDER_ID",
+    "GOOGLE_SERVICE_ACCOUNT_JSON",
+    "SKIP_ENV_VALIDATION",
+    "SUPABASE_SERVICE_ROLE_KEY"
+  ],
   "tasks": {
     "build": {
       "dependsOn": ["^build"],

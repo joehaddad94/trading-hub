@@ -1,12 +1,14 @@
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { ImportOnOpen } from '@/shell/import-on-open';
 import { MODULES } from '@/shell/modules';
 
 /** Tracker spec §8.0 hub. Live summaries arrive with M6. */
 export default function HubPage() {
   return (
     <main className="mx-auto flex max-w-5xl flex-col gap-6 p-4 md:p-8">
+      <ImportOnOpen />
       <header className="flex items-center justify-between">
         <div>
           <h1 className="font-semibold text-2xl">Trading Hub</h1>

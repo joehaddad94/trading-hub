@@ -1,3 +1,4 @@
+import { fileURLToPath } from 'node:url';
 import { type BrowserContext, expect, test } from '@playwright/test';
 import { createServerClient } from '@supabase/ssr';
 import { createClient } from '@supabase/supabase-js';
@@ -79,5 +80,21 @@ test.describe('signed in', () => {
       await nav.getByText('More').click();
       await expect(nav.getByRole('link', { name: 'Money' })).toBeVisible();
     } else await expect(page.getByRole('navigation', { name: 'Other modules' })).toBeVisible();
+  });
+
+  test('uploading the fixture imports it, and a re-upload changes nothing', async ({ page }) => {
+    test.skip(!process.env.DATABASE_URL, 'DATABASE_URL not set');
+    const fixture = fileURLToPath(
+      new URL('../../../packages/contract/fixtures/fundednext_2026-10-09_2100Z.json', import.meta.url),
+    );
+    await page.goto('/settings/imports');
+    await page.getByLabel('Export file (JSON, contract v1)').setInputFiles(fixture);
+    await page.getByRole('button', { name: 'Upload and import' }).click();
+    await expect(page.getByRole('status').filter({ hasText: /Imported|already imported/ })).toBeVisible();
+    await expect(page.getByText('fundednext_2026-10-09_2100Z.json').first()).toBeVisible();
+
+    await page.getByLabel('Export file (JSON, contract v1)').setInputFiles(fixture);
+    await page.getByRole('button', { name: 'Upload and import' }).click();
+    await expect(page.getByRole('status').filter({ hasText: 'already imported' })).toBeVisible();
   });
 });

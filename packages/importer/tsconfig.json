@@ -1,4 +1,4 @@
 {
   "extends": "@trading/config/tsconfig.base.json",
-  "include": ["src"]
+  "include": ["src", "test"]
 }

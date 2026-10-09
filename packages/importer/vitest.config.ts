@@ -2,10 +2,12 @@ import { defineConfig } from 'vitest/config';
 
 export default defineConfig({
   test: {
+    include: ['src/**/*.test.ts', 'test/**/*.test.ts'],
     coverage: {
       provider: 'v8',
       include: ['src/**/*.ts'],
-      exclude: ['src/**/*.test.ts', 'src/index.ts'],
+      // Server code is covered by the DB integration tests (they need TEST_DATABASE_URL).
+      exclude: ['src/**/*.test.ts', 'src/index.ts', 'src/server/**'],
       thresholds: { lines: 80 },
     },
   },

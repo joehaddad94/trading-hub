@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { ImportOnOpen } from '@/shell/import-on-open';
 import { ModuleHeader } from '@/shell/module-header';
 import { ModuleBottomTabs, ModuleSidebar } from '@/shell/module-nav';
 import { getModule } from '@/shell/modules';
@@ -8,6 +9,7 @@ export default function TrackerLayout({ children }: { children: ReactNode }) {
   return (
     <div className="flex min-h-dvh flex-col">
       {/* The account scope selector (§8.1) mounts in the header in M6. */}
+      <ImportOnOpen />
       <ModuleHeader moduleId="tracker" />
       <div className="flex flex-1">
         <ModuleSidebar items={mod.nav} rootHref={mod.href} />

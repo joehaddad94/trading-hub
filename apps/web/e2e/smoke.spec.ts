@@ -23,4 +23,11 @@ test.describe('signed out', () => {
     await expect(page).toHaveURL(/\/login\?error=not-allowed/);
     await expect(page.getByRole('alert').filter({ hasText: "This email can't sign in." })).toBeVisible();
   });
+
+  test('the import cron refuses a request without the secret', async ({ request }) => {
+    const response = await request.get('/api/cron/import');
+    expect(response.status()).toBe(401);
+    const wrong = await request.get('/api/cron/import', { headers: { authorization: 'Bearer nope' } });
+    expect(wrong.status()).toBe(401);
+  });
 });

@@ -62,7 +62,7 @@ export const accountStatusHistory = pgTable(
     raw: jsonb(),
     ...timestamps,
   },
-  (t) => [index().on(t.accountId, t.changedAt)],
+  (t) => [uniqueIndex('account_status_history_dedupe_key').on(t.accountId, t.source, t.changedAt, t.status)],
 );
 
 export const cycles = pgTable(
