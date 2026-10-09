@@ -8,6 +8,8 @@ const fakeAuth = process.env.E2E_FAKE_AUTH === '1' && !process.env.GITHUB_ACTION
 export default defineConfig({
   testDir: './e2e',
   forbidOnly: !!process.env.CI,
+  // One worker: specs share one database and import the same fixture.
+  workers: 1,
   retries: process.env.CI ? 1 : 0,
   reporter: process.env.CI ? 'github' : 'list',
   use: { baseURL: `http://localhost:${port}`, trace: 'retain-on-failure' },

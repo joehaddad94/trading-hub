@@ -27,7 +27,7 @@ A milestone marked **⛔ Blocked** needs an answer from Joe (see "Open questions
 | M4 | Import pipeline | tracker phase 1 | ✅ Done — PR #1 |
 | M5 | Sync health & alerts | tracker phase 2, §7 | ✅ Done — PR #1 |
 | M6 | Metrics + global scope + hub summaries | tracker §6, §8.0, §8.1 | ✅ Done — PR #1 |
-| M7 | Trading calendar | tracker §8.2 | Not started |
+| M7 | Trading calendar | tracker §8.2 | ✅ Done — PR #1 |
 | M8 | Overview, accounts, trades | tracker phase 3, §8.3 screens 1–5 | Not started |
 | M9 | Journal | tracker phase 4 | Not started |
 | M10 | Money & rules | tracker phase 5 | Not started |
@@ -163,3 +163,4 @@ Things that stopped a step. Work continues on the next milestone; each entry is 
 | 2026-10-09 | M4 | Real Google Drive reads untested: no service account exists yet. The Drive adapter is written against the googleapis v3 API; the pipeline is tested with a fake inbox plus a manual-upload run against a real Postgres. | Joe creates the Google service account and shares `trading-tracker/` with it (M22) |
 | 2026-10-09 | M6 | Which `reason_code` means "closed by stop loss" is unverified (tracker §6 step 3), so `STOP_LOSS_REASON_CODES` (packages/importer/src/server/risk.ts) is empty: every trade's risk is `estimated` at 0.5% of starting balance ($125 on a 25K) until Joe journals an initial SL or the code is confirmed. Decision taken meanwhile: an estimated risk never makes a trade a scratch, otherwise small wins drop out of the win rate (17.65% instead of FundedNext's 35.29%). | Joe confirms the SL reason code (a trade he knows hit its stop) |
 | 2026-10-09 | M6 | §8.1 R view toggle: the mixed demo + real notice is shown; the $ ↔ R switch lands with the first screens that chart dollar sums (M7 calendar, M8 overview). | — (scheduled) |
+| 2026-10-09 | M7 | Calendar decisions taken without Joe (easy to change): day buckets are computed on the server with the shared `tradingDay` (not in SQL) so one definition serves every screen; the ⚠️ rule-proximity icon shows at ≥ 80% of the daily-loss limit or within 20% of the max-loss amount; limits are taken as % of starting balance; the day-boundary setting UI lands in M8 (default Beirut midnight is wired). Trade rows in the day view link to trade detail once M9 adds that page. | Joe's review |

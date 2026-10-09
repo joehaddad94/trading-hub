@@ -7,7 +7,9 @@ import { z } from 'zod';
 import { getDb } from '@/lib/server/db';
 import { importFromInbox, runHealthCheck } from '@/lib/server/imports';
 
-export type ActionResult<T> = { ok: true; data: T } | { ok: false; error: string };
+export type { ActionResult } from '@/lib/action-result';
+
+import type { ActionResult } from '@/lib/action-result';
 
 const MAX_BYTES = 5 * 1024 * 1024;
 

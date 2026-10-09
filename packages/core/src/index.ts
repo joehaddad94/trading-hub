@@ -6,6 +6,23 @@ export {
   phaseFromPlanType,
 } from './accounts/status';
 export {
+  type BuildMonthInput,
+  buildMonth,
+  type CalendarDay,
+  type CalendarTrade,
+  type DayStats,
+  dayStats,
+  formatMonthParam,
+  type MonthCalendar,
+  type MonthSummary,
+  monthSummary,
+  type PeriodSummary,
+  parseMonth,
+  shiftMonth,
+  weekdayOf,
+} from './calendar/calendar';
+export { balanceAt, RULE_WARNING_SHARE, type RuleUsage, type RuleUsageInput, ruleUsage } from './calendar/rules';
+export {
   breakevenWinRate,
   classify,
   DEFAULT_SCRATCH_THRESHOLD_R,
@@ -31,5 +48,5 @@ export {
   shouldNotify,
 } from './sync/health';
 export { lastExpectedRun, PRODUCER_TZ } from './sync/schedule';
-export { type DayBoundary, DEFAULT_DAY_BOUNDARY, monthRange, tradingDay } from './time/days';
+export { type DayBoundary, DEFAULT_DAY_BOUNDARY, dayRange, monthRange, tradingDay } from './time/days';
 export { SESSION_LABELS, SESSION_TZ, SESSIONS, type SessionName, sessionOf } from './time/sessions';

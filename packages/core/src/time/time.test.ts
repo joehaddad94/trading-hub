@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { monthRange, tradingDay } from './days';
+import { dayRange, monthRange, tradingDay } from './days';
 import { sessionOf } from './sessions';
 
 describe('sessionOf (kill zones, America/New_York)', () => {
@@ -58,5 +58,23 @@ describe('monthRange', () => {
   it('bounds an NY 17:00 month starting the previous evening', () => {
     const { start } = monthRange(2026, 10, { timeZone: 'America/New_York', rolloverHour: 17 });
     expect(start.toISOString()).toBe('2026-09-30T21:00:00.000Z');
+  });
+});
+
+describe('dayRange', () => {
+  it('is 25 hours on the Beirut fall-back day and agrees with tradingDay', () => {
+    const { start, end } = dayRange('2026-10-25');
+    expect(start.toISOString()).toBe('2026-10-24T22:00:00.000Z');
+    expect(end.toISOString()).toBe('2026-10-25T22:00:00.000Z');
+    expect(tradingDay(start)).toBe('2026-10-25');
+    expect(tradingDay(new Date(start.getTime() - 1))).toBe('2026-10-24');
+    expect(tradingDay(new Date(end.getTime() - 1))).toBe('2026-10-25');
+  });
+
+  it('crosses month ends and supports the NY 17:00 rollover', () => {
+    expect(dayRange('2026-10-31').end.toISOString()).toBe('2026-10-31T22:00:00.000Z');
+    const ny = dayRange('2026-10-12', { timeZone: 'America/New_York', rolloverHour: 17 });
+    expect(ny.start.toISOString()).toBe('2026-10-11T21:00:00.000Z');
+    expect(ny.end.toISOString()).toBe('2026-10-12T21:00:00.000Z');
   });
 });
