@@ -154,7 +154,6 @@ Keep the `actual` column nullable and the `NewsProvider` interface so these can 
 
 ## 8. Open questions for Joe
 
-1. FundedNext's restriction window (minutes before/after) and whether non-USD restricted events apply to US30/NAS100 — can be checked in FundedNext's rules before N3.
-2. Default currencies besides USD? (e.g. none, or EUR/GBP too)
+None right now.
 
-**Decided:** no live news and no actual values in v1 (§6).
+**Decided:** currencies = USD only by default (Joe, 9 Oct 2026). Restriction window defaults = 5 min before and 5 min after each high-impact event (`news_restriction_minutes_before = 5`, `..._after = 5`) (Joe, 9 Oct 2026). Verified 9 Oct 2026 against FundedNext's help centre ([Stellar 2-Step](https://help.fundednext.com/en/articles/10701685-is-news-trading-allowed-in-the-stellar-2-step-account), [news trading](https://help.fundednext.com/en/articles/10701447-is-news-trading-allowed-at-fundednext)): 5 min before/after a listed high-impact event, applies only on the FundedNext (funded) account, not challenge phases, and is a profit adjustment (40% of profit counts), not a ban. Only events that directly correlate with the traded instrument count, so non-USD events do not apply to US30/NAS100; the USD-only default matches this. No live news and no actual values in v1 (§6).

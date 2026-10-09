@@ -240,7 +240,7 @@ Rules:
 - **Win rate, avg win R, avg loss R, expectancy (R)**, **profit factor** = gross wins / |gross losses|.
 - **Breakeven win rate** for a given avg win R = `1 / (1 + avgWinR)` — show next to actual win rate.
 - **Max drawdown** per account (from balance snapshots + trade sequence) and **combined**.
-- **Sessions** (computed in America/New_York time): Asia, London, NY AM (09:30–12:00 ET), NY PM. Display times in Asia/Beirut.
+- **Sessions** (kill zones, computed in America/New_York time, Joe 9 Oct 2026): Asia 20:00–00:00 ET, London 02:00–05:00 ET, NY AM 09:30–12:00 ET, NY PM 13:30–16:00 ET. Display times in Asia/Beirut. Trades opened outside all four windows go in an **Outside** bucket in session stats (Joe, 9 Oct 2026). This is the single definition; the backtester uses it too.
 - **Combined equity curve** = cumulative net P/L across all live accounts in close-time order (starting at 0), with account boundaries marked.
 - **Net prop result** = Σ payouts − Σ fees (from `cashflows`) — the "am I actually making money" number.
 - **Rule proximity** = worst intraday-to-daily-snapshot distance to daily-loss and max-loss limits per account. Label clearly as based on daily data.
@@ -382,7 +382,7 @@ Same **features** as FundedNext's trading calendar (month grid → click a day �
   - `3027687` — Stellar 2-Step Demo P1, 25K — Profit Target Reached (passed)
   - `3028722` — Stellar 2-Step Demo P2, 25K — Profit Target Reached (passed)
   - `7002880` — Stellar 2-Step Real, 25K — active (funded)
-- **Excel backtests:** Joe has US30 and NAS100 backtest journals (Dec 2025 – Apr 2026). Build a one-off importer: inspect the actual files first, map columns, import as `source = backtest` into synthetic accounts. Ask Joe for the files; do not guess column names.
+- **Excel backtests:** dropped (Joe, 9 Oct 2026). There are no existing backtest spreadsheets; backtest data comes only from the Backtest Lab.
 
 ---
 
@@ -396,7 +396,7 @@ Same **features** as FundedNext's trading calendar (month grid → click a day �
 | **3. Hub, scope, calendar & accounts** | App shell + hub + module layouts (§8.0), global scope selector (§8.1), calendar (§8.2), screens 0–5, metrics (§6), symbol point values, day-boundary setting. | Switching scope updates every screen; combined equity curve and demo-vs-funded comparison render from real data; numbers match FundedNext's own stats for the current cycle (win rate 35.29%, PF 0.5 at time of writing); calendar has full feature set (§8.2); every account shows its status badge and lifecycle timeline (§5.1). |
 | **4. Journal** | Screens 5–6, 10, tags, screenshots, mobile polish. Optional Telegram alerts. | Journaling a trade on a phone takes < 60 s. |
 | **5. Money & rules** | Screen 9, rule snapshots + proximity on account pages. | Net prop result shown; rule limits come from data. |
-| **6. Backtests & analytics** | Excel importer, screens 7–8. | Live vs backtest R comparison per symbol. |
+| **6. Backtests & analytics** | Screens 7–8. | Live vs backtest R comparison per symbol. |
 
 **Testing:** unit tests for parsing (`rr_ratio`, `lots`, timestamps, side), metric functions (§6), dedupe/upsert; fixture files in `tests/fixtures/` built from the sample trade above. One end-to-end test: fixture file → import → dashboard numbers.
 
@@ -446,7 +446,6 @@ Google Drive connector tool: `create_file`.
 
 ## Appendix B — Open questions for Joe (builder should ask, not assume)
 
-1. The backtest Excel files (for column mapping).
-2. Domain name, if any (else `*.vercel.app`).
+None right now.
 
-**Decided:** Drive folders = `trading-tracker/` with `inbox/` and `processed/`; IDs and env vars live in `docs/ops/sync.md` (single source of truth). Alerts = in-app banner only for v1 (email/Telegram later); timezone = Asia/Beirut for display and day boundaries; risk = per trade, from journal initial SL when entered, otherwise derived/estimated (§6).
+**Decided:** No Excel backtest importer (Joe, 9 Oct 2026). Domain = free `*.vercel.app` address, no custom domain for now (Joe, 9 Oct 2026). Drive folders = `trading-tracker/` with `inbox/` and `processed/`; IDs and env vars live in `docs/ops/sync.md` (single source of truth). Alerts = in-app banner only for v1 (email/Telegram later); timezone = Asia/Beirut for display and day boundaries; risk = per trade, from journal initial SL when entered, otherwise derived/estimated (§6).

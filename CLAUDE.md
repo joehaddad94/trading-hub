@@ -3,6 +3,7 @@
 Personal trading web app for Joe (single user). Three separate modules behind a hub: **Tracker** (incl. Journal), **News**, **Backtest Lab**.
 
 ## Read first
+- `docs/MILESTONES.md` — build order; one milestone at a time, each ends with the test gate and a commit
 - `docs/specs/tech-architecture.md` — stack, folders, conventions (wins on technical questions)
 - `docs/specs/trading-tracker-spec.md` — data pipeline, schema, metrics, screens, app shell (§8.0)
 - `docs/specs/news-spec.md`, `docs/specs/backtester-spec.md`

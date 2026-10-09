@@ -58,7 +58,7 @@
 - Timeframes: **1m, 5m, 15m** (buttons + keyboard `1`, `5`, `F`).
 - Switching timeframe keeps: the replay cursor, all drawings, the visible time range (as close as possible), and open simulated trades.
 - Crosshair with OHLC + time readout. **Times shown in Asia/Beirut (Joe's decision)**; setting available for New York time.
-- **Session shading** (optional toggle): Asia, London, NY sessions defined in New York time — same definitions as the tracker's metrics.
+- **Session shading** (optional toggle): Asia, London, NY AM, NY PM kill zones, defined once in the tracker spec §6 (ET) — do not redefine here.
 - Lazy loading: fetch candles in windows (e.g. 3 trading days around the view) as the user scrolls back; never load the full year into the browser.
 - **Module placement:** Backtest Lab is a separate module reached from the hub (tracker spec §8.0), with its own full-screen layout and no app sidebar.
 - Mobile: chart must be usable on a phone (pinch zoom, pan, tap to select drawings), but **desktop is the primary target** for backtesting.
@@ -71,7 +71,7 @@
 - **Start point:** pick a date + time, or click a candle with a "Start replay here" tool.
 - **Step forward** one bar of the current timeframe (`→` key) and **step forward one minute** (`Shift + →`).
 - **Play / pause** (`Space`) with speeds: 1, 2, 5, 10, 20 bars/second (configurable).
-- **Jump to next session open** (Asia / London / NY) and **jump to next day**.
+- **Jump to next session open** (Asia / London / NY AM / NY PM) and **jump to next day**.
 - **Exit replay** returns to the latest data.
 - No step backward in v1 (avoids peeking). Restarting at an earlier point is allowed.
 
@@ -159,9 +159,9 @@ All drawings are anchored in **(time, price)** coordinates, never pixels, so the
 
 ---
 
-## 8. Excel backtest import (from tracker spec §9)
+## 8. Excel backtest import — dropped
 
-Joe's existing US30/NAS100 Excel backtests (Dec 2025 – Apr 2026) import into backtest sessions too (one session per file), so old and new backtests sit together.
+Dropped (Joe, 9 Oct 2026): there are no existing Excel backtest journals to import. Don't build an importer.
 
 ---
 
@@ -175,7 +175,7 @@ Joe's existing US30/NAS100 Excel backtests (Dec 2025 – Apr 2026) import into b
 | **B4. Drawings** | Horizontal, trend, long, short, measure; persistence; tool registry | Drawings survive reload and timeframe switches at the same time/price. |
 | **B5. Indicators** | ATR, RSI with settings; unit tests vs reference values | Values match TradingView's for a sample window. |
 | **B6. Simulated trading** | Place trade from position tool, fills, SL/TP rules, costs, recording into `trades`, snapshots | A full session of trades shows up in the tracker calendar, stats, and journal under the Backtest scope. |
-| **B7. Sessions & comparison** | Session management, resume, Excel import, live vs backtest screen | Joe can resume a session; live vs backtest metrics compare per instrument. |
+| **B7. Sessions & comparison** | Session management, resume, live vs backtest screen | Joe can resume a session; live vs backtest metrics compare per instrument. |
 
 ---
 
@@ -187,8 +187,6 @@ More timeframes (30m, 1h, 4h, D), Fibonacci, rectangles, rays, text notes, more 
 
 ## 11. Open questions for Joe
 
-1. Confirm Dukascopy as the data source (default in this spec).
-2. Default backtest costs: spread / commission per instrument to mirror FundedNext.
-3. Which session times to shade (Asia / London / NY definitions).
+None right now.
 
-**Decided:** chart times in Asia/Beirut. Risk in backtests is exact (initial SL is known), set per trade on the position tool — no default risk % needed beyond the tool's initial value.
+**Decided:** session shading = the tracker §6 kill zones (Joe, 9 Oct 2026). Data source = Dukascopy for US30/NAS100 (Joe, 9 Oct 2026); exact instrument codes still to verify before B1 (§1). Default backtest costs = match FundedNext per instrument (spread, commission per lot, slippage) (Joe, 9 Oct 2026); values to be sourced from FundedNext before B6 (§6). Chart times in Asia/Beirut. Risk in backtests is exact (initial SL is known), set per trade on the position tool — no default risk % needed beyond the tool's initial value.

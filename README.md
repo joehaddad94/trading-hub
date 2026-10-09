@@ -41,7 +41,7 @@ Next.js (App Router) · TypeScript · pnpm + Turborepo · Supabase (Postgres, Au
 | Phase | State |
 |---|---|
 | 0 · Sync pipeline (FundedNext → Drive) | ✅ Live — first export 9 Oct 2026, 99 trades, checksums matched |
-| 1 · Scaffold + foundation | Not started |
+| 1 · Scaffold + foundation | In progress — M1 scaffold (see [`docs/MILESTONES.md`](docs/MILESTONES.md)) |
 | 2 · Sync health | Not started |
 | 3 · Hub, scope, calendar, accounts | Not started |
 | News N1–N4 | Not started |
@@ -52,7 +52,7 @@ Next.js (App Router) · TypeScript · pnpm + Turborepo · Supabase (Postgres, Au
 ```bash
 pnpm install
 supabase start          # local Postgres (Docker)
-cp .env.example apps/web/.env.local   # fill in values
+cp .env.example apps/web/.env.local   # fill in values from `supabase status`
 pnpm dev
 ```
 
