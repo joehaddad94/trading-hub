@@ -4,7 +4,7 @@ import type { NextConfig } from 'next';
 // production Sentry project in M22.
 const nextConfig: NextConfig = {
   typedRoutes: true,
-  transpilePackages: ['@trading/core', '@trading/db', '@trading/contract', '@trading/importer'],
+  transpilePackages: ['@trading/core', '@trading/db', '@trading/contract', '@trading/importer', '@trading/tracker'],
   serverExternalPackages: ['@googleapis/drive'],
 };
 

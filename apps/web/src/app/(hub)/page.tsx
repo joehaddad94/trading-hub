@@ -1,12 +1,17 @@
 import Link from 'next/link';
+import { connection } from 'next/server';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { TrackerHubCardSummary } from '@/modules/tracker/components/hub-card-summary';
+import { getTrackerHubSummary } from '@/modules/tracker/server/hub';
 import { ImportOnOpen } from '@/shell/import-on-open';
 import { MODULES } from '@/shell/modules';
 import { SyncBanner, SyncStatusLine } from '@/shell/sync-banner';
 
-/** Tracker spec §8.0 hub. Live summaries arrive with M6. */
-export default function HubPage() {
+/** Tracker spec §8.0 hub. News and Backtest summaries arrive with their milestones (M12, M21). */
+export default async function HubPage() {
+  await connection();
+  const tracker = await getTrackerHubSummary();
   return (
     <>
       <SyncBanner />
@@ -29,7 +34,13 @@ export default function HubPage() {
                 <CardDescription>{m.description}</CardDescription>
               </CardHeader>
               <CardContent className="text-muted-foreground text-sm">
-                {m.id === 'backtest' ? <span className="md:hidden">Best on desktop.</span> : <span>No data yet.</span>}
+                {m.id === 'tracker' && <TrackerHubCardSummary summary={tracker} />}
+                {m.id === 'news' && <span>No data yet.</span>}
+                {m.id === 'backtest' && (
+                  <>
+                    <span>No sessions yet.</span> <span className="md:hidden">Best on desktop.</span>
+                  </>
+                )}
               </CardContent>
               <CardFooter className="mt-auto">
                 <Button asChild className="w-full">

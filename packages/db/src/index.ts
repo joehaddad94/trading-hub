@@ -12,3 +12,9 @@ export function createDb(connectionString: string) {
   const client = postgres(connectionString, { prepare: false });
   return drizzle({ client, schema, casing: 'snake_case' });
 }
+
+/** A transaction handle, as passed to `db.transaction(async (tx) => …)`. */
+export type Tx = Parameters<Parameters<Database['transaction']>[0]>[0];
+
+/** Anything queries can run on: the pool or an open transaction. */
+export type Executor = Database | Tx;

@@ -1,3 +1,4 @@
+import { House } from 'lucide-react';
 import Link from 'next/link';
 import type { ReactNode } from 'react';
 import { MODULES, type ModuleId } from './modules';
@@ -8,14 +9,15 @@ export function ModuleHeader({ moduleId, children }: { moduleId: ModuleId | 'set
   const others = MODULES.filter((m) => m.id !== moduleId);
 
   return (
-    <header className="sticky top-0 z-20 flex h-14 items-center gap-3 border-b bg-background/95 px-4 backdrop-blur">
-      <Link href="/" className="font-semibold" aria-label="Back to hub">
-        Trading Hub
+    <header className="sticky top-0 z-20 flex h-14 items-center gap-2 border-b md:gap-3 bg-background/95 px-4 backdrop-blur">
+      <Link href="/" className="flex h-11 shrink-0 items-center font-semibold" aria-label="Back to hub">
+        <House className="size-5 md:hidden" aria-hidden />
+        <span className="hidden md:inline">Trading Hub</span>
       </Link>
-      <span className="text-muted-foreground" aria-hidden>
+      <span className="hidden text-muted-foreground md:inline" aria-hidden>
         /
       </span>
-      <h1 className="font-medium">{title}</h1>
+      <h1 className="shrink-0 font-medium">{title}</h1>
       <nav aria-label="Other modules" className="ml-2 hidden items-center gap-1 md:flex">
         {others.map((m) => (
           <Link
@@ -27,7 +29,7 @@ export function ModuleHeader({ moduleId, children }: { moduleId: ModuleId | 'set
           </Link>
         ))}
       </nav>
-      <div className="ml-auto flex items-center gap-2">
+      <div className="ml-auto flex min-w-0 items-center gap-2">
         {children}
         <details className="relative md:hidden">
           <summary className="flex h-11 cursor-pointer list-none items-center rounded-md px-2 text-muted-foreground text-sm">
