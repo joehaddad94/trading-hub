@@ -7,17 +7,24 @@ export function toDecimalString(value: number | string): string {
 
 const OFFSET = /^([+-])(\d{2}):(\d{2})$/;
 const SERVER_TIME = /^(\d{4})-(\d{2})-(\d{2}) (\d{2}):(\d{2}):(\d{2})$/;
+const ISO_WITH_OFFSET = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.\d+)?(Z|[+-]\d{2}:\d{2})$/;
+
+/** Either FundedNext's raw server time or an ISO string carrying its own offset. A bare "T" time is ambiguous. */
+export const SERVER_TIME_PATTERN = new RegExp(`${SERVER_TIME.source}|${ISO_WITH_OFFSET.source}`);
 
 /**
  * FundedNext time strings are server time (tracker spec §4: UTC+03:00, from the file's
  * `firm_server_time_offset`). Their unix fields are 3 h off and must not be used.
+ * The producer sometimes rewrites them as ISO with an explicit offset; that offset then wins.
  */
 export function parseServerTime(value: string, offset: string): Date {
-  const t = SERVER_TIME.exec(value);
-  const o = OFFSET.exec(offset);
+  const iso = ISO_WITH_OFFSET.exec(value);
+  const t = iso ?? SERVER_TIME.exec(value);
+  const effectiveOffset = iso ? (iso[7] === 'Z' ? '+00:00' : (iso[7] as string)) : offset;
+  const o = OFFSET.exec(effectiveOffset);
   if (!t) throw new Error(`Invalid server time: ${value}`);
   if (!o) throw new Error(`Invalid server time offset: ${offset}`);
-  const [, y, mo, d, h, mi, s] = t.map(Number) as [number, number, number, number, number, number, number];
+  const [, y, mo, d, h, mi, s] = t.slice(0, 7).map(Number) as [number, number, number, number, number, number, number];
   const sign = o[1] === '-' ? -1 : 1;
   const offsetMinutes = sign * (Number(o[2]) * 60 + Number(o[3]));
   return new Date(Date.UTC(y, mo - 1, d, h, mi, s) - offsetMinutes * 60_000);

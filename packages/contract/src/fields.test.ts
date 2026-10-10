@@ -15,6 +15,12 @@ describe('parseServerTime', () => {
     expect(parseServerTime('2026-12-01 09:30:00', '-05:00').toISOString()).toBe('2026-12-01T14:30:00.000Z');
   });
 
+  it('accepts ISO strings with their own offset, ignoring the file offset', () => {
+    expect(parseServerTime('2026-09-24T16:32:33+03:00', '+02:00').toISOString()).toBe('2026-09-24T13:32:33.000Z');
+    expect(parseServerTime('2026-09-24T13:32:33Z', '+03:00').toISOString()).toBe('2026-09-24T13:32:33.000Z');
+    expect(parseServerTime('2026-09-24T13:32:33.500-05:00', '+03:00').toISOString()).toBe('2026-09-24T18:32:33.000Z');
+  });
+
   it('rejects malformed input', () => {
     expect(() => parseServerTime('2026-10-09T16:36:19', '+03:00')).toThrow(/Invalid server time/);
     expect(() => parseServerTime('2026-10-09 16:36:19', '3')).toThrow(/offset/);
