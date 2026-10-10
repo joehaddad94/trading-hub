@@ -20,11 +20,19 @@ import {
   instruments,
   journalEntries,
   screenshots,
+  tags,
   trades,
   tradeTags,
 } from '@trading/db/schema';
 import Decimal from 'decimal.js';
-import type { ModifyOrderInput, OrderView, PlaceOrderInput, SessionView } from '../trading';
+import type {
+  ModifyOrderInput,
+  OrderView,
+  PlaceOrderInput,
+  SessionInput,
+  SessionSummary,
+  SessionView,
+} from '../trading';
 
 /** A refusal the user should see (bad levels, closed order, live trade). */
 export class TradingError extends Error {}
@@ -45,6 +53,9 @@ const toSession = (s: SessionRow): SessionView => ({
   riskPct: s.riskPct,
   cursor: s.cursorTs?.getTime() ?? null,
   status: s.status,
+  costs: (s.costs ?? {}) as SessionView['costs'],
+  setupTagId: s.setupTagId,
+  notes: s.notes,
 });
 
 /**
@@ -53,7 +64,9 @@ const toSession = (s: SessionRow): SessionView => ({
  */
 export async function createSession(
   db: Executor,
-  input: { name: string; startingBalance?: string; riskPct?: string },
+  input: { name: string; startingBalance?: string; riskPct?: string } & Partial<
+    Pick<SessionInput, 'costs' | 'setupTagId' | 'notes'>
+  >,
 ): Promise<SessionView> {
   return db.transaction(async (tx) => {
     const [firm] = await tx.select({ id: firms.id }).from(firms).where(eq(firms.name, BACKTEST_FIRM));
@@ -83,15 +96,30 @@ export async function createSession(
     if (!account) throw new Error('Could not create the backtest account');
     const [session] = await tx
       .insert(backtestSessions)
-      .values({ accountId: account.id, name: input.name, startingBalance, riskPct })
+      .values({
+        accountId: account.id,
+        name: input.name,
+        startingBalance,
+        riskPct,
+        costs: input.costs ?? {},
+        setupTagId: input.setupTagId ?? null,
+        notes: input.notes ?? null,
+      })
       .returning();
     if (!session) throw new Error('Could not create the session');
     return toSession(session);
   });
 }
 
-/** The session the chart trades in: the newest in-progress one, created on first use (M21 adds switching). */
-export async function currentSession(db: Executor): Promise<SessionView> {
+/**
+ * The session the chart trades in: `id` when given (and still there), else the newest in-progress one,
+ * created on first use.
+ */
+export async function currentSession(db: Executor, id?: string | null): Promise<SessionView> {
+  if (id) {
+    const [chosen] = await db.select().from(backtestSessions).where(eq(backtestSessions.id, id));
+    if (chosen) return toSession(chosen);
+  }
   const [row] = await db
     .select()
     .from(backtestSessions)
@@ -531,4 +559,119 @@ export async function deleteSession(db: Executor, sessionId: string): Promise<vo
     await tx.delete(backtestSessions).where(eq(backtestSessions.id, sessionId));
     await tx.delete(accounts).where(and(eq(accounts.id, session.accountId), eq(accounts.isBacktest, true)));
   });
+}
+
+/** Every session, newest first, with its trade count, net P/L, open orders and ambiguous-bar count. */
+export async function listSessions(db: Executor): Promise<SessionSummary[]> {
+  const rows = await db
+    .select({
+      session: backtestSessions,
+      trades: sql<number>`(select count(*)::int from trades t where t.account_id = backtest_sessions.account_id and t.source = 'backtest')`,
+      net: sql<string>`(select coalesce(sum(t.net_profit), 0)::text from trades t where t.account_id = backtest_sessions.account_id and t.source = 'backtest')`,
+      openOrders: sql<number>`(select count(*)::int from backtest_orders o where o.session_id = backtest_sessions.id and o.status in ('pending', 'open'))`,
+      ambiguous: sql<number>`(select count(*)::int from backtest_orders o where o.session_id = backtest_sessions.id and o.ambiguous and o.trade_id is not null)`,
+      instruments: sql<
+        string[]
+      >`(select coalesce(array_agg(i.code order by i.code), '{}') from instruments i where i.id = any(backtest_sessions.instrument_ids))`,
+    })
+    .from(backtestSessions)
+    .orderBy(desc(backtestSessions.updatedAt));
+  return rows.map((r) => ({
+    ...toSession(r.session),
+    trades: Number(r.trades),
+    net: new Decimal(r.net).toFixed(2),
+    openOrders: Number(r.openOrders),
+    ambiguous: Number(r.ambiguous),
+    instruments: r.instruments ?? [],
+    createdAt: r.session.createdAt.getTime(),
+    updatedAt: r.session.updatedAt.getTime(),
+  }));
+}
+
+export async function getSessionView(db: Executor, id: string): Promise<SessionView | null> {
+  const [row] = await db.select().from(backtestSessions).where(eq(backtestSessions.id, id));
+  return row ? toSession(row) : null;
+}
+
+/** Edits a session's settings; the synthetic account's label, balance and risk follow (spec §7). */
+export async function updateSession(db: Executor, id: string, input: SessionInput): Promise<void> {
+  await db.transaction(async (tx) => {
+    const session = await getSession(tx, id);
+    await tx
+      .update(backtestSessions)
+      .set({
+        name: input.name,
+        startingBalance: input.startingBalance,
+        riskPct: input.riskPct,
+        costs: input.costs,
+        setupTagId: input.setupTagId,
+        notes: input.notes,
+      })
+      .where(eq(backtestSessions.id, id));
+    await tx
+      .update(accounts)
+      .set({
+        typeLabel: `Backtest – ${input.name}`,
+        startingBalance: input.startingBalance,
+        defaultRiskPct: input.riskPct,
+      })
+      .where(and(eq(accounts.id, session.accountId), eq(accounts.isBacktest, true)));
+  });
+}
+
+/** Marks a session completed (open orders are cancelled) or back in progress. */
+export async function setSessionStatus(db: Executor, id: string, status: 'in_progress' | 'completed'): Promise<void> {
+  await db.transaction(async (tx) => {
+    await getSession(tx, id);
+    if (status === 'completed') {
+      await tx
+        .update(backtestOrders)
+        .set({ status: 'cancelled' })
+        .where(and(eq(backtestOrders.sessionId, id), inArray(backtestOrders.status, ['pending', 'open'])));
+    }
+    await tx.update(backtestSessions).set({ status }).where(eq(backtestSessions.id, id));
+  });
+}
+
+/** A closed backtest trade of a session, for its stats and equity curve (metrics come from @trading/core). */
+export type SessionTrade = {
+  id: string;
+  symbol: string;
+  side: 'buy' | 'sell';
+  lots: string;
+  openedAt: Date;
+  closedAt: Date;
+  netProfit: string;
+  riskUsd: string | null;
+  riskSource: 'journal_sl' | 'journal_usd' | 'full_stop_loss' | 'estimated' | null;
+  exitReason: string | null;
+  ambiguous: boolean;
+};
+
+export async function sessionTrades(db: Executor, id: string): Promise<SessionTrade[]> {
+  const session = await getSession(db, id);
+  const rows = await db
+    .select({
+      id: trades.id,
+      symbol: trades.symbol,
+      side: trades.side,
+      lots: trades.lots,
+      openedAt: trades.openedAt,
+      closedAt: trades.closedAt,
+      netProfit: trades.netProfit,
+      riskUsd: trades.riskUsd,
+      riskSource: trades.riskSource,
+      exitReason: backtestOrders.exitReason,
+      ambiguous: backtestOrders.ambiguous,
+    })
+    .from(trades)
+    .leftJoin(backtestOrders, eq(backtestOrders.tradeId, trades.id))
+    .where(and(eq(trades.accountId, session.accountId), eq(trades.source, 'backtest')))
+    .orderBy(asc(trades.closedAt), asc(trades.ticket));
+  return rows.map((r) => ({ ...r, ambiguous: r.ambiguous ?? false }));
+}
+
+/** Setup tags a session can be tagged with (the journal's `setup` kind). */
+export async function setupTags(db: Executor): Promise<{ id: string; name: string }[]> {
+  return db.select({ id: tags.id, name: tags.name }).from(tags).where(eq(tags.kind, 'setup')).orderBy(asc(tags.name));
 }

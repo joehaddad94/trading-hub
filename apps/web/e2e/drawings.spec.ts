@@ -110,7 +110,10 @@ test.describe('drawings (M18)', () => {
     await page.reload();
     await expect.poll(async () => (await shown(page)).length).toBe(2);
     const props = page.getByRole('group', { name: 'Drawing properties' });
-    // Same data and viewport after the reload, so the line is where it was drawn: click it to select.
+    // Same data and viewport after the reload, so the line is where it was drawn: click it to select (once the
+    // chart has drawn it).
+    await expect(page.getByTestId('kline-chart')).toHaveAttribute('data-ready', 'true');
+    await page.waitForTimeout(300);
     await clickChart(page, 0.7, 0.3);
     await expect(props).toBeVisible();
     await props.getByRole('button', { name: 'Delete drawing' }).click();

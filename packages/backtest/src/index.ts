@@ -18,5 +18,8 @@ export {
   type OrderView,
   type PlaceOrderInput,
   placeOrderSchema,
+  type SessionInput,
+  type SessionSummary,
   type SessionView,
+  sessionInputSchema,
 } from './trading';

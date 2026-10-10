@@ -1,7 +1,7 @@
 import type { SearchParams } from 'nuqs/server';
+import { EquityCurve } from '@/components/equity-curve';
 import { formatBeirut } from '@/lib/format';
 import { TrackerCalendar } from '@/modules/tracker/calendar/tracker-calendar';
-import { EquityCurve } from '@/modules/tracker/components/equity-curve';
 import { OverviewStats } from '@/modules/tracker/components/overview-stats';
 import { ScopeNotice } from '@/modules/tracker/components/scope-notice';
 import { accountLabel } from '@/modules/tracker/scope-label';

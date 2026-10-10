@@ -26,6 +26,8 @@ export type PositionDrawing = {
 };
 
 export const UNDO_MS = 10_000;
+/** With no live orders, the cursor is saved once replay has been still this long. */
+const CURSOR_SAVE_MS = 1_000;
 
 /**
  * Simulated trading controller (backtester spec §6): places orders from position tools, replays them on the
@@ -56,19 +58,28 @@ export function useTrading(opts: {
     return result.ok;
   }, []);
 
-  // Replay moved: evaluate pending/open orders on the bars up to the new cursor, one request at a time.
+  // Replay moved: evaluate pending/open orders on the bars up to the new cursor, one request at a time. With
+  // nothing live the call only saves the session's cursor (for Resume), so it waits for replay to settle.
   useEffect(() => {
-    if (!session || cursor === null || !live) return;
-    queued.current = cursor;
-    const run = async () => {
-      while (queued.current !== null) {
-        const at = queued.current;
-        queued.current = null;
-        apply(await actions.advance(session.id, { at }));
-      }
-      inFlight.current = null;
+    if (!session || cursor === null) return;
+    const send = () => {
+      queued.current = cursor;
+      const run = async () => {
+        while (queued.current !== null) {
+          const at = queued.current;
+          queued.current = null;
+          apply(await actions.advance(session.id, { at }));
+        }
+        inFlight.current = null;
+      };
+      if (!inFlight.current) inFlight.current = run();
     };
-    if (!inFlight.current) inFlight.current = run();
+    if (live) {
+      send();
+      return;
+    }
+    const t = window.setTimeout(send, CURSOR_SAVE_MS);
+    return () => window.clearTimeout(t);
   }, [session, cursor, live, actions, apply]);
 
   const place = useCallback(

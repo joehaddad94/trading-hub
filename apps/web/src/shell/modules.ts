@@ -27,6 +27,7 @@ export const MODULES: ModuleDef[] = [
       { href: '/tracker/journal', label: 'Journal' },
       { href: '/tracker/accounts', label: 'Accounts' },
       { href: '/tracker/analytics', label: 'Analytics' },
+      { href: '/tracker/live-vs-backtest', label: 'Live vs backtest' },
       { href: '/tracker/money', label: 'Money' },
     ],
   },

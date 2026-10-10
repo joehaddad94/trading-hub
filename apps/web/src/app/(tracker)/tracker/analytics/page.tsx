@@ -1,21 +1,72 @@
-import type { TradeStats } from '@trading/core';
+import { type Group, serializeScope } from '@trading/core';
+import Link from 'next/link';
 import type { SearchParams } from 'nuqs/server';
-import { formatMoney, formatPct } from '@/lib/format';
-import { cn } from '@/lib/utils';
-import { formatR } from '@/modules/tracker/calendar/format';
+import { RHistogram } from '@/modules/tracker/components/r-histogram';
 import { ScopeNotice } from '@/modules/tracker/components/scope-notice';
+import { StatsTable } from '@/modules/tracker/components/stats-table';
+import { getAnalytics } from '@/modules/tracker/server/analytics';
 import { getNewsSplit } from '@/modules/tracker/server/news';
 import { getPageScope } from '@/modules/tracker/server/scope';
 
-/** Analytics (§8.3 screen 7). M13 adds the news vs non-news split; the rest of the screen lands in M21. */
+export const metadata = { title: 'Analytics · Tracker' };
+
+const rows = (groups: Group[]) => groups.map((g) => [g.label, g.stats] as [string, Group['stats']]);
+
+/** Analytics (§8.3 screen 7): R distribution, streaks, breakdowns, hold time and the news split. */
 export default async function AnalyticsPage({ searchParams }: { searchParams: Promise<SearchParams> }) {
   const scope = await getPageScope(searchParams);
   if (!scope) return <p className="p-4 text-muted-foreground text-sm md:p-6">Database not configured.</p>;
-  const split = await getNewsSplit(scope);
+  const [data, split] = await Promise.all([getAnalytics(scope), getNewsSplit(scope)]);
   return (
     <div className="flex flex-col gap-4 p-4 md:p-6">
-      <h2 className="font-semibold text-xl">Analytics</h2>
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <h2 className="font-semibold text-xl">Analytics</h2>
+        <Link
+          href={`/tracker/live-vs-backtest?scope=${serializeScope(scope.scope)}`}
+          className="text-primary text-sm hover:underline"
+        >
+          Compare with backtests
+        </Link>
+      </div>
       <ScopeNotice scope={scope} />
+      {!data || data.trades === 0 ? (
+        <p className="text-muted-foreground text-sm">No closed trades in scope.</p>
+      ) : (
+        <>
+          <div className="grid gap-4 lg:grid-cols-2">
+            <section className="flex flex-col gap-2 rounded-lg border p-4" aria-label="R distribution">
+              <h3 className="font-medium">R distribution</h3>
+              <RHistogram bins={data.r.bins.map(({ label, count, from }) => ({ label, count, from }))} />
+              {data.r.unknown > 0 && (
+                <p className="text-muted-foreground text-xs">
+                  {data.r.unknown} {data.r.unknown === 1 ? 'trade has' : 'trades have'} no known risk, so no R.
+                </p>
+              )}
+            </section>
+            <section className="flex flex-col gap-3 rounded-lg border p-4" data-testid="streaks">
+              <h3 className="font-medium">Streaks</h3>
+              <dl className="grid grid-cols-3 gap-3 text-sm">
+                <Stat label="Longest win run" value={String(data.streaks.longestWin)} />
+                <Stat label="Longest loss run" value={String(data.streaks.longestLoss)} />
+                <Stat label="Current run" value={runLabel(data.streaks.current)} />
+              </dl>
+              <h3 className="mt-2 font-medium">Hold time</h3>
+              <StatsTable rows={rows(data.holdTime)} label="Held" />
+            </section>
+          </div>
+          <Breakdown title="By symbol" testId="by-symbol" groups={data.breakdowns.symbol} label="Symbol" />
+          <Breakdown
+            title="By session (New York kill zones, by open time)"
+            testId="by-session"
+            groups={data.breakdowns.session}
+            label="Session"
+          />
+          <div className="grid gap-4 lg:grid-cols-2">
+            <Breakdown title="By weekday (Beirut)" testId="by-weekday" groups={data.breakdowns.weekday} label="Day" />
+            <Breakdown title="By hour opened (Beirut)" testId="by-hour" groups={data.breakdowns.hour} label="Hour" />
+          </div>
+        </>
+      )}
       <section className="flex flex-col gap-3 rounded-lg border p-4" data-testid="news-split">
         <h3 className="font-medium">News vs other days</h3>
         {!split ? (
@@ -26,7 +77,7 @@ export default async function AnalyticsPage({ searchParams }: { searchParams: Pr
               Red folders in the counted currencies ({split.events} events in the trades&apos; date range). Fewer events
               than expected means the news backfill hasn&apos;t run yet.
             </p>
-            <SplitTable
+            <StatsTable
               rows={[
                 ['Red-folder days', split.byDay.news],
                 ['Other days', split.byDay.other],
@@ -37,7 +88,7 @@ export default async function AnalyticsPage({ searchParams }: { searchParams: Pr
             {split.byEvent.length > 0 && (
               <>
                 <h4 className="font-medium text-sm">By event (days with that red folder)</h4>
-                <SplitTable rows={split.byEvent.map((e) => [`${e.currency} ${e.title} · ${e.days}d`, e.stats])} />
+                <StatsTable rows={split.byEvent.map((e) => [`${e.currency} ${e.title} · ${e.days}d`, e.stats])} />
               </>
             )}
           </>
@@ -47,37 +98,36 @@ export default async function AnalyticsPage({ searchParams }: { searchParams: Pr
   );
 }
 
-function SplitTable({ rows }: { rows: [string, TradeStats][] }) {
+function runLabel({ kind, length }: { kind: 'win' | 'loss' | null; length: number }) {
+  if (!kind) return '—';
+  if (kind === 'win') return `${length} ${length === 1 ? 'win' : 'wins'}`;
+  return `${length} ${length === 1 ? 'loss' : 'losses'}`;
+}
+
+function Stat({ label, value }: { label: string; value: string }) {
   return (
-    <div className="overflow-x-auto">
-      <table className="w-full min-w-[30rem] text-sm">
-        <thead>
-          <tr className="border-b text-left text-muted-foreground text-xs">
-            <th className="p-2 font-normal">Group</th>
-            <th className="p-2 text-right font-normal">Trades</th>
-            <th className="p-2 text-right font-normal">Net</th>
-            <th className="p-2 text-right font-normal">Win rate</th>
-            <th className="p-2 text-right font-normal">Expectancy</th>
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map(([label, s]) => (
-            <tr key={label} className="border-b last:border-0">
-              <th scope="row" className="p-2 text-left font-normal">
-                {label}
-              </th>
-              <td className="p-2 text-right tabular-nums">{s.trades}</td>
-              <td
-                className={cn('p-2 text-right tabular-nums', s.net.gt(0) && 'text-profit', s.net.lt(0) && 'text-loss')}
-              >
-                {formatMoney(s.net)}
-              </td>
-              <td className="p-2 text-right tabular-nums">{formatPct(s.winRate)}</td>
-              <td className="p-2 text-right tabular-nums">{formatR(s.expectancyR)}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+    <div className="flex flex-col gap-0.5">
+      <dt className="text-muted-foreground text-xs">{label}</dt>
+      <dd className="font-medium text-lg tabular-nums">{value}</dd>
     </div>
+  );
+}
+
+function Breakdown({
+  title,
+  testId,
+  groups,
+  label,
+}: {
+  title: string;
+  testId: string;
+  groups: Group[];
+  label: string;
+}) {
+  return (
+    <section className="flex flex-col gap-2 rounded-lg border p-4" data-testid={testId}>
+      <h3 className="font-medium">{title}</h3>
+      <StatsTable rows={rows(groups)} label={label} />
+    </section>
   );
 }

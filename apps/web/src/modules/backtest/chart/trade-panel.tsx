@@ -3,6 +3,7 @@
 import { TZDate } from '@date-fns/tz';
 import type { OrderView } from '@trading/backtest';
 import { format } from 'date-fns';
+import Link from 'next/link';
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
 import type { Trading } from './use-trading';
@@ -21,18 +22,26 @@ export function TradePanel({ trading, timezone }: { trading: Trading; timezone: 
   if (!trading.session) return null;
   return (
     <section className="border-t text-sm" aria-label="Simulated trades">
-      <button
-        type="button"
-        aria-expanded={open}
-        onClick={() => setOpen(!open)}
-        className="flex h-9 w-full items-center gap-2 px-4 text-left text-muted-foreground hover:bg-accent/40"
-      >
-        <span className="font-medium text-foreground">{trading.session.name}</span>
-        <span>
-          {live.length} open · {closed.length} closed
-        </span>
-        <span className="ml-auto">{open ? 'Hide' : 'Show'}</span>
-      </button>
+      <div className="flex items-center">
+        <button
+          type="button"
+          aria-expanded={open}
+          onClick={() => setOpen(!open)}
+          className="flex h-9 flex-1 items-center gap-2 px-4 text-left text-muted-foreground hover:bg-accent/40"
+        >
+          <span className="font-medium text-foreground">{trading.session.name}</span>
+          <span>
+            {live.length} open · {closed.length} closed
+          </span>
+          <span className="ml-auto">{open ? 'Hide' : 'Show'}</span>
+        </button>
+        <Link
+          href={`/backtest/sessions/${trading.session.id}`}
+          className="flex h-9 items-center border-l px-3 text-muted-foreground hover:bg-accent/40 hover:text-foreground"
+        >
+          Stats
+        </Link>
+      </div>
       {trading.error && (
         <p role="alert" className="px-4 pb-1 text-loss">
           {trading.error}

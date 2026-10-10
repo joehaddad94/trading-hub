@@ -10,11 +10,16 @@ import {
   currentSession,
   deleteBacktestTrade,
   deleteSession,
+  getSessionView,
   listOrders,
+  listSessions,
   modifyOrder,
   placeOrder,
   restoreBacktestTrade,
+  sessionTrades,
+  setSessionStatus,
   TradingError,
+  updateSession,
 } from '../src/server';
 import { placeOrderSchema } from '../src/trading';
 
@@ -188,6 +193,58 @@ describe.skipIf(!url)('simulated trading', () => {
       const b = await currentSession(tx);
       expect(a.id).toBe(b.id);
       expect(a.name).toMatch(/^Session \d+$/);
+    });
+  });
+
+  it('lists, edits, completes and reopens sessions; session trades carry exit reason', async () => {
+    await inTx(async (tx) => {
+      await seedBars(tx, [
+        [100, 101, 99, 100],
+        [100, 104, 99, 103],
+        [103, 110, 101, 109],
+        [109, 123, 108, 121],
+      ]);
+      const session = await createSession(tx, { name: 'L', startingBalance: '10000', riskPct: '1' });
+      await placeOrder(tx, session.id, order({}));
+      await advanceSession(tx, session.id, at(3));
+      await placeOrder(
+        tx,
+        session.id,
+        order({ kind: 'pending', entry: '95', sl: '90', tp: '105', at: at(3).getTime() }),
+      );
+
+      const row = (await listSessions(tx)).find((s) => s.id === session.id);
+      expect(row).toMatchObject({ name: 'L', trades: 1, net: '100.00', openOrders: 1, instruments: ['US30'] });
+
+      await updateSession(tx, session.id, {
+        name: 'Renamed',
+        startingBalance: '20000',
+        riskPct: '0.75',
+        costs: { US30: { spreadPoints: '1', commissionPerLot: '0', slippagePoints: '0' } },
+        setupTagId: null,
+        notes: 'London only',
+      });
+      expect(await getSessionView(tx, session.id)).toMatchObject({
+        name: 'Renamed',
+        startingBalance: '20000.00',
+        riskPct: '0.75',
+        notes: 'London only',
+      });
+      const [account] = await tx.select().from(accounts).where(eq(accounts.id, session.accountId));
+      expect(account?.typeLabel).toBe('Backtest – Renamed');
+
+      await setSessionStatus(tx, session.id, 'completed');
+      expect((await listSessions(tx)).find((s) => s.id === session.id)).toMatchObject({
+        status: 'completed',
+        openOrders: 0,
+      });
+      await setSessionStatus(tx, session.id, 'in_progress');
+      expect((await getSessionView(tx, session.id))?.status).toBe('in_progress');
+
+      const closed = await sessionTrades(tx, session.id);
+      expect(closed).toHaveLength(1);
+      expect(closed[0]).toMatchObject({ exitReason: 'tp', ambiguous: false, netProfit: '100.00' });
+      expect((await currentSession(tx, session.id)).id).toBe(session.id);
     });
   });
 });

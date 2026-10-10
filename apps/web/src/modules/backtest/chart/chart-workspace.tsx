@@ -124,7 +124,7 @@ export function ChartWorkspace({
       pointValue: instrument?.pointValue ?? '10',
       priceDigits: instrument?.priceDigits ?? 2,
       tf,
-      balance: DEFAULT_BALANCE,
+      balance: initialTrading?.session.startingBalance ?? DEFAULT_BALANCE,
     },
     initialDrawings,
     drawingActions,

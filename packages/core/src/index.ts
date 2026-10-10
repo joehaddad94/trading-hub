@@ -23,6 +23,19 @@ export {
 } from './calendar/calendar';
 export { balanceAt, RULE_WARNING_SHARE, type RuleUsage, type RuleUsageInput, ruleUsage } from './calendar/rules';
 export {
+  type AnalyticsTrade,
+  breakdowns,
+  type Group,
+  groupStats,
+  holdTimeStats,
+  type LiveVsBacktestRow,
+  liveVsBacktest,
+  type RBin,
+  rDistribution,
+  type Streaks,
+  streaks,
+} from './metrics/analytics';
+export {
   breakevenWinRate,
   classify,
   DEFAULT_SCRATCH_THRESHOLD_R,

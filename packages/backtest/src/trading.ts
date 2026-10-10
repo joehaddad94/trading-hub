@@ -80,4 +80,45 @@ export type SessionView = {
   riskPct: string;
   cursor: number | null;
   status: 'in_progress' | 'completed';
+  costs: Record<string, { spreadPoints: string; commissionPerLot: string; slippagePoints: string }>;
+  setupTagId: string | null;
+  notes: string | null;
+};
+
+const money = z
+  .union([z.string(), z.number()])
+  .transform((v) => String(v).trim())
+  .refine((v) => /^\d+(\.\d{1,2})?$/.test(v) && Number(v) > 0, 'must be a positive amount');
+
+const points = z
+  .union([z.string(), z.number()])
+  .transform((v) => String(v).trim() || '0')
+  .refine((v) => /^\d+(\.\d+)?$/.test(v) && Number(v) <= 1000, 'must be 0 or more');
+
+/** New / edited backtest session (spec §7). Costs are per instrument code. */
+export const sessionInputSchema = z.object({
+  name: z.string().trim().min(1, 'Give the session a name').max(80),
+  startingBalance: money,
+  riskPct: z
+    .union([z.string(), z.number()])
+    .transform((v) => String(v).trim())
+    .refine((v) => /^\d+(\.\d{1,2})?$/.test(v) && Number(v) > 0 && Number(v) <= 10, 'risk must be 0.01–10%'),
+  costs: z.record(
+    z.string().regex(/^[A-Z0-9]{2,12}$/),
+    z.object({ spreadPoints: points, commissionPerLot: points, slippagePoints: points }),
+  ),
+  setupTagId: z.uuid().nullable(),
+  notes: z.string().trim().max(2000).nullable(),
+});
+export type SessionInput = z.infer<typeof sessionInputSchema>;
+
+/** A session row for the sessions list (spec §7). */
+export type SessionSummary = SessionView & {
+  trades: number;
+  net: string;
+  openOrders: number;
+  ambiguous: number;
+  instruments: string[];
+  createdAt: number;
+  updatedAt: number;
 };

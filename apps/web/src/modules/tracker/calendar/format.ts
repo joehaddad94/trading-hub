@@ -1,6 +1,6 @@
 import type { DayStats, PeriodSummary } from '@trading/core';
 import Decimal from 'decimal.js';
-import { formatMoney } from '@/lib/format';
+import { formatMoney, formatR } from '@/lib/format';
 import type { CellMode } from './search-params';
 
 /** Whole dollars with thousands separators: `-$1,235` — fits a 5-column phone grid. */
@@ -8,7 +8,7 @@ export function formatMoneyShort(value: Decimal): string {
   return formatMoney(value.toDecimalPlaces(0, Decimal.ROUND_HALF_UP).toFixed(2)).replace(/\.00$/, '');
 }
 
-export const formatR = (r: Decimal | null) => (r ? `${r.gte(0) ? '+' : ''}${r.toFixed(2)}R` : '—');
+export { formatR };
 
 export const pluralTrades = (n: number) => `${n} ${n === 1 ? 'trade' : 'trades'}`;
 

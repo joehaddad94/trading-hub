@@ -22,3 +22,7 @@ export function formatMoney(value: { toFixed(dp: number): string } | string): st
 export function formatPct(ratio: { times(n: number): { toFixed(dp: number): string } } | null): string {
   return ratio ? `${ratio.times(100).toFixed(2)}%` : '—';
 }
+
+/** An R multiple as `+1.25R` / `-0.80R`; `—` when unknown. */
+export const formatR = (r: { gte(n: number): boolean; toFixed(dp: number): string } | null) =>
+  r ? `${r.gte(0) ? '+' : ''}${r.toFixed(2)}R` : '—';

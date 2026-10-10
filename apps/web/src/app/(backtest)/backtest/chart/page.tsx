@@ -1,3 +1,4 @@
+import { z } from 'zod';
 import { ChartWorkspace } from '@/modules/backtest/chart/chart-workspace';
 import { getChartInstruments, getCountedCurrencies } from '@/modules/backtest/server/chart';
 import { getDrawings } from '@/modules/backtest/server/drawings';
@@ -34,12 +35,18 @@ const tradingActions = {
   list: ordersAction,
 };
 
-export default async function ChartPage() {
+export default async function ChartPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[]>>;
+}) {
+  const { session } = await searchParams;
+  const sessionId = typeof session === 'string' && z.uuid().safeParse(session).success ? session : null;
   const [instruments, currencies, drawings, trading] = await Promise.all([
     getChartInstruments(),
     getCountedCurrencies(),
     getDrawings(),
-    getTradingState(),
+    getTradingState(sessionId),
   ]);
   return (
     <ChartWorkspace

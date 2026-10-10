@@ -33,11 +33,11 @@ async function run<T>(fn: (db: Db) => Promise<T>): Promise<ActionResult<T>> {
 
 export type TradingState = { session: SessionView; orders: OrderView[] };
 
-/** The chart's session and its orders (null without a database). */
-export async function getTradingState(): Promise<TradingState | null> {
+/** The chart's session (`?session=`, else the newest in progress) and its orders; null without a database. */
+export async function getTradingState(sessionId?: string | null): Promise<TradingState | null> {
   const db = getDb();
   if (!db) return null;
-  const session = await currentSession(db);
+  const session = await currentSession(db, sessionId);
   return { session, orders: await listOrders(db, session.id) };
 }
 
