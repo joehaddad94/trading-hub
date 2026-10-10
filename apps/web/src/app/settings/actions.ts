@@ -6,7 +6,12 @@ import { z } from 'zod';
 import type { ActionResult } from '@/lib/action-result';
 import { tagSchema } from '@/modules/tracker/journal/schema';
 import { removeTag, writeTag, writeTagName } from '@/modules/tracker/server/journal';
-import { saveAccountRisk, saveDayAndScratch, saveSymbolSpec } from '@/modules/tracker/server/settings-admin';
+import {
+  saveAccountRisk,
+  saveDayAndScratch,
+  savePreviousPhase,
+  saveSymbolSpec,
+} from '@/modules/tracker/server/settings-admin';
 
 const decimal = (max: number, scale: number) =>
   z
@@ -26,6 +31,11 @@ const symbol = z.object({
 const risk = z.object({
   id: z.uuid(),
   defaultRiskPct: decimal(2, 2).refine((v) => Number(v) > 0 && Number(v) <= 10, 'Between 0 and 10%.'),
+});
+
+const previousPhase = z.object({
+  id: z.uuid(),
+  parentId: z.union([z.uuid(), z.literal('')]).transform((v) => v || null),
 });
 
 type Result = ActionResult<string>;
@@ -95,4 +105,19 @@ export async function editTagAction(_prev: Result | null, form: FormData): Promi
     await writeTagName(parsed.data.id, parsed.data.name);
     return 'Renamed.';
   });
+}
+
+/** Links an account to the phase it came from, so P1 → P2 → Funded shows as one journey. */
+export async function savePreviousPhaseAction(_prev: Result | null, form: FormData): Promise<Result> {
+  const parsed = previousPhase.safeParse(Object.fromEntries(form));
+  if (!parsed.success) return { ok: false, error: z.prettifyError(parsed.error) };
+  try {
+    const res = await savePreviousPhase(parsed.data);
+    if (!res.ok) return res;
+    revalidatePath('/', 'layout');
+    return { ok: true, data: parsed.data.parentId ? 'Linked.' : 'Unlinked.' };
+  } catch (error) {
+    Sentry.captureException(error);
+    return { ok: false, error: 'Saving failed; it was reported.' };
+  }
 }

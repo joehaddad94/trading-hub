@@ -16,11 +16,12 @@ import {
   editTagAction,
   saveAccountRiskAction,
   saveGeneralSettings,
+  savePreviousPhaseAction,
   saveSymbolSpecAction,
 } from './actions';
 import { TagEditor } from './tag-editor';
 
-/** Settings (§8.3 screen 12): day boundary, scratch threshold, symbol point values, default risk, journal tags. */
+/** Settings (§8.3 screen 12): day boundary, scratch threshold, symbol point values, default risk, journeys, tags. */
 export default async function SettingsPage() {
   await connection();
   const [settings, specs, risks, tags] = await Promise.all([
@@ -140,6 +141,48 @@ export default async function SettingsPage() {
                       defaultValue={r.defaultRiskPct}
                       className="w-32"
                     />
+                  </div>
+                </ActionForm>
+              </li>
+            ))}
+          </ul>
+        </section>
+
+        <section className="rounded-lg border p-4" aria-labelledby="journeys">
+          <h3 id="journeys" className="mb-1 font-medium">
+            Account journeys
+          </h3>
+          <p className="mb-3 text-muted-foreground text-xs">
+            Which account each one came from (P1 → P2 → Funded). The export doesn&rsquo;t always say, so set it here to
+            see the whole journey together.
+          </p>
+          <ul className="flex flex-col gap-3">
+            {risks.map((r) => (
+              <li key={r.id}>
+                <ActionForm
+                  action={savePreviousPhaseAction}
+                  submit="Save"
+                  label={`${r.login} previous phase`}
+                  className="gap-2"
+                >
+                  <input type="hidden" name="id" value={r.id} />
+                  <div className="flex flex-col gap-1">
+                    <Label htmlFor={`parent-${r.id}`}>{accountLabel(r)} came from</Label>
+                    <select
+                      id={`parent-${r.id}`}
+                      name="parentId"
+                      defaultValue={r.parentAccountId ?? ''}
+                      className="h-11 w-full max-w-xs rounded-md border bg-background px-2 text-sm md:h-9"
+                    >
+                      <option value="">Nothing (start of a journey)</option>
+                      {risks
+                        .filter((o) => o.id !== r.id)
+                        .map((o) => (
+                          <option key={o.id} value={o.id}>
+                            {accountLabel(o)}
+                          </option>
+                        ))}
+                    </select>
                   </div>
                 </ActionForm>
               </li>

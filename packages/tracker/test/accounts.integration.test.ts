@@ -13,6 +13,7 @@ import {
   phaseComparison,
   resolveScope,
   saveTrackerSettings,
+  setPreviousPhase,
 } from '../src/server';
 
 const url = process.env.TEST_DATABASE_URL;
@@ -41,6 +42,28 @@ async function withFixture(fn: (tx: Tx) => Promise<void>) {
 }
 
 describe.skipIf(!url)('accounts', () => {
+  it('links the funded account to its P2 by hand, and refuses loops', async () => {
+    await withFixture(async (tx) => {
+      const ids = Object.fromEntries(
+        (await tx.execute<{ login: string; id: string }>(sql`select login::text, id from accounts`)).map((r) => [
+          r.login,
+          r.id,
+        ]),
+      ) as Record<string, string>;
+      const [p1, p2, funded] = [ids['3027687'], ids['3028722'], ids['7002880']] as [string, string, string];
+      expect(await setPreviousPhase(tx, funded, p2)).toEqual({ ok: true });
+      expect(groupJourneys(await listAccounts(tx)).map((j) => j.accounts.map((a) => a.login))).toContainEqual([
+        3027687, 3028722, 7002880,
+      ]);
+      expect(await setPreviousPhase(tx, p1, funded)).toMatchObject({ ok: false, error: /comes after/ });
+      expect(await setPreviousPhase(tx, p1, p1)).toMatchObject({ ok: false });
+      expect(await setPreviousPhase(tx, funded, null)).toEqual({ ok: true });
+      expect(groupJourneys(await listAccounts(tx)).map((j) => j.accounts.map((a) => a.login))).toContainEqual([
+        7002880,
+      ]);
+    });
+  });
+
   it('lists every account grouped by journey, P1 before P2', async () => {
     await withFixture(async (tx) => {
       const list = await listAccounts(tx);

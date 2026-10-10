@@ -2,7 +2,7 @@ import 'server-only';
 import { asc, eq } from '@trading/db/orm';
 import { accounts, firms, symbolSpecs } from '@trading/db/schema';
 import { refreshTradeRisk } from '@trading/importer/server';
-import { type DayPreset, saveTrackerSettings } from '@trading/tracker/server';
+import { type DayPreset, saveTrackerSettings, setPreviousPhase } from '@trading/tracker/server';
 import { getDb } from '@/lib/server/db';
 
 function db() {
@@ -31,7 +31,13 @@ export async function listAccountRisk() {
   const d = getDb();
   if (!d) return [];
   return d
-    .select({ id: accounts.id, login: accounts.login, phase: accounts.phase, defaultRiskPct: accounts.defaultRiskPct })
+    .select({
+      id: accounts.id,
+      login: accounts.login,
+      phase: accounts.phase,
+      defaultRiskPct: accounts.defaultRiskPct,
+      parentAccountId: accounts.parentAccountId,
+    })
     .from(accounts)
     .where(eq(accounts.isBacktest, false))
     .orderBy(asc(accounts.firstSeenAt));
@@ -62,4 +68,8 @@ export async function saveSymbolSpec(input: { id: string; pointValuePerLot: stri
 export async function saveAccountRisk(input: { id: string; defaultRiskPct: string }) {
   await db().update(accounts).set({ defaultRiskPct: input.defaultRiskPct }).where(eq(accounts.id, input.id));
   return refreshAllRisk();
+}
+
+export function savePreviousPhase(input: { id: string; parentId: string | null }) {
+  return setPreviousPhase(db(), input.id, input.parentId);
 }
