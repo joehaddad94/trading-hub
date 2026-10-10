@@ -40,6 +40,11 @@ export type PlannedAccount = {
   status: AccountStatus;
   statusReason: string | null;
   firmStatusHistory: { status: AccountStatus; statusReason: string | null; changedAt: Date; raw: unknown }[];
+  /**
+   * When a closed account really reached its status: the firm's latest status-history entry, else its last
+   * trade's close (a pass or breach happens on a trade). Null while active. Beats "the day we imported it".
+   */
+  statusSince: Date | null;
   balance: string;
   equity: string | null;
   rules: {
@@ -193,6 +198,7 @@ function planAccount(account: ExportAccount, offset: string): PlannedAccount {
     startingBalance: new Decimal(account.starting_balance).toFixed(),
     status,
     statusReason: reason,
+    statusSince: status === 'active' ? null : statusSince(account.status_history, allTrades),
     firmStatusHistory: account.status_history.map((row) => {
       const label = [row.to, row.reason].filter(Boolean).join(' — ') || null;
       return {
@@ -257,4 +263,11 @@ function paymentKind(orderType: string | null | undefined): CashflowKind {
   if (/add.?on/.test(t)) return 'addon';
   if (t.includes('new account') || t.includes('challenge') || t.includes('purchase')) return 'challenge_fee';
   return 'other';
+}
+
+function statusSince(history: { at: string }[], trades: { closedAt: Date }[]): Date | null {
+  const times = history.map((h) => Date.parse(h.at)).filter((t) => !Number.isNaN(t));
+  if (times.length > 0) return new Date(Math.max(...times));
+  if (trades.length > 0) return new Date(Math.max(...trades.map((t) => t.closedAt.getTime())));
+  return null;
 }

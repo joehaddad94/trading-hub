@@ -132,6 +132,42 @@ describe.skipIf(!url)('import pipeline', () => {
     });
   });
 
+  it('dates a closed account by when it really passed, not by the import, and fixes old import dates', async () => {
+    await inTx(async (tx) => {
+      await processExportFile(tx, { driveFileId: 'f1', fileName: FIXTURE_NAME, content: fixtureText }, NOW);
+      const closed = () =>
+        tx.execute<{ login: string; closed_at: string | null; history: string | null }>(sql`
+          select a.login::text, a.closed_at::text,
+            (select max(h.changed_at)::text from account_status_history h
+              where h.account_id = a.id and h.source = 'detected_on_import') as history
+          from accounts a where a.login in (3027687, 3028722) order by a.login`);
+      const [p2Last] = await tx.execute<{ at: string }>(sql`
+        select max(t.closed_at)::text as at from trades t join accounts a on a.id = t.account_id where a.login = 3028722`);
+      const expected = [
+        // P1: the firm's status history says Migrated at 14:08:41Z.
+        { login: '3027687', closed_at: '2026-09-16 14:08:41+00', history: '2026-09-16 14:08:41+00' },
+        // P2: no firm history, so its last trade.
+        { login: '3028722', closed_at: p2Last?.at ?? null, history: p2Last?.at ?? null },
+      ];
+      expect(await closed()).toEqual(expected);
+
+      // Rows written by the old importer carried the import date; the next file moves them back.
+      await tx.execute(sql`update accounts set closed_at = ${NOW.toISOString()}, status_changed_at = ${NOW.toISOString()}
+        where login in (3027687, 3028722)`);
+      await tx.execute(sql`update account_status_history set changed_at = ${NOW.toISOString()} where source = 'detected_on_import'
+        and account_id in (select id from accounts where login in (3027687, 3028722))`);
+      const next = withFixture((f) => {
+        f.generated_at = '2026-10-10T21:20:00Z';
+      });
+      await processExportFile(
+        tx,
+        { driveFileId: 'f2', fileName: 'fundednext_2026-10-10_2120Z.json', content: next },
+        NOW,
+      );
+      expect(await closed()).toEqual(expected);
+    });
+  });
+
   it('rejects only the account whose trades do not add up', async () => {
     await inTx(async (tx) => {
       const content = withFixture((f) => {
