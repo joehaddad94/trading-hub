@@ -69,26 +69,3 @@ export const dataIngestRuns = pgTable(
 );
 
 /** Drawing tools (backtester spec §4). */
-export const drawingTool = pgEnum('drawing_tool', ['horizontal', 'trend', 'long', 'short', 'measure']);
-
-/**
- * Chart drawings, per instrument and optionally per backtest session (FK added with backtest_sessions, M21).
- * `points` are `[{ ts, price }]` (UTC ms, price) so they land on the same time/price on every timeframe;
- * `style` holds colour, width, lock and tool options (trend extension, position sizing).
- */
-export const drawings = pgTable(
-  'drawings',
-  {
-    id: id(),
-    instrumentId: uuid()
-      .notNull()
-      .references(() => instruments.id),
-    sessionId: uuid(),
-    tool: drawingTool().notNull(),
-    points: jsonb().notNull(),
-    style: jsonb().notNull().default({}),
-    label: text(),
-    ...timestamps,
-  },
-  (t) => [index().on(t.instrumentId, t.sessionId)],
-);

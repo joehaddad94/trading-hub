@@ -108,6 +108,7 @@ export async function listAccounts(
     })
     .from(accounts)
     .innerJoin(firms, eq(firms.id, accounts.firmId))
+    .where(eq(accounts.isBacktest, false))
     .orderBy(asc(accounts.firstSeenAt), asc(accounts.login));
   const out: AccountSummary[] = [];
   for (const r of rows) {
@@ -284,7 +285,10 @@ export async function phaseComparison(
   db: Executor,
   settings: TrackerSettings = DEFAULT_SETTINGS,
 ): Promise<PhaseComparison> {
-  const list = await db.select({ id: accounts.id, phase: accounts.phase, isDemo: accounts.isDemo }).from(accounts);
+  const list = await db
+    .select({ id: accounts.id, phase: accounts.phase, isDemo: accounts.isDemo })
+    .from(accounts)
+    .where(eq(accounts.isBacktest, false));
   const opts = { boundary: settings.boundary, scratchThresholdR: settings.scratchThresholdR };
   const byPhase = new Map<string, { accounts: number; trades: AccountTradePoint[] }>();
   const demo: AccountTradePoint[] = [];

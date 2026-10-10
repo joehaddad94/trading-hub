@@ -33,6 +33,7 @@ export async function listAccountRisk() {
   return d
     .select({ id: accounts.id, login: accounts.login, phase: accounts.phase, defaultRiskPct: accounts.defaultRiskPct })
     .from(accounts)
+    .where(eq(accounts.isBacktest, false))
     .orderBy(asc(accounts.firstSeenAt));
 }
 

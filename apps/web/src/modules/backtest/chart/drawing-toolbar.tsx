@@ -21,7 +21,7 @@ export function DrawingToolbar({ drawings }: { drawings: Drawings }) {
       role="toolbar"
       aria-label="Drawing tools"
       aria-orientation="vertical"
-      className="flex shrink-0 gap-1 overflow-x-auto border-t p-1 md:flex-col md:overflow-visible md:border-t-0 md:border-r"
+      className="flex shrink-0 gap-1 overflow-x-auto border-t p-1 md:flex-col md:overflow-x-hidden md:overflow-y-auto md:border-t-0 md:border-r"
     >
       <button
         type="button"
@@ -76,9 +76,10 @@ export function DrawingToolbar({ drawings }: { drawings: Drawings }) {
 }
 
 /** Properties of the selected drawing: colour, width, lock, tool options, delete. */
-export function DrawingProperties({ drawings }: { drawings: Drawings }) {
+export function DrawingProperties({ drawings, children }: { drawings: Drawings; children?: React.ReactNode }) {
   const sel = drawings.selected;
-  if (!sel) return null;
+  // Hidden while a tool is drawing: on a phone the bar would sit where the next click goes.
+  if (!sel || drawings.active !== null) return null;
   const set = (style: Partial<DrawingStyle>) => drawings.restyle(sel.id, { style });
   return (
     <fieldset
@@ -160,6 +161,7 @@ export function DrawingProperties({ drawings }: { drawings: Drawings }) {
           className="h-8 w-28 rounded-md border bg-background px-1"
         />
       )}
+      {children}
       <button
         type="button"
         className={cn('flex size-8 items-center justify-center rounded-md hover:bg-accent/60')}

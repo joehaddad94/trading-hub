@@ -10,6 +10,24 @@ export {
   visibleUntil,
 } from './bars';
 export {
+  advance,
+  type Costs,
+  checkExit,
+  closeAtMarket,
+  type Exit,
+  type ExitReason,
+  type Fill,
+  NO_COSTS,
+  type OrderType,
+  type PendingOrder,
+  type Position,
+  type SimState,
+  type TradeResult,
+  tradeResult,
+  tryFill,
+  validLevels,
+} from './fills';
+export {
   DEFAULT_RR,
   defaultLevels,
   formatSpan,

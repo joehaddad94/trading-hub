@@ -42,6 +42,8 @@ export const accounts = pgTable(
     defaultRiskPct: numeric({ precision: 5, scale: 2 }).notNull().default('0.5'),
     /** News restriction badges (news spec §5): null = default (on for funded accounts without the ANT add-on). */
     newsRestriction: boolean(),
+    /** Synthetic account of a backtest session (backtester spec §7): hidden from live views, deletable. */
+    isBacktest: boolean().notNull().default(false),
     firstSeenAt: tstz().notNull().defaultNow(),
     lastSeenAt: tstz().notNull().defaultNow(),
     closedAt: tstz(),

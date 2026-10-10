@@ -294,7 +294,9 @@ export function useDrawings(chart: Chart | null, ctx: DrawingContext, initial: D
     selected: selectedOverlay
       ? {
           id: selectedOverlay.id,
+          drawingId: selectedOverlay.extendData.drawingId,
           tool: toolOf(selectedOverlay),
+          points: toPoints(selectedOverlay.points),
           style: selectedOverlay.extendData.style,
           label: selectedOverlay.extendData.label,
         }

@@ -7,6 +7,7 @@ import { type RefObject, useEffect, useRef, useState } from 'react';
 import { type ActiveIndicator, INDICATOR_TEMPLATES, indicatorName, indicatorPane } from './indicators';
 import { fetchBars, toKLine } from './loader';
 import { type Marker, NEWS_INDICATOR, newsMarkers } from './news-markers';
+import { ORDERS_INDICATOR, type OrderMark, orderLines } from './order-lines';
 import { SESSION_INDICATOR, sessionShading } from './session-shading';
 import { chartStyles } from './styles';
 import { TOOLS } from './tools/registry';
@@ -43,6 +44,8 @@ export type ChartProps = {
   onCrosshair?: (barStart: number | null) => void;
   /** Indicators shown in their own panes below the price chart. */
   indicators?: ActiveIndicator[];
+  /** Simulated orders and trades of this instrument. */
+  orderMarks?: OrderMark[];
 };
 
 /** Height of an indicator pane in px: smaller when the chart is short (phones), so prices keep most room. */
@@ -84,6 +87,7 @@ export function KLineChart(props: ChartProps) {
     markers,
     onCrosshair,
     indicators,
+    orderMarks,
   } = props;
   const el = useRef<HTMLDivElement>(null);
   const chartRef = useRef<Chart | null>(null);
@@ -117,6 +121,7 @@ export function KLineChart(props: ChartProps) {
       lib = k;
       if (!k.getSupportedIndicators().includes(SESSION_INDICATOR)) k.registerIndicator(sessionShading);
       if (!k.getSupportedIndicators().includes(NEWS_INDICATOR)) k.registerIndicator(newsMarkers);
+      if (!k.getSupportedIndicators().includes(ORDERS_INDICATOR)) k.registerIndicator(orderLines);
       for (const t of INDICATOR_TEMPLATES) if (!k.getSupportedIndicators().includes(t.name)) k.registerIndicator(t);
       const overlays = k.getSupportedOverlays();
       for (const tool of TOOLS) if (!overlays.includes(tool.overlay.name)) k.registerOverlay(tool.overlay);
@@ -264,6 +269,19 @@ export function KLineChart(props: ChartProps) {
 
   useEffect(() => {
     const chart = chartRef.current;
+    if (!ready || !chart) return;
+    const marks = orderMarks ?? [];
+    if (marks.length === 0) {
+      chart.removeIndicator({ name: ORDERS_INDICATOR });
+    } else if (chart.getIndicators({ name: ORDERS_INDICATOR }).length === 0) {
+      chart.createIndicator({ name: ORDERS_INDICATOR, paneId: 'candle_pane', extendData: { marks } }, true);
+    } else {
+      chart.overrideIndicator({ name: ORDERS_INDICATOR, extendData: { marks } });
+    }
+  }, [ready, orderMarks]);
+
+  useEffect(() => {
+    const chart = chartRef.current;
     const node = el.current;
     if (!ready || !chart || !node) return;
     const list = indicators ?? [];
@@ -292,7 +310,7 @@ export function KLineChart(props: ChartProps) {
   }, [ready, indicators]);
 
   return (
-    <div className="relative h-full w-full">
+    <div className="absolute inset-0">
       <div
         ref={el}
         className="h-full w-full"
@@ -300,6 +318,7 @@ export function KLineChart(props: ChartProps) {
         data-ready={ready ? 'true' : 'false'}
         data-last-bar={lastBar ? JSON.stringify(lastBar) : ''}
         data-markers={markers?.length ?? 0}
+        data-order-marks={orderMarks?.length ?? 0}
       />
       {error && (
         <p role="alert" className="absolute top-2 left-2 rounded-md bg-loss/20 px-3 py-1 text-sm">

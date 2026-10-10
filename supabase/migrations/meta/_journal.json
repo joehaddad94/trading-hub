@@ -78,6 +78,13 @@
       "when": 1791591542737,
       "tag": "20261010001902_drawings",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1791593382741,
+      "tag": "20261010004942_backtest_trading",
+      "breakpoints": true
     }
   ]
 }

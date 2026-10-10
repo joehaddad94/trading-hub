@@ -7,12 +7,12 @@ import { SyncBanner } from '@/shell/sync-banner';
 /** Full-screen lab layout: no module sidebar (tracker spec §8.0). */
 export default function BacktestLayout({ children }: { children: ReactNode }) {
   return (
-    <div className="flex h-dvh flex-col">
+    <div className="flex min-h-dvh flex-col md:h-dvh">
       <ImportOnOpen />
       <ModuleHeader moduleId="backtest" />
       <SyncBanner />
       <CandleBanner />
-      <main className="flex-1 overflow-hidden">{children}</main>
+      <main className="flex flex-1 flex-col md:overflow-hidden">{children}</main>
     </div>
   );
 }

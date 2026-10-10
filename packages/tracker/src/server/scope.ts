@@ -1,6 +1,6 @@
 import { DEFAULT_SCOPE, type Scope } from '@trading/core';
 import type { Executor } from '@trading/db';
-import { asc, sql } from '@trading/db/orm';
+import { asc, eq, sql } from '@trading/db/orm';
 import { accounts } from '@trading/db/schema';
 
 export type ScopeAccount = {
@@ -9,6 +9,8 @@ export type ScopeAccount = {
   phase: (typeof accounts.$inferSelect)['phase'];
   status: (typeof accounts.$inferSelect)['status'];
   isDemo: boolean;
+  /** Synthetic account of a backtest session: only the Backtest scope sees it. */
+  isBacktest: boolean;
   startingBalance: string;
   journeyRootLogin: number;
 };
@@ -25,8 +27,14 @@ export type ResolvedScope = {
   mixedSizes: boolean;
 };
 
-/** Every account with its journey root, for the scope selector and for resolving scopes. */
-export async function listScopeAccounts(db: Executor): Promise<ScopeAccount[]> {
+/**
+ * Every live account with its journey root, for the scope selector and pickers; `includeBacktest` adds
+ * backtest sessions' synthetic accounts.
+ */
+export async function listScopeAccounts(
+  db: Executor,
+  { includeBacktest = false }: { includeBacktest?: boolean } = {},
+): Promise<ScopeAccount[]> {
   const rows = await db
     .select({
       id: accounts.id,
@@ -34,6 +42,7 @@ export async function listScopeAccounts(db: Executor): Promise<ScopeAccount[]> {
       phase: accounts.phase,
       status: accounts.status,
       isDemo: accounts.isDemo,
+      isBacktest: accounts.isBacktest,
       startingBalance: accounts.startingBalance,
       journeyRootLogin: sql<number>`(
         select root.login from account_journeys j join accounts root on root.id = j.root_account_id
@@ -41,6 +50,7 @@ export async function listScopeAccounts(db: Executor): Promise<ScopeAccount[]> {
       )`.mapWith(Number),
     })
     .from(accounts)
+    .where(includeBacktest ? undefined : eq(accounts.isBacktest, false))
     .orderBy(asc(accounts.firstSeenAt), asc(accounts.login));
   return rows.map((r) => ({ ...r, journeyRootLogin: r.journeyRootLogin || r.login }));
 }
@@ -50,7 +60,9 @@ export async function listScopeAccounts(db: Executor): Promise<ScopeAccount[]> {
  * A journey is named by the login of any account in it; the whole chain is returned.
  */
 export async function resolveScope(db: Executor, scope: Scope = DEFAULT_SCOPE): Promise<ResolvedScope> {
-  const all = await listScopeAccounts(db);
+  const every = await listScopeAccounts(db, { includeBacktest: true });
+  // Backtest sessions' accounts belong to the Backtest scope only; live scopes never list them.
+  const all = every.filter((a) => a.isBacktest === (scope.kind === 'backtest'));
   const byLogin = new Map(all.map((a) => [String(a.login), a]));
   let picked: ScopeAccount[];
   switch (scope.kind) {
@@ -89,7 +101,7 @@ export async function resolveScope(db: Executor, scope: Scope = DEFAULT_SCOPE): 
 /** Accounts by id, for labelling trades with `login · phase` (§8.1). */
 export async function accountsById(db: Executor, ids: string[]) {
   if (ids.length === 0) return new Map<string, ScopeAccount>();
-  const rows = await listScopeAccounts(db);
+  const rows = await listScopeAccounts(db, { includeBacktest: true });
   const wanted = new Set(ids);
   return new Map(rows.filter((r) => wanted.has(r.id)).map((r) => [r.id, r]));
 }

@@ -24,11 +24,12 @@ async function inTx(fn: (tx: postgres.TransactionSql) => Promise<void>) {
   }
 }
 
-async function seedAccount(tx: postgres.TransactionSql) {
-  const [firm] = await tx`select id from firms where name = 'FundedNext'`;
+async function seedAccount(tx: postgres.TransactionSql, backtest = false) {
+  const [firm] = await tx`select id from firms where name = ${backtest ? 'Backtest Lab' : 'FundedNext'}`;
   const [account] = await tx`
-    insert into accounts (firm_id, external_id, login, phase, is_demo, starting_balance)
-    values (${firm?.id}, 999001, 999001, 'funded', false, 25000) returning id`;
+    insert into accounts (firm_id, external_id, login, phase, is_demo, starting_balance, is_backtest)
+    values (${firm?.id}, 999001, 999001, ${backtest ? 'other' : 'funded'}, ${backtest}, 25000, ${backtest})
+    returning id`;
   return account?.id as string;
 }
 
@@ -64,9 +65,29 @@ describe.skipIf(!url)('database', () => {
 
   it('allows deleting a backtest trade', async () => {
     await inTx(async (tx) => {
-      const trade = await seedTrade(tx, await seedAccount(tx), 'backtest', 'B1');
+      const trade = await seedTrade(tx, await seedAccount(tx, true), 'backtest', 'B1');
       const deleted = await tx`delete from trades where id = ${trade.id} returning id`;
       expect(deleted).toHaveLength(1);
+    });
+  });
+
+  it('allows deleting a backtest account, never flipping the flag', async () => {
+    await inTx(async (tx) => {
+      const id = await seedAccount(tx, true);
+      expect(await tx`delete from accounts where id = ${id} returning id`).toHaveLength(1);
+    });
+    await inTx(async (tx) => {
+      const id = await seedAccount(tx, true);
+      await expect(tx`update accounts set is_backtest = false where id = ${id}`).rejects.toThrow(/cannot change/);
+    });
+  });
+
+  it('keeps live trades on live accounts and backtest trades on backtest accounts', async () => {
+    await inTx(async (tx) => {
+      await expect(seedTrade(tx, await seedAccount(tx, true), 'live', 'L1')).rejects.toThrow(/does not match/);
+    });
+    await inTx(async (tx) => {
+      await expect(seedTrade(tx, await seedAccount(tx), 'backtest', 'B2')).rejects.toThrow(/does not match/);
     });
   });
 

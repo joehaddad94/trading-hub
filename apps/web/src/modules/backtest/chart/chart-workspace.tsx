@@ -1,6 +1,6 @@
 'use client';
 
-import type { Drawing } from '@trading/backtest';
+import type { Drawing, OrderView, SessionView } from '@trading/backtest';
 import { parseTimeframe, TIMEFRAMES, type Timeframe } from '@trading/backtest-engine';
 import { parseAsString, useQueryState } from 'nuqs';
 import { useCallback, useEffect, useMemo, useState } from 'react';
@@ -10,11 +10,14 @@ import { IndicatorMenu } from './indicator-menu';
 import { activeIndicators, type IndicatorPrefs, normalisePrefs } from './indicators';
 import { type ChartApi, KLineChart } from './kline-chart';
 import { NewsPanel } from './news-panel';
+import { orderMarks } from './order-lines';
 import { ReplayControls } from './replay-controls';
 import { toolForKey } from './tools/registry';
+import { TradePanel } from './trade-panel';
 import { type DrawingActions, useDrawings } from './use-drawings';
 import { eventsInBar, type NewsFilter, toMarkers, useNewsEvents } from './use-news-events';
 import { useReplay } from './use-replay';
+import { type TradingActions, useTrading } from './use-trading';
 
 export type WorkspaceInstrument = { code: string; displayName: string; priceDigits: number; pointValue: string };
 
@@ -78,12 +81,16 @@ export function ChartWorkspace({
   currencies,
   drawings: initialDrawings,
   drawingActions,
+  trading: initialTrading,
+  tradingActions,
 }: {
   instruments: WorkspaceInstrument[];
   /** News › "currencies that count": the default marker filter. */
   currencies: string[];
   drawings: Drawing[];
   drawingActions: DrawingActions;
+  trading: { session: SessionView; orders: OrderView[] } | null;
+  tradingActions: TradingActions;
 }) {
   const [code, setCode] = useQueryState('i', parseAsString.withDefault(defaultInstrument(instruments)));
   const [tfParam, setTfParam] = useQueryState('tf', parseAsString.withDefault('5'));
@@ -158,6 +165,36 @@ export function ChartWorkspace({
   const markers = useMemo(() => toMarkers(events, tf), [events, tf]);
   const hovered = eventsInBar(events, hoverBar, tf, cursor);
   const indicators = useMemo(() => activeIndicators(prefs.indicators), [prefs.indicators]);
+  const trading = useTrading({
+    session: initialTrading?.session ?? null,
+    initialOrders: initialTrading?.orders ?? [],
+    actions: tradingActions,
+    cursor,
+    instrument: {
+      code: instrument?.code ?? 'US30',
+      pointValue: instrument?.pointValue ?? '10',
+      priceDigits: instrument?.priceDigits ?? 2,
+    },
+  });
+  const marks = useMemo(
+    () => orderMarks(trading.orders, instrument?.code ?? '', tf),
+    [trading.orders, instrument?.code, tf],
+  );
+  const selected = drawings.selected;
+  const placeFromSelected = async (kind: 'market' | 'pending') => {
+    if (!selected || (selected.tool !== 'long' && selected.tool !== 'short')) return;
+    const placed = await trading.place(
+      {
+        side: selected.tool,
+        points: selected.points.map((p) => ({ ts: p.ts, price: p.price })),
+        sizing: selected.style.sizing,
+      },
+      kind,
+      selected.drawingId,
+    );
+    // The drawing has become the order (spec §6.1).
+    if (placed) drawings.removeSelected();
+  };
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       const target = event.target as HTMLElement | null;
@@ -201,8 +238,8 @@ export function ChartWorkspace({
   }
 
   return (
-    <div className="flex h-full flex-col">
-      <div className="flex flex-wrap items-center gap-2 border-b px-2 py-1.5 text-sm md:px-4">
+    <div className="flex flex-1 flex-col md:h-full">
+      <div className="relative z-30 flex flex-wrap items-center gap-2 border-b px-2 py-1.5 text-sm md:px-4">
         <fieldset className="flex items-center gap-1">
           <legend className="sr-only">Instrument</legend>
           {instruments.map((i) => (
@@ -312,7 +349,7 @@ export function ChartWorkspace({
         </div>
       </div>
       <ReplayControls replay={replay} timezone={prefs.timezone} picking={picking} onPick={setPicking} />
-      <div className="flex min-h-0 flex-1 flex-col-reverse md:flex-row">
+      <div className="flex min-h-[60dvh] flex-1 flex-col-reverse md:min-h-0 md:flex-row">
         <DrawingToolbar drawings={drawings} />
         <div
           className={cn('relative min-h-0 flex-1', picking && 'cursor-crosshair')}
@@ -322,7 +359,29 @@ export function ChartWorkspace({
           )}
         >
           <NewsPanel events={hovered} timezone={prefs.timezone} />
-          <DrawingProperties drawings={drawings} />
+          <DrawingProperties drawings={drawings}>
+            {cursor !== null && selected && (selected.tool === 'long' || selected.tool === 'short') && (
+              <>
+                <button
+                  type="button"
+                  onClick={() => void placeFromSelected('market')}
+                  className={cn(
+                    'h-8 rounded-md px-2 font-medium',
+                    selected.tool === 'long' ? 'bg-profit/20 text-profit' : 'bg-loss/20 text-loss',
+                  )}
+                >
+                  {selected.tool === 'long' ? 'Buy market' : 'Sell market'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void placeFromSelected('pending')}
+                  className="h-8 rounded-md px-2 hover:bg-accent/60"
+                >
+                  Place pending
+                </button>
+              </>
+            )}
+          </DrawingProperties>
           {drawings.error && (
             <p role="alert" className="absolute top-2 left-2 z-10 rounded-md bg-loss/20 px-3 py-1 text-sm">
               {drawings.error}
@@ -340,9 +399,11 @@ export function ChartWorkspace({
             markers={markers}
             onCrosshair={setHoverBar}
             indicators={indicators}
+            orderMarks={marks}
           />
         </div>
       </div>
+      <TradePanel trading={trading} timezone={prefs.timezone} />
       <p className="border-t px-4 py-1 text-muted-foreground text-xs">
         Historical data from Dukascopy; prices may differ slightly from your broker.
       </p>

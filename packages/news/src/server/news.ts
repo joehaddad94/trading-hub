@@ -286,6 +286,7 @@ export async function accountRestrictions(db: Executor): Promise<AccountRestrict
       )`,
     })
     .from(accounts)
+    .where(eq(accounts.isBacktest, false))
     .orderBy(desc(accounts.lastSeenAt), asc(accounts.login));
   return rows.map(({ rulesRaw, ...a }) => {
     const newsAddon = hasNewsAddon(rulesRaw);

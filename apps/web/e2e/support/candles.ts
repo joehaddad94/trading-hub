@@ -49,3 +49,17 @@ export async function clearDrawings() {
     await db.$client.end();
   }
 }
+
+/** Backtest sessions are disposable too: removes every session, its synthetic account and trades. */
+export async function clearBacktestSessions() {
+  const url = process.env.DATABASE_URL;
+  if (!url) throw new Error('DATABASE_URL not set');
+  const db = createDb(url);
+  try {
+    await db.$client`delete from trades where source = 'backtest'`;
+    await db.$client`delete from backtest_sessions`;
+    await db.$client`delete from accounts where is_backtest`;
+  } finally {
+    await db.$client.end();
+  }
+}

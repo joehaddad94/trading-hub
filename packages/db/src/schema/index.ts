@@ -1,4 +1,5 @@
 export * from './accounts';
+export * from './backtest';
 export * from './enums';
 export * from './imports';
 export * from './journal';

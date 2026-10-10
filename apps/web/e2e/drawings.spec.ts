@@ -15,6 +15,7 @@ const shown = async (page: Page): Promise<Shown[]> =>
  * within 500 ms that lands away from the first (it is neither a click nor a double click), so space them out.
  */
 async function clickChart(page: Page, fx: number, fy: number) {
+  await page.getByTestId('kline-chart').scrollIntoViewIfNeeded();
   const box = await page.getByTestId('kline-chart').boundingBox();
   if (!box) throw new Error('chart not visible');
   await page.mouse.click(box.x + box.width * fx, box.y + box.height * fy);

@@ -49,7 +49,7 @@ export async function trackerHubSummary(
   const active = await db
     .select({ login: accounts.login, phase: accounts.phase, balance: latestBalance })
     .from(accounts)
-    .where(eq(accounts.status, 'active'))
+    .where(and(eq(accounts.status, 'active'), eq(accounts.isBacktest, false)))
     .orderBy(asc(accounts.isDemo), desc(accounts.lastSeenAt));
 
   return {
