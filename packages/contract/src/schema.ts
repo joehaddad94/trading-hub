@@ -1,9 +1,10 @@
 import { z } from 'zod';
+import { SERVER_TIME_PATTERN } from './fields';
 
 /** Export file contract, schema_version 1 (tracker spec §4, news spec §1.2). */
 
 const numeric = z.union([z.number(), z.string().regex(/^-?\d+(\.\d+)?$/)]);
-const serverTime = z.string().regex(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/);
+const serverTime = z.string().regex(SERVER_TIME_PATTERN);
 const zeroOne = z.union([z.literal(0), z.literal(1), z.boolean()]);
 
 export const tradeSchema = z.looseObject({

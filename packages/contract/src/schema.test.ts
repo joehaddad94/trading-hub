@@ -23,6 +23,14 @@ describe('parseExportFile — real Phase 0 export', () => {
     expect(data.firm_server_time_offset).toBe('+03:00');
   });
 
+  it('accepts cycle times the producer rewrote as ISO with an offset (2122Z export)', () => {
+    const file = structuredClone(fixture) as { accounts: { cycles: Record<string, unknown>[] }[] };
+    const cycle = file.accounts[0]?.cycles[0] as Record<string, unknown>;
+    cycle.created_at = '2026-09-24T16:32:33+03:00';
+    cycle.ending_at = '2026-10-14T23:45:00+03:00';
+    expect(parseExportFile(file).ok).toBe(true);
+  });
+
   it('net P/L per account matches the producer checksums', () => {
     const data = parsed();
     const byLogin = Object.fromEntries(

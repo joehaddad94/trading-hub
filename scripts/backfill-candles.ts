@@ -3,12 +3,12 @@
  * resumable (days with a good run are skipped), so just re-run it after an interruption.
  *
  *   DATABASE_URL_DIRECT=postgres://… pnpm tsx scripts/backfill-candles.ts [--from 2025-10-09] [--to 2026-10-08]
- *                                                                           [--only US30] [--force]
+ *                                                                           [--only US30] [--force] [--pause 5]
  *
  * Run it from a machine that can reach datafeed.dukascopy.com.
  */
 import { createDb } from '@trading/db';
-import { backfillWindow } from '@trading/market-data';
+import { backfillWindow, type MarketDataProvider } from '@trading/market-data';
 import { backfill, dukascopyProvider } from '@trading/market-data/server';
 
 const url = process.env.DATABASE_URL_DIRECT;
@@ -23,10 +23,21 @@ const window = backfillWindow(new Date());
 const from = flag('from') ?? window.from;
 const to = flag('to') ?? window.to;
 const only = flag('only');
+// Dukascopy rate-limits bulk downloads (429/202), so space out the per-day requests.
+const pauseMs = Number(flag('pause') ?? 0) * 1000;
+const provider: MarketDataProvider = {
+  name: dukascopyProvider.name,
+  async fetchMinuteCandles(code, dayFrom, dayTo) {
+    if (pauseMs > 0) await new Promise((resolve) => setTimeout(resolve, pauseMs));
+    return dukascopyProvider.fetchMinuteCandles(code, dayFrom, dayTo);
+  },
+};
 
 const db = createDb(url);
-console.warn(`Backfilling ${only ?? 'all instruments'} ${from} → ${to}`);
-const results = await backfill(db, dukascopyProvider, {
+console.warn(
+  `Backfilling ${only ?? 'all instruments'} ${from} → ${to}${pauseMs ? `, ${pauseMs / 1000}s between days` : ''}`,
+);
+const results = await backfill(db, provider, {
   from,
   to,
   codes: only ? only.split(',') : undefined,
