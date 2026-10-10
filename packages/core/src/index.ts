@@ -93,6 +93,7 @@ export {
   activeRestrictions,
   type CalendarEvent,
   countdown,
+  currentNewsWeek,
   groupWeek,
   mondayOf,
   NEWS_DAYS,
