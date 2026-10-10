@@ -42,6 +42,7 @@ export async function syncNow(_prev: ActionResult<string> | null): Promise<Actio
   const run = await importFromInbox();
   revalidatePath('/settings/imports');
   if (!run.ok) return { ok: false, error: run.error };
+  if (run.busy) return { ok: true, data: 'An import is already running. Check back in a minute.' };
   const imported = run.outcomes.filter((o) => o.result === 'ok' || o.result === 'partial').length;
   const problems = run.outcomes.filter((o) => o.result === 'failed' || o.result === 'rejected').length;
   if (run.outcomes.length === 0) return { ok: true, data: 'No new files in the inbox.' };

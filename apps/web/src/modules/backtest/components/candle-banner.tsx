@@ -1,4 +1,5 @@
 import { formatBeirut } from '@/lib/format';
+import { StatusStrip } from '@/shell/status-strip';
 import { getCandleStatus } from '../server/market-data';
 
 /** Backtest Lab: candle data problems (backtester spec §1.3). Amber: the lab still works on older data. */
@@ -6,19 +7,11 @@ export async function CandleBanner() {
   const status = await getCandleStatus();
   if (!status || status.conditions.length === 0) return null;
   return (
-    <div role="alert" className="border-amber-500 border-b bg-amber-500/15 px-4 py-2 text-sm">
-      <div className="mx-auto flex max-w-5xl flex-col gap-1">
-        <p className="font-semibold">Market data needs attention</p>
-        <ul className="flex flex-col gap-0.5">
-          {status.conditions.map((c) => (
-            <li key={c.message} className="break-words">
-              {c.message}
-              {c.since && <span className="text-muted-foreground"> · {formatBeirut(c.since)}</span>}
-            </li>
-          ))}
-        </ul>
-      </div>
-    </div>
+    <StatusStrip
+      tone="warning"
+      title="Market data needs attention"
+      items={status.conditions.map((c) => ({ key: c.message, message: c.message, since: c.since }))}
+    />
   );
 }
 

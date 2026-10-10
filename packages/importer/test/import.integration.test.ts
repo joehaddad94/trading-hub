@@ -2,7 +2,15 @@ import { readFileSync } from 'node:fs';
 import { createDb } from '@trading/db';
 import { sql } from '@trading/db/orm';
 import { afterAll, describe, expect, it } from 'vitest';
-import { type Inbox, importUploadedFile, processExportFile, runInboxImport, type Tx } from '../src/server';
+import {
+  acquireImportLease,
+  type Inbox,
+  importUploadedFile,
+  processExportFile,
+  releaseImportLease,
+  runInboxImport,
+  type Tx,
+} from '../src/server';
 
 /** Needs TEST_DATABASE_URL (local Supabase, or scripts/db-plain-postgres.sh). Every test rolls back. */
 const url = process.env.TEST_DATABASE_URL;
@@ -240,6 +248,16 @@ describe.skipIf(!url)('import pipeline', () => {
         sql`select last_check_at::text, last_file_at::text from sync_health`,
       );
       expect(health).toEqual({ last_check_at: '2026-10-10 23:05:00+00', last_file_at: '2026-10-09 21:00:00+00' });
+    });
+  });
+
+  it('import lease: one run at a time, freed on release or when it expires', async () => {
+    await inTx(async (tx) => {
+      expect(await acquireImportLease(tx, NOW)).toBe(true);
+      expect(await acquireImportLease(tx, new Date(NOW.getTime() + 60_000))).toBe(false);
+      expect(await acquireImportLease(tx, new Date(NOW.getTime() + 5 * 60_000))).toBe(true);
+      await releaseImportLease(tx);
+      expect(await acquireImportLease(tx, NOW)).toBe(true);
     });
   });
 

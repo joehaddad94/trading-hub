@@ -6,11 +6,14 @@ export function ScopeNotice({ scope }: { scope: ResolvedScope }) {
     return <p className="text-muted-foreground text-sm">No accounts in this scope yet.</p>;
   }
   if (!scope.mixedDemoAndReal && !scope.mixedSizes) return null;
+  const what = scope.mixedDemoAndReal ? 'demo and real accounts' : 'account sizes';
   return (
-    <p className="rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm" data-testid="scope-notice">
-      {scope.mixedDemoAndReal
-        ? 'This scope mixes demo and real accounts, so R is the fairer unit.'
-        : 'This scope mixes account sizes, so R is the fairer unit.'}
+    <p
+      className="w-fit rounded-full border border-amber-500/40 bg-amber-500/10 px-2.5 py-0.5 text-xs"
+      data-testid="scope-notice"
+      title={`This scope mixes ${what}, so R is the fairer unit.`}
+    >
+      Mixes {what} · compare in R
     </p>
   );
 }

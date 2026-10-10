@@ -41,6 +41,8 @@ export const syncHealth = pgTable(
     /** Set while any §7 condition holds; drives the "recovered" message. */
     unhealthySince: tstz(),
     activeConditions: jsonb(),
+    /** Lease held by the running inbox import; a second run started before it expires skips. */
+    importLockedUntil: tstz(),
     ...timestamps,
   },
   (t) => [check('sync_health_single_row', sql`${t.id}`)],

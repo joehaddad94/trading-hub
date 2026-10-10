@@ -4,6 +4,7 @@ import { evaluateSyncHealth } from '@trading/core';
 import { desc, eq } from '@trading/db/orm';
 import { rawImports, syncHealth } from '@trading/db/schema';
 import {
+  acquireImportLease,
   checkSyncHealth,
   clearRunError,
   createGoogleDriveInbox,
@@ -13,6 +14,7 @@ import {
   listRecentAlerts,
   readSyncHealthInput,
   recordRunError,
+  releaseImportLease,
   runInboxImport,
 } from '@trading/importer/server';
 import { env } from '@/lib/env';
@@ -29,7 +31,8 @@ export function getInbox(): Inbox | null {
   });
 }
 
-export type ImportRun = { ok: true; outcomes: FileOutcome[] } | { ok: false; error: string };
+/** `busy`: another import held the lease, so this run did nothing. */
+export type ImportRun = { ok: true; outcomes: FileOutcome[]; busy?: true } | { ok: false; error: string };
 
 /** Reads the Drive inbox now (cron, "Sync now"). Errors go to Sentry and are returned, never thrown. */
 export async function importFromInbox(now = new Date()): Promise<ImportRun> {
@@ -37,6 +40,12 @@ export async function importFromInbox(now = new Date()): Promise<ImportRun> {
   const inbox = getInbox();
   if (!db) return { ok: false, error: 'DATABASE_URL is not configured.' };
   if (!inbox) return { ok: false, error: 'Google Drive inbox is not configured.' };
+  try {
+    if (!(await acquireImportLease(db, now))) return { ok: true, outcomes: [], busy: true };
+  } catch (error) {
+    Sentry.captureException(error);
+    return { ok: false, error: (error as Error).message };
+  }
   try {
     const outcomes = await runInboxImport(db, inbox, now);
     await clearRunError(db);
@@ -49,6 +58,7 @@ export async function importFromInbox(now = new Date()): Promise<ImportRun> {
     );
     return { ok: false, error: message };
   } finally {
+    await releaseImportLease(db).catch((e: unknown) => Sentry.captureException(e));
     await runHealthCheck(now);
   }
 }

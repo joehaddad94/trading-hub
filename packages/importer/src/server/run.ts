@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 import { parseExportFile } from '@trading/contract';
-import { eq, sql } from '@trading/db/orm';
+import { and, eq, isNull, lte, or, sql } from '@trading/db/orm';
 import { rawImports, syncHealth } from '@trading/db/schema';
 import { planImport } from '../plan';
 import { type Inbox, isExportFileName } from './inbox';
@@ -109,6 +109,29 @@ export async function runInboxImport(db: Db, inbox: Inbox, now: Date): Promise<F
     .values({ id: true, lastCheckAt: now })
     .onConflictDoUpdate({ target: syncHealth.id, set: { lastCheckAt: now } });
   return outcomes;
+}
+
+/** Longer than any run (the cron allows 60 s), so a run that crashed frees the lease on its own. */
+const IMPORT_LEASE_MS = 5 * 60_000;
+
+/**
+ * Takes the inbox-import lease in one atomic update; false while another run holds it.
+ * Import-on-open, the cron and "Sync now" can otherwise process the same file at the same time.
+ */
+export async function acquireImportLease(db: Db, now: Date, leaseMs = IMPORT_LEASE_MS): Promise<boolean> {
+  await db.insert(syncHealth).values({ id: true }).onConflictDoNothing();
+  const taken = await db
+    .update(syncHealth)
+    .set({ importLockedUntil: new Date(now.getTime() + leaseMs) })
+    .where(
+      and(eq(syncHealth.id, true), or(isNull(syncHealth.importLockedUntil), lte(syncHealth.importLockedUntil, now))),
+    )
+    .returning({ id: syncHealth.id });
+  return taken.length > 0;
+}
+
+export async function releaseImportLease(db: Db): Promise<void> {
+  await db.update(syncHealth).set({ importLockedUntil: null }).where(eq(syncHealth.id, true));
 }
 
 /** Manual fallback (Settings › Imports): same pipeline, keyed by content hash so a re-upload is a no-op. */

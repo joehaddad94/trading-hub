@@ -1,28 +1,18 @@
-import Link from 'next/link';
 import { formatBeirut } from '@/lib/format';
 import { getSyncStatus } from '@/lib/server/imports';
+import { StatusStrip } from './status-strip';
 
-/** Red banner on every page while sync is unhealthy (tracker spec §7). */
+/** Red status line on every page while sync is unhealthy (tracker spec §7). */
 export async function SyncBanner() {
   const status = await getSyncStatus();
   if (!status || status.conditions.length === 0) return null;
   return (
-    <div role="alert" className="border-loss border-b bg-loss/15 px-4 py-3 text-sm">
-      <div className="mx-auto flex max-w-5xl flex-col gap-1">
-        <p className="font-semibold text-loss">Sync problem — data may be out of date</p>
-        <ul className="flex flex-col gap-1">
-          {status.conditions.map((c) => (
-            <li key={c.kind} className="break-words">
-              {c.message}
-              {c.since && <span className="text-muted-foreground"> · since {formatBeirut(c.since)}</span>}
-            </li>
-          ))}
-        </ul>
-        <Link href="/settings/imports" className="self-start font-medium underline underline-offset-4">
-          Open Imports &amp; health
-        </Link>
-      </div>
-    </div>
+    <StatusStrip
+      tone="error"
+      title="Sync problem"
+      items={status.conditions.map((c) => ({ key: c.kind, message: c.message, since: c.since }))}
+      link={{ href: '/settings/imports', label: 'Open Imports & health' }}
+    />
   );
 }
 

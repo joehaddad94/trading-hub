@@ -69,7 +69,6 @@ export default async function TradePage({ params }: { params: Promise<{ id: stri
             data-testid="trade-net"
           >
             {formatMoney(t.netProfit)} · {formatR(r)}
-            {news && <TradeNewsSection news={news} />}
             {t.riskSource === 'estimated' && (
               <span className="ml-1 rounded bg-muted px-1 font-normal text-muted-foreground text-xs">est.</span>
             )}
@@ -82,6 +81,7 @@ export default async function TradePage({ params }: { params: Promise<{ id: stri
           {accountLabel(account)} <StatusBadge status={account.status} />
         </Link>
       </div>
+      {news && <TradeNewsSection news={news} />}
 
       <dl
         className="grid grid-cols-2 gap-x-4 gap-y-1 rounded-lg border p-3 text-sm md:grid-cols-4"
