@@ -1,0 +1,25 @@
+{
+  "name": "@trading/importer",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./server": "./src/server/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --coverage"
+  },
+  "dependencies": {
+    "@googleapis/drive": "^26.0.2",
+    "@trading/contract": "workspace:*",
+    "@trading/core": "workspace:*",
+    "@trading/db": "workspace:*",
+    "decimal.js": "^10.6.0"
+  },
+  "devDependencies": {
+    "@trading/config": "workspace:*",
+    "postgres": "^3.4.9"
+  }
+}

@@ -1,0 +1,90 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1791581347730,
+      "tag": "20261009212907_tracker_schema",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1791581369771,
+      "tag": "20261009212929_security_and_guards",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1791581856475,
+      "tag": "20261009213736_status_history_dedupe",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1791582391844,
+      "tag": "20261009214631_sync_health_conditions",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1791584617668,
+      "tag": "20261009222337_app_settings",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1791585505555,
+      "tag": "20261009223825_journal_screenshots_bucket",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1791585604365,
+      "tag": "20261009224004_tags_kind_name_unique",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1791586789887,
+      "tag": "20261009225949_economic_events",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1791587742111,
+      "tag": "20261009231542_account_news_restriction",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1791588977034,
+      "tag": "20261009233617_market_data",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1791591542737,
+      "tag": "20261010001902_drawings",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1791593382741,
+      "tag": "20261010004942_backtest_trading",
+      "breakpoints": true
+    }
+  ]
+}

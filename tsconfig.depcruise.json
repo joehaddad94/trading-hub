@@ -1,0 +1,10 @@
+{
+  "//": "Resolution-only config for dependency-cruiser (pnpm boundaries). Mirrors apps/web path aliases.",
+  "extends": "./packages/config/tsconfig.base.json",
+  "compilerOptions": {
+    "jsx": "react-jsx",
+    "baseUrl": ".",
+    "paths": { "@/*": ["./apps/web/src/*"] }
+  },
+  "include": ["apps/*/src", "packages/*/src"]
+}

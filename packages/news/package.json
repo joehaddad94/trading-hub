@@ -1,0 +1,22 @@
+{
+  "name": "@trading/news",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./server": "./src/server/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --coverage"
+  },
+  "dependencies": {
+    "@trading/core": "workspace:*",
+    "@trading/db": "workspace:*"
+  },
+  "devDependencies": {
+    "@trading/config": "workspace:*",
+    "@trading/importer": "workspace:*"
+  }
+}
