@@ -1,6 +1,7 @@
 'use client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
+import { riskPctOf, riskUsdFromPct } from '@trading/core';
 import type { Route } from 'next';
 import { useRouter } from 'next/navigation';
 import { useState, useTransition } from 'react';
@@ -10,7 +11,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import type { ActionResult } from '@/lib/action-result';
 import { cn } from '@/lib/utils';
-import { EMOTIONS, type JournalFormInput, type JournalFormValues, journalSchema } from './schema';
+import { EMOTIONS, type JournalFormInput, type JournalFormValues, journalSchema, RISK_PCT_CHOICES } from './schema';
 
 type Tag = { id: string; name: string; kind: 'setup' | 'mistake' | 'context' };
 
@@ -25,12 +26,14 @@ export function JournalForm({
   tags,
   side,
   openPrice,
+  startingBalance,
   save,
 }: {
   defaults: JournalDefaults;
   tags: Tag[];
   side: 'buy' | 'sell';
   openPrice: string;
+  startingBalance: string;
   save: (input: JournalFormInput) => Promise<ActionResult<{ next: string | null }>>;
 }) {
   const router = useRouter();
@@ -45,6 +48,11 @@ export function JournalForm({
   const mistakeTags = tags.filter((t) => t.kind === 'mistake').map((t) => t.name);
   const mistakes = watch('mistakes') ?? [];
   const mistakeOptions = [...new Set([...mistakeTags, ...mistakes])];
+  const plannedRisk = watch('plannedRiskUsd');
+  const riskPct =
+    typeof plannedRisk === 'string' && /^\d+(\.\d+)?$/.test(plannedRisk.trim())
+      ? riskPctOf(plannedRisk.trim(), startingBalance)
+      : null;
 
   const submit = (next: boolean) =>
     handleSubmit(() => {
@@ -131,6 +139,15 @@ export function JournalForm({
           <Input id="plannedRiskUsd" inputMode="decimal" autoComplete="off" {...register('plannedRiskUsd')} />
         </Field>
       </div>
+
+      <ChipGroup
+        label="Risk % (fills planned risk $)"
+        options={RISK_PCT_CHOICES.map((p) => ({ value: p, label: `${p}%` }))}
+        selected={riskPct ? [riskPct] : []}
+        onToggle={(p) =>
+          setValue('plannedRiskUsd', riskPct === p ? '' : riskUsdFromPct(startingBalance, p), { shouldDirty: true })
+        }
+      />
 
       {(['emotionBefore', 'emotionAfter'] as const).map((name) => (
         <Controller

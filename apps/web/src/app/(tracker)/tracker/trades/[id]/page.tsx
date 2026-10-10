@@ -24,7 +24,7 @@ import {
 const RISK_SOURCES: Record<string, string> = {
   full_stop_loss: 'full stop loss',
   journal_sl: 'journaled stop loss',
-  journal_planned: 'journaled planned risk',
+  journal_usd: 'planned or tagged risk',
   estimated: 'estimated',
 };
 
@@ -105,6 +105,7 @@ export default async function TradePage({ params }: { params: Promise<{ id: stri
         tags={data.tags}
         side={t.side}
         openPrice={t.openPrice}
+        startingBalance={account.startingBalance}
         defaults={{
           tradeId: t.id,
           setupTagId: entry?.setupTagId ?? '',

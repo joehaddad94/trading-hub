@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { isFullStopLoss, median, type RiskContext, type RiskInput, resolveRisk } from './risk';
+import {
+  isFullStopLoss,
+  median,
+  type RiskContext,
+  type RiskInput,
+  resolveRisk,
+  riskPctOf,
+  riskUsdFromPct,
+} from './risk';
 
 const base: RiskInput = {
   side: 'buy',
@@ -31,6 +39,13 @@ describe('resolveRisk order (§6)', () => {
     expect(
       resolveRisk({ ...base, pointValuePerLot: null, journal: { initialSl: '19960', plannedRiskUsd: '90' } }, ctx),
     ).toEqual({ riskUsd: '90.00', source: 'journal_usd' });
+  });
+
+  it('2b. risk tagged from the queue beats a full stop and an estimate, but not the journal', () => {
+    expect(resolveRisk({ ...base, taggedRiskUsd: '250' }, ctx)).toEqual({ riskUsd: '250.00', source: 'journal_usd' });
+    const journaled = { ...base, taggedRiskUsd: '250', journal: { initialSl: null, plannedRiskUsd: '90' } };
+    expect(resolveRisk(journaled, ctx).riskUsd).toBe('90.00');
+    expect(resolveRisk({ ...base, taggedRiskUsd: '0' }, ctx).source).toBe('full_stop_loss');
   });
 
   it('3. full stop loss uses |net loss|', () => {
@@ -67,5 +82,15 @@ describe('median', () => {
     expect(median(['3', '1', '2'])).toBe('2.00');
     expect(median(['4', '1', '2', '3'])).toBe('2.50');
     expect(median([])).toBeNull();
+  });
+});
+
+describe('risk % of starting balance', () => {
+  it('converts both ways', () => {
+    expect(riskUsdFromPct('25000', '0.5')).toBe('125.00');
+    expect(riskUsdFromPct('25000', '1')).toBe('250.00');
+    expect(riskPctOf('125', '25000')).toBe('0.5');
+    expect(riskPctOf('333.33', '25000')).toBe('1.33');
+    expect(riskPctOf('100', '0')).toBeNull();
   });
 });

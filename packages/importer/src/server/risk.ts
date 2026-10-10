@@ -1,7 +1,7 @@
 import { median, type RiskSource, resolveRisk } from '@trading/core';
 import type { Executor } from '@trading/db';
 import { and, asc, eq, inArray } from '@trading/db/orm';
-import { accounts, journalEntries, symbolSpecs, trades } from '@trading/db/schema';
+import { accounts, journalEntries, symbolSpecs, tradeRisk, trades } from '@trading/db/schema';
 import Decimal from 'decimal.js';
 
 /**
@@ -34,6 +34,7 @@ export async function refreshTradeRisk(db: Executor, accountIds: string[]): Prom
       initialSl: journalEntries.initialSl,
       plannedRiskUsd: journalEntries.plannedRiskUsd,
       journalId: journalEntries.id,
+      taggedRiskUsd: tradeRisk.riskUsd,
       pointValuePerLot: symbolSpecs.pointValuePerLot,
       startingBalance: accounts.startingBalance,
       defaultRiskPct: accounts.defaultRiskPct,
@@ -41,6 +42,7 @@ export async function refreshTradeRisk(db: Executor, accountIds: string[]): Prom
     .from(trades)
     .innerJoin(accounts, eq(accounts.id, trades.accountId))
     .leftJoin(journalEntries, eq(journalEntries.tradeId, trades.id))
+    .leftJoin(tradeRisk, eq(tradeRisk.tradeId, trades.id))
     .leftJoin(
       symbolSpecs,
       and(
@@ -67,6 +69,7 @@ export async function refreshTradeRisk(db: Executor, accountIds: string[]): Prom
         slFinal: t.slFinal,
         reasonCode: t.reasonCode,
         journal: t.journalId ? { initialSl: t.initialSl, plannedRiskUsd: t.plannedRiskUsd } : null,
+        taggedRiskUsd: t.taggedRiskUsd,
         pointValuePerLot: t.pointValuePerLot,
       },
       {

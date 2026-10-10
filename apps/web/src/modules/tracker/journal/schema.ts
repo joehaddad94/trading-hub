@@ -56,3 +56,22 @@ export const tagSchema = z.object({
   name: z.string().trim().min(1, 'Name is required').max(60),
   kind: z.enum(['setup', 'mistake', 'context']),
 });
+
+/** One tap in the risk queue: the % of starting balance risked on a trade, or `null` to clear the tag. */
+export const riskTagSchema = z.object({
+  tradeId: z.uuid(),
+  pct: z
+    .string()
+    .trim()
+    .regex(/^\d+(\.\d{1,2})?$/, 'Risk must be a number like 0.5')
+    // Runs even when the regex failed, so only parse what the regex accepted.
+    .refine((v) => !/^\d+(\.\d{1,2})?$/.test(v) || (new Decimal(v).gt(0) && new Decimal(v).lte(10)), {
+      message: 'Risk must be between 0 and 10%',
+    })
+    .nullable(),
+});
+
+export type RiskTagInput = z.input<typeof riskTagSchema>;
+
+/** Quick choices on the risk queue and journal form, as % of the account's starting balance. */
+export const RISK_PCT_CHOICES = ['0.25', '0.5', '0.75', '1'] as const;

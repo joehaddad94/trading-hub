@@ -81,3 +81,21 @@ export const dailyNotes = pgTable('daily_notes', {
   marketContext: text(),
   ...timestamps,
 });
+
+/**
+ * Risk Joe took on a trade, set in one tap from the risk queue (0.5%, 1%, …) without journaling it.
+ * Separate from journal_entries so tagging risk doesn't mark a trade as journaled.
+ */
+export const tradeRisk = pgTable(
+  'trade_risk',
+  {
+    tradeId: uuid()
+      .primaryKey()
+      .references(() => trades.id, { onDelete: 'cascade' }),
+    riskUsd: money().notNull(),
+    /** What was tapped, as % of the account's starting balance; null when entered in dollars. */
+    riskPct: numeric({ precision: 5, scale: 2 }),
+    ...timestamps,
+  },
+  (t) => [check('trade_risk_positive', sql`${t.riskUsd} > 0`)],
+);

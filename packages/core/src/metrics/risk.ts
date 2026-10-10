@@ -11,6 +11,8 @@ export type RiskInput = {
   slFinal: string | null;
   reasonCode: number | null;
   journal: { initialSl: string | null; plannedRiskUsd: string | null } | null;
+  /** Risk tagged from the risk queue (trade_risk) without a journal entry; same weight as planned risk $. */
+  taggedRiskUsd?: string | null;
   /** From symbol_specs; null when the symbol isn't verified yet. */
   pointValuePerLot: string | null;
 };
@@ -31,6 +33,9 @@ export function resolveRisk(t: RiskInput, ctx: RiskContext): { riskUsd: string; 
   }
   if (t.journal?.plannedRiskUsd && new Decimal(t.journal.plannedRiskUsd).gt(0)) {
     return { riskUsd: new Decimal(t.journal.plannedRiskUsd).toFixed(2), source: 'journal_usd' };
+  }
+  if (t.taggedRiskUsd && new Decimal(t.taggedRiskUsd).gt(0)) {
+    return { riskUsd: new Decimal(t.taggedRiskUsd).toFixed(2), source: 'journal_usd' };
   }
   if (isFullStopLoss(t, ctx)) {
     return { riskUsd: new Decimal(t.netProfit).abs().toFixed(2), source: 'full_stop_loss' };
@@ -56,4 +61,16 @@ export function median(values: Decimal.Value[]): string | null {
   const mid = Math.floor(sorted.length / 2);
   const m = sorted.length % 2 ? sorted[mid] : sorted[mid - 1]?.plus(sorted[mid] ?? 0).div(2);
   return m ? m.toFixed(2) : null;
+}
+
+/** Risk in dollars for "I risked pct% on this trade": FundedNext measures risk against the starting balance. */
+export function riskUsdFromPct(startingBalance: Decimal.Value, pct: Decimal.Value): string {
+  return new Decimal(startingBalance).times(pct).div(100).toFixed(2);
+}
+
+/** The reverse, for showing a dollar risk as a % chip; null when the balance is unknown or zero. */
+export function riskPctOf(riskUsd: Decimal.Value, startingBalance: Decimal.Value): string | null {
+  const balance = new Decimal(startingBalance);
+  if (balance.lte(0)) return null;
+  return new Decimal(riskUsd).div(balance).times(100).toDecimalPlaces(2).toString();
 }
