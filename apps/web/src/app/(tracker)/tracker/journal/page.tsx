@@ -7,21 +7,26 @@ import { formatBeirut, formatMoney } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { calendarHref } from '@/modules/tracker/calendar/tracker-calendar';
 import { ScopeNotice } from '@/modules/tracker/components/scope-notice';
+import { RiskQueue } from '@/modules/tracker/journal/risk-queue';
 import { accountLabel } from '@/modules/tracker/scope-label';
 import { getCalendarMonth, readCalendarParams } from '@/modules/tracker/server/calendar';
-import { getDailyNotes, getJournalQueue } from '@/modules/tracker/server/journal';
+import { getDailyNotes, getJournalQueue, getRiskQueue } from '@/modules/tracker/server/journal';
 import { getPageScope } from '@/modules/tracker/server/scope';
+import { tagRiskAction } from './actions';
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
-/** Journal: trades still to journal (screen 6 entry point) and daily notes over a P/L heat map (screen 10). */
+/**
+ * Journal: trades still to journal (screen 6 entry point), the risk queue (tag the % risked so R is real) and
+ * daily notes over a P/L heat map (screen 10).
+ */
 export default async function JournalPage({ searchParams }: { searchParams: Promise<SearchParams> }) {
   const raw = await searchParams;
   const scope = await getPageScope(searchParams);
   if (!scope) return <p className="p-4 text-muted-foreground text-sm md:p-6">Database not configured.</p>;
   const scopeParam = raw.scope?.toString() ?? 'all';
-  const view = raw.view === 'notes' ? 'notes' : 'queue';
+  const view = raw.view === 'notes' || raw.view === 'risk' ? raw.view : 'queue';
   const href = (params: Record<string, string | null>) => {
     const q = new URLSearchParams();
     if (scopeParam !== 'all') q.set('scope', scopeParam);
@@ -29,9 +34,9 @@ export default async function JournalPage({ searchParams }: { searchParams: Prom
     const s = q.toString();
     return (s ? `/tracker/journal?${s}` : '/tracker/journal') as Route;
   };
-  const tab = (id: 'queue' | 'notes', label: string) => (
+  const tab = (id: 'queue' | 'risk' | 'notes', label: string) => (
     <Link
-      href={href({ view: id === 'notes' ? 'notes' : null, month: raw.month?.toString() ?? null })}
+      href={href({ view: id === 'queue' ? null : id, month: raw.month?.toString() ?? null })}
       aria-current={view === id ? 'page' : undefined}
       className={cn(
         'flex h-11 items-center border-b-2 px-3 text-sm md:h-9',
@@ -47,16 +52,30 @@ export default async function JournalPage({ searchParams }: { searchParams: Prom
       <h2 className="font-semibold text-xl">Journal</h2>
       <nav aria-label="Journal views" className="flex gap-1 border-b">
         {tab('queue', 'To journal')}
+        {tab('risk', 'Tag risk')}
         {tab('notes', 'Daily notes')}
       </nav>
       <ScopeNotice scope={scope} />
       {view === 'queue' ? (
         <Queue scope={scope} />
+      ) : view === 'risk' ? (
+        <Risk scope={scope} />
       ) : (
         <Notes scope={scope} searchParams={searchParams} scopeParam={scopeParam} href={href} />
       )}
     </div>
   );
+}
+
+async function Risk({ scope }: { scope: NonNullable<Awaited<ReturnType<typeof getPageScope>>> }) {
+  const q = await getRiskQueue(scope);
+  if (!q) return null;
+  const byId = new Map(scope.accounts.map((a) => [a.id, a]));
+  const items = q.trades.map((t) => {
+    const a = byId.get(t.accountId);
+    return { ...t, account: a ? accountLabel(a) : '—' };
+  });
+  return <RiskQueue items={items} total={q.count} tag={tagRiskAction} />;
 }
 
 async function Queue({ scope }: { scope: NonNullable<Awaited<ReturnType<typeof getPageScope>>> }) {
@@ -78,7 +97,7 @@ async function Queue({ scope }: { scope: NonNullable<Awaited<ReturnType<typeof g
             </span>
             <span className="block truncate text-muted-foreground text-xs">
               {a ? accountLabel(a) : '—'} · {formatBeirut(t.closedAt, 'd MMM HH:mm')}
-              {t.riskSource === 'estimated' ? ' · risk missing' : ''}
+              {t.riskSource === 'estimated' ? ' · R estimated' : ''}
               {extra ? ` · ${extra}` : ''}
             </span>
           </span>

@@ -57,7 +57,16 @@ export {
   type TradingProfile,
   tradingProfile,
 } from './metrics/profile';
-export { isFullStopLoss, median, type RiskContext, type RiskInput, type RiskSource, resolveRisk } from './metrics/risk';
+export {
+  isFullStopLoss,
+  median,
+  type RiskContext,
+  type RiskInput,
+  type RiskSource,
+  resolveRisk,
+  riskPctOf,
+  riskUsdFromPct,
+} from './metrics/risk';
 export { money, sumMoney } from './money/money';
 export {
   type DedupeEvent,

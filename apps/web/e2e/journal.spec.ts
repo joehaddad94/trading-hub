@@ -52,6 +52,39 @@ test.describe('journal (M9)', () => {
     await expect(page.getByLabel('Notes')).toHaveValue('Clean retest of the London high.');
   });
 
+  test('the risk queue turns an estimated R into a real one in one tap, without journaling the trade', async ({
+    page,
+  }) => {
+    await page.goto(`/tracker/journal?scope=${SCOPE}`);
+    const toJournal = (await page.getByTestId('journal-pending-count').textContent()) ?? '';
+    await page.getByRole('link', { name: 'Tag risk' }).click();
+    await expect(page).toHaveURL(/view=risk/);
+    const count = page.getByTestId('risk-queue-count');
+    const before = Number((await count.textContent())?.match(/^(\d+)/)?.[1]);
+    expect(before).toBeGreaterThan(0);
+
+    // The oldest one, so the journal test (newest unjournaled trade) still starts from an estimate.
+    const card = page.getByTestId('risk-card').last();
+    const tradeHref = (await card.getByRole('link').getAttribute('href')) ?? '';
+    await card.getByRole('button', { name: '1%' }).click();
+    await expect(count).toContainText(`${before - 1} trade`);
+    await expect(count).toContainText('1 tagged');
+
+    await page.goto(tradeHref);
+    await expect(page.getByTestId('trade-facts')).toContainText('planned or tagged risk');
+    await expect(page.getByTestId('trade-net')).not.toContainText('est.');
+    // Tagging risk is not journaling: the journal queue is unchanged.
+    await page.goto(`/tracker/journal?scope=${SCOPE}`);
+    await expect(page.getByTestId('journal-pending-count')).toHaveText(toJournal);
+
+    // On the journal form, a risk % chip fills the planned risk $ field.
+    await page.goto(tradeHref);
+    const chip = page.getByRole('group', { name: /Risk %/ }).getByRole('button', { name: '0.5%' });
+    await chip.click();
+    await expect(chip).toHaveAttribute('aria-pressed', 'true');
+    await expect(page.getByLabel('Planned risk $')).not.toHaveValue('');
+  });
+
   test('refuses a stop loss on the wrong side of entry', async ({ page }) => {
     await page.goto(`/tracker/journal?scope=${SCOPE}`);
     await page.getByTestId('journal-pending').getByRole('link').first().click();

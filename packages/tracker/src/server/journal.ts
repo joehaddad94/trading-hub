@@ -1,6 +1,15 @@
 import type { Executor } from '@trading/db';
 import { and, asc, desc, eq, gte, inArray, isNotNull, isNull, lt, sql } from '@trading/db/orm';
-import { accounts, dailyNotes, journalEntries, screenshots, tags, trades, tradeTags } from '@trading/db/schema';
+import {
+  accounts,
+  dailyNotes,
+  journalEntries,
+  screenshots,
+  tags,
+  tradeRisk,
+  trades,
+  tradeTags,
+} from '@trading/db/schema';
 import type { ResolvedScope } from './scope';
 
 export type TagKind = 'setup' | 'mistake' | 'context';
@@ -160,6 +169,69 @@ export async function journalQueue(db: Executor, scope: ResolvedScope, limit = 5
     .orderBy(desc(journalEntries.updatedAt))
     .limit(20);
   return { pending, pendingCount: count?.n ?? 0, recent };
+}
+
+export type RiskQueueTrade = {
+  id: string;
+  accountId: string;
+  symbol: string;
+  side: 'buy' | 'sell';
+  lots: string;
+  closedAt: Date;
+  netProfit: string;
+  riskUsd: string | null;
+  startingBalance: string;
+};
+
+/**
+ * Risk queue: trades in scope whose R is still an estimate, newest first, so Joe can tag 0.5% / 1% / … in one
+ * tap each. A trade leaves the queue once it has a journaled stop or risk, or a tagged risk.
+ */
+export async function riskQueue(db: Executor, scope: ResolvedScope, limit = 100) {
+  if (scope.accountIds.length === 0) return { trades: [] as RiskQueueTrade[], count: 0 };
+  const where = and(
+    inArray(trades.accountId, scope.accountIds),
+    eq(trades.source, scope.source),
+    eq(trades.riskSource, 'estimated'),
+  );
+  const rows: RiskQueueTrade[] = await db
+    .select({
+      id: trades.id,
+      accountId: trades.accountId,
+      symbol: trades.symbol,
+      side: trades.side,
+      lots: trades.lots,
+      closedAt: trades.closedAt,
+      netProfit: trades.netProfit,
+      riskUsd: trades.riskUsd,
+      startingBalance: accounts.startingBalance,
+    })
+    .from(trades)
+    .innerJoin(accounts, eq(accounts.id, trades.accountId))
+    .where(where)
+    .orderBy(desc(trades.closedAt))
+    .limit(limit);
+  const [count] = await db.select({ n: sql<number>`count(*)::int` }).from(trades).where(where);
+  return { trades: rows, count: count?.n ?? 0 };
+}
+
+/** Stores the risk tagged on a trade (replacing any earlier tag); null clears it. Returns the trade's account. */
+export async function setTradeRisk(
+  db: Executor,
+  tradeId: string,
+  risk: { riskUsd: string; riskPct: string | null } | null,
+): Promise<string | null> {
+  const [trade] = await db.select({ accountId: trades.accountId }).from(trades).where(eq(trades.id, tradeId));
+  if (!trade) return null;
+  if (risk === null) {
+    await db.delete(tradeRisk).where(eq(tradeRisk.tradeId, tradeId));
+  } else {
+    await db
+      .insert(tradeRisk)
+      .values({ tradeId, ...risk })
+      .onConflictDoUpdate({ target: tradeRisk.tradeId, set: risk });
+  }
+  return trade.accountId;
 }
 
 /** Count of live trades without a journal entry (Journal nav badge, hub card). */

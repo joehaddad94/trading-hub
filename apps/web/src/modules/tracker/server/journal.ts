@@ -1,4 +1,5 @@
 import 'server-only';
+import { riskUsdFromPct } from '@trading/core';
 import { refreshTradeRisk } from '@trading/importer/server';
 import {
   addScreenshot,
@@ -12,7 +13,9 @@ import {
   type ResolvedScope,
   removeScreenshot,
   renameTag,
+  riskQueue,
   saveJournal,
+  setTradeRisk,
   type TagKind,
   tradeJournal,
   unjournaledCount,
@@ -67,6 +70,23 @@ export async function writeTradeJournal(tradeId: string, input: JournalInput) {
     await saveJournal(tx, tradeId, input);
     await refreshTradeRisk(tx, [detail.account.id]);
   });
+}
+
+/** Risk tagged from the queue as % of the starting balance; null clears it. Then re-resolves R. */
+export async function writeTradeRisk(tradeId: string, pct: string | null) {
+  const db = requireDb();
+  await db.transaction(async (tx) => {
+    const detail = await tradeJournal(tx, tradeId);
+    if (!detail) throw new JournalError('Trade not found.');
+    const value = pct === null ? null : { riskUsd: riskUsdFromPct(detail.account.startingBalance, pct), riskPct: pct };
+    await setTradeRisk(tx, tradeId, value);
+    await refreshTradeRisk(tx, [detail.account.id]);
+  });
+}
+
+export async function getRiskQueue(scope: ResolvedScope) {
+  const db = getDb();
+  return db ? riskQueue(db, scope) : null;
 }
 
 export async function getNextUnjournaled(tradeId: string) {

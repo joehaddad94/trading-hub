@@ -17,8 +17,10 @@ import {
   removeScreenshot,
   renameTag,
   resolveScope,
+  riskQueue,
   saveDailyNote,
   saveJournal,
+  setTradeRisk,
   tradeJournal,
   unjournaledCount,
 } from '../src/server';
@@ -131,6 +133,29 @@ describe.skipIf(!url)('journal', () => {
       // 20 points × $10/point/lot × lots.
       expect(j?.trade.riskUsd).toBe((20 * 10 * Number(t.lots)).toFixed(2));
       expect(await unjournaledCount(tx)).toBe(before - 1);
+    });
+  });
+
+  it('risk queue: a tagged risk replaces the estimate without journaling the trade, and can be cleared', async () => {
+    await withFixture(async (tx) => {
+      const scope = await resolveScope(tx, parseScope('account:7002880'));
+      const q = await riskQueue(tx, scope);
+      expect(q.count).toBe(34);
+      const first = q.trades[0];
+      if (!first) throw new Error('empty queue');
+      expect(first.startingBalance).toBe('25000.00');
+
+      const accountId = await setTradeRisk(tx, first.id, { riskUsd: '250.00', riskPct: '1' });
+      await refreshTradeRisk(tx, [accountId ?? '']);
+      const [tagged] = await tx.select().from(trades).where(eq(trades.id, first.id));
+      expect({ risk: tagged?.riskUsd, source: tagged?.riskSource }).toEqual({ risk: '250.00', source: 'journal_usd' });
+      expect((await riskQueue(tx, scope)).count).toBe(33);
+      expect((await journalQueue(tx, scope)).pendingCount).toBe(34);
+
+      await setTradeRisk(tx, first.id, null);
+      await refreshTradeRisk(tx, [first.accountId]);
+      expect((await riskQueue(tx, scope)).count).toBe(34);
+      expect(await setTradeRisk(tx, '00000000-0000-4000-8000-000000000000', null)).toBeNull();
     });
   });
 
