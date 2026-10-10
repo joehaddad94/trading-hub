@@ -1,6 +1,7 @@
 export {
   type AccountRestriction,
   accountRestrictions,
+  chartEvents,
   DEFAULT_NEWS_SETTINGS,
   type EventDetail,
   type EventQuery,

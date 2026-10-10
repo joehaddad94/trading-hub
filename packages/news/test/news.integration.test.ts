@@ -5,6 +5,7 @@ import { sql } from '@trading/db/orm';
 import { processExportFile, type Tx } from '@trading/importer/server';
 import { afterAll, describe, expect, it } from 'vitest';
 import {
+  chartEvents,
   eventDetail,
   eventTitles,
   getNewsSettings,
@@ -102,6 +103,24 @@ describe.skipIf(!url)('news queries', () => {
       const narrower = await newsHubSummary(tx, at);
       expect(narrower.activeRestrictions).toEqual([]);
       expect(narrower.week.map((d) => d.red)).toEqual([0, 0, 1, 0, 2]);
+    });
+  });
+});
+
+describe.skipIf(!db)('chartEvents', () => {
+  it('shows the schedule ahead of the cursor but never a future actual', async () => {
+    await withFixture(async (tx) => {
+      await tx.execute(sql`update economic_events set actual = '0.5%' where title = 'FOMC Meeting Minutes'`);
+      const range = {
+        from: new Date('2026-10-05T00:00:00Z'),
+        to: new Date('2026-10-10T00:00:00Z'),
+        currencies: ['USD'],
+        impacts: ['high' as const],
+      };
+      const before = await chartEvents(tx, range, new Date('2026-10-07T17:59:00Z'));
+      expect(before.map((e) => [e.title, e.actual])).toEqual([['FOMC Meeting Minutes', null]]);
+      const after = await chartEvents(tx, range, new Date('2026-10-07T18:00:00Z'));
+      expect(after.map((e) => [e.title, e.actual, e.forecast])).toEqual([['FOMC Meeting Minutes', '0.5%', null]]);
     });
   });
 });

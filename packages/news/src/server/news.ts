@@ -3,6 +3,7 @@ import {
   type CalendarEvent,
   dayRange,
   hasNewsAddon,
+  hideFutureActuals,
   mondayOf,
   NEWS_DAYS,
   type NewsImpact,
@@ -87,6 +88,31 @@ export async function listEvents(db: Executor, q: EventQuery): Promise<NewsEvent
       ),
     )
     .orderBy(asc(economicEvents.eventAt), asc(economicEvents.currency), asc(economicEvents.title));
+}
+
+/**
+ * Events for the backtester chart (news spec §4): the same filters as the News page plus `actual`, which is
+ * blanked for anything after `until` (the replay cursor) so a future release never leaks.
+ */
+export async function chartEvents(
+  db: Executor,
+  q: EventQuery,
+  until: Date,
+): Promise<(NewsEvent & { actual: string | null })[]> {
+  const rows = await db
+    .select({ ...eventColumns, actual: economicEvents.actual })
+    .from(economicEvents)
+    .where(
+      and(
+        visible,
+        gte(economicEvents.eventAt, q.from),
+        lt(economicEvents.eventAt, q.to),
+        q.impacts?.length ? inArray(economicEvents.impact, q.impacts) : undefined,
+        q.currencies?.length ? inArray(economicEvents.currency, q.currencies) : undefined,
+      ),
+    )
+    .orderBy(asc(economicEvents.eventAt), asc(economicEvents.currency), asc(economicEvents.title));
+  return hideFutureActuals(rows, until);
 }
 
 /** "Calendar last synced" (news spec §6): when the newest export that carried news was generated. */

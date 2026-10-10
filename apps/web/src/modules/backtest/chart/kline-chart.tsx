@@ -4,6 +4,7 @@ import { type Bar, MINUTE_MS, type Timeframe } from '@trading/backtest-engine';
 import type { Chart, DataLoaderGetBarsParams, KLineData, Point } from 'klinecharts';
 import { type RefObject, useEffect, useRef, useState } from 'react';
 import { fetchBars, toKLine } from './loader';
+import { type Marker, NEWS_INDICATOR, newsMarkers } from './news-markers';
 import { SESSION_INDICATOR, sessionShading } from './session-shading';
 import { chartStyles } from './styles';
 
@@ -31,6 +32,10 @@ export type ChartProps = {
   onReady?: (api: ChartApi | null) => void;
   /** Called with the bar under the pointer when the chart is clicked. */
   onBarClick?: (barStart: number) => void;
+  /** News markers (one per bar); empty hides them. */
+  markers?: Marker[];
+  /** Bar under the crosshair, or null when the pointer leaves. */
+  onCrosshair?: (barStart: number | null) => void;
 };
 
 type Klinecharts = typeof import('klinecharts');
@@ -44,19 +49,28 @@ const toBar = (k: KLineData): Bar => ({
   volume: k.volume ?? 0,
 });
 
+/** Open time of the bar at pixel `x` of the candle pane, or null. */
+function barAt(chart: Chart, x: number): number | null {
+  const [point] = chart.convertFromPixel([{ x, y: 0 }], { paneId: 'candle_pane' }) as Partial<Point>[];
+  const index = point?.dataIndex;
+  return index === undefined ? null : (chart.getDataList()[index]?.timestamp ?? null);
+}
+
 /**
  * KLineCharts adapter (backtester spec §2–3). Loads candles lazily through `/api/backtest/candles` with
  * `until` = replay cursor (or now); switching instrument or timeframe reloads around the bar at the right
  * edge of the view, so the time range is kept.
  */
 export function KLineChart(props: ChartProps) {
-  const { instrument, tf, timezone, sessions, cursorRef, reloadKey, onReady, onBarClick } = props;
+  const { instrument, tf, timezone, sessions, cursorRef, reloadKey, onReady, onBarClick, markers, onCrosshair } = props;
   const el = useRef<HTMLDivElement>(null);
   const chartRef = useRef<Chart | null>(null);
   const anchorRef = useRef<number | null>(null);
   const pushRef = useRef<((bar: KLineData) => void) | null>(null);
   const clickRef = useRef(onBarClick);
   clickRef.current = onBarClick;
+  const crosshairRef = useRef(onCrosshair);
+  crosshairRef.current = onCrosshair;
   const generation = useRef(0);
   const [error, setError] = useState<string | null>(null);
   const [ready, setReady] = useState(false);
@@ -69,25 +83,28 @@ export function KLineChart(props: ChartProps) {
     let lib: Klinecharts | null = null;
     let observer: ResizeObserver | null = null;
     const node = el.current;
+    const onLeave = () => crosshairRef.current?.(null);
     const onClick = (event: MouseEvent) => {
       const chart = chartRef.current;
       if (!chart || !node || !clickRef.current) return;
-      const rect = node.getBoundingClientRect();
-      const point = chart.convertFromPixel([{ x: event.clientX - rect.left, y: event.clientY - rect.top }], {
-        paneId: 'candle_pane',
-      }) as Partial<Point>[];
-      const index = point[0]?.dataIndex;
-      const bar = index === undefined ? undefined : chart.getDataList()[index];
-      if (bar) clickRef.current(bar.timestamp);
+      const ts = barAt(chart, event.clientX - node.getBoundingClientRect().left);
+      if (ts !== null) clickRef.current(ts);
     };
     void import('klinecharts').then((k) => {
       if (disposed || !node) return;
       lib = k;
       if (!k.getSupportedIndicators().includes(SESSION_INDICATOR)) k.registerIndicator(sessionShading);
+      if (!k.getSupportedIndicators().includes(NEWS_INDICATOR)) k.registerIndicator(newsMarkers);
       const chart = k.init(node, { styles: chartStyles, timezone });
       if (!chart) return;
       chartRef.current = chart;
+      chart.subscribeAction('onCrosshairChange', (data) => {
+        // The payload is the pointer position only; map it to the bar like a click.
+        const x = (data as { x?: number } | undefined)?.x;
+        crosshairRef.current?.(typeof x === 'number' ? barAt(chart, x) : null);
+      });
       node.addEventListener('click', onClick, true);
+      node.addEventListener('mouseleave', onLeave);
       observer = new ResizeObserver(() => chart.resize());
       observer.observe(node);
       setReady(true);
@@ -96,6 +113,7 @@ export function KLineChart(props: ChartProps) {
       disposed = true;
       observer?.disconnect();
       node?.removeEventListener('click', onClick, true);
+      node?.removeEventListener('mouseleave', onLeave);
       if (lib && node) lib.dispose(node);
       chartRef.current = null;
     };
@@ -205,6 +223,19 @@ export function KLineChart(props: ChartProps) {
     }
   }, [ready, sessions]);
 
+  useEffect(() => {
+    const chart = chartRef.current;
+    if (!ready || !chart) return;
+    const list = markers ?? [];
+    if (list.length === 0) {
+      chart.removeIndicator({ name: NEWS_INDICATOR });
+    } else if (chart.getIndicators({ name: NEWS_INDICATOR }).length === 0) {
+      chart.createIndicator({ name: NEWS_INDICATOR, paneId: 'candle_pane', extendData: { markers: list } }, true);
+    } else {
+      chart.overrideIndicator({ name: NEWS_INDICATOR, extendData: { markers: list } });
+    }
+  }, [ready, markers]);
+
   return (
     <div className="relative h-full w-full">
       <div
@@ -213,6 +244,7 @@ export function KLineChart(props: ChartProps) {
         data-testid="kline-chart"
         data-ready={ready ? 'true' : 'false'}
         data-last-bar={lastBar ? JSON.stringify(lastBar) : ''}
+        data-markers={markers?.length ?? 0}
       />
       {error && (
         <p role="alert" className="absolute top-2 left-2 rounded-md bg-loss/20 px-3 py-1 text-sm">

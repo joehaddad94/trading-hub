@@ -55,6 +55,7 @@ export {
   newsRange,
   resolveDuplicates,
 } from './news/news';
+export { hideFutureActuals, type ReplayEvent } from './news/replay';
 export {
   eventsAroundTrade,
   hasNewsAddon,

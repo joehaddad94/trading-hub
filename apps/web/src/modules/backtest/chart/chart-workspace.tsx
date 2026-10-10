@@ -2,10 +2,12 @@
 
 import { parseTimeframe, TIMEFRAMES, type Timeframe } from '@trading/backtest-engine';
 import { parseAsString, useQueryState } from 'nuqs';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { cn } from '@/lib/utils';
 import { KLineChart } from './kline-chart';
+import { NewsPanel } from './news-panel';
 import { ReplayControls } from './replay-controls';
+import { eventsInBar, type NewsFilter, toMarkers, useNewsEvents } from './use-news-events';
 import { useReplay } from './use-replay';
 
 export type WorkspaceInstrument = { code: string; displayName: string; priceDigits: number };
@@ -16,8 +18,14 @@ const TIMEZONES = [
 ] as const;
 
 const PREFS_KEY = 'backtest.chart';
-type Prefs = { timezone: string; sessions: boolean };
-const DEFAULT_PREFS: Prefs = { timezone: 'Asia/Beirut', sessions: true };
+type Impact = NewsFilter['impacts'][number];
+type Prefs = { timezone: string; sessions: boolean; impacts: Impact[]; allCurrencies: boolean };
+const DEFAULT_PREFS: Prefs = { timezone: 'Asia/Beirut', sessions: true, impacts: ['high'], allCurrencies: false };
+const IMPACT_TOGGLES: { id: Impact; label: string }[] = [
+  { id: 'high', label: 'High' },
+  { id: 'medium', label: 'Med' },
+  { id: 'low', label: 'Low' },
+];
 
 function readPrefs(): Prefs {
   try {
@@ -42,7 +50,14 @@ export function timeframeForKey(key: string): Timeframe | null {
 }
 
 /** Backtest Lab chart: instrument switch, 1m/5m/15m, session shading, Beirut or New York time, replay. */
-export function ChartWorkspace({ instruments }: { instruments: WorkspaceInstrument[] }) {
+export function ChartWorkspace({
+  instruments,
+  currencies,
+}: {
+  instruments: WorkspaceInstrument[];
+  /** News › "currencies that count": the default marker filter. */
+  currencies: string[];
+}) {
   const [code, setCode] = useQueryState('i', parseAsString.withDefault(defaultInstrument(instruments)));
   const [tfParam, setTfParam] = useQueryState('tf', parseAsString.withDefault('5'));
   const tf = parseTimeframe(tfParam) ?? 5;
@@ -84,6 +99,14 @@ export function ChartWorkspace({ instruments }: { instruments: WorkspaceInstrume
   };
 
   const { cursor, step, setPlaying, playing } = replay;
+  const [hoverBar, setHoverBar] = useState<number | null>(null);
+  const filter = useMemo<NewsFilter>(
+    () => ({ impacts: prefs.impacts, currencies: prefs.allCurrencies ? [] : currencies }),
+    [prefs.impacts, prefs.allCurrencies, currencies],
+  );
+  const events = useNewsEvents(cursor, filter, prefs.impacts.length > 0);
+  const markers = useMemo(() => toMarkers(events, tf), [events, tf]);
+  const hovered = eventsInBar(events, hoverBar, tf, cursor);
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       const target = event.target as HTMLElement | null;
@@ -151,6 +174,42 @@ export function ChartWorkspace({ instruments }: { instruments: WorkspaceInstrume
             </button>
           ))}
         </fieldset>
+        <fieldset className="flex items-center gap-1">
+          <legend className="sr-only">News markers</legend>
+          <span className="text-muted-foreground">News</span>
+          {IMPACT_TOGGLES.map((t) => (
+            <button
+              key={t.id}
+              type="button"
+              aria-pressed={prefs.impacts.includes(t.id)}
+              aria-label={`${t.label} impact news`}
+              onClick={() =>
+                updatePrefs({
+                  impacts: prefs.impacts.includes(t.id)
+                    ? prefs.impacts.filter((i) => i !== t.id)
+                    : [...prefs.impacts, t.id],
+                })
+              }
+              className={cn(
+                'h-9 rounded-md px-2',
+                prefs.impacts.includes(t.id)
+                  ? 'bg-accent text-accent-foreground'
+                  : 'text-muted-foreground hover:bg-accent/60',
+              )}
+            >
+              {t.label}
+            </button>
+          ))}
+          <select
+            value={prefs.allCurrencies ? 'all' : 'counted'}
+            onChange={(e) => updatePrefs({ allCurrencies: e.target.value === 'all' })}
+            className="h-9 rounded-md border bg-background px-1 text-foreground"
+            aria-label="News currencies"
+          >
+            <option value="counted">{currencies.join(', ') || 'Counted'}</option>
+            <option value="all">All currencies</option>
+          </select>
+        </fieldset>
         <div className="ml-auto flex items-center gap-2">
           <label className="flex h-9 items-center gap-2 text-muted-foreground">
             <input
@@ -179,7 +238,8 @@ export function ChartWorkspace({ instruments }: { instruments: WorkspaceInstrume
         </div>
       </div>
       <ReplayControls replay={replay} timezone={prefs.timezone} picking={picking} onPick={setPicking} />
-      <div className={cn('min-h-0 flex-1', picking && 'cursor-crosshair')}>
+      <div className={cn('relative min-h-0 flex-1', picking && 'cursor-crosshair')}>
+        <NewsPanel events={hovered} timezone={prefs.timezone} />
         <KLineChart
           instrument={instrument}
           tf={tf}
@@ -189,6 +249,8 @@ export function ChartWorkspace({ instruments }: { instruments: WorkspaceInstrume
           reloadKey={replay.reloadKey}
           onReady={replay.onChartReady}
           onBarClick={onBarClick}
+          markers={markers}
+          onCrosshair={setHoverBar}
         />
       </div>
       <p className="border-t px-4 py-1 text-muted-foreground text-xs">
