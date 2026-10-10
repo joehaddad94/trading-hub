@@ -2,9 +2,11 @@
 
 import { parseTimeframe, TIMEFRAMES, type Timeframe } from '@trading/backtest-engine';
 import { parseAsString, useQueryState } from 'nuqs';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { cn } from '@/lib/utils';
 import { KLineChart } from './kline-chart';
+import { ReplayControls } from './replay-controls';
+import { useReplay } from './use-replay';
 
 export type WorkspaceInstrument = { code: string; displayName: string; priceDigits: number };
 
@@ -39,13 +41,33 @@ export function timeframeForKey(key: string): Timeframe | null {
   return null;
 }
 
-/** Backtest Lab chart: instrument switch, 1m/5m/15m, session shading, Beirut or New York time. */
+/** Backtest Lab chart: instrument switch, 1m/5m/15m, session shading, Beirut or New York time, replay. */
 export function ChartWorkspace({ instruments }: { instruments: WorkspaceInstrument[] }) {
   const [code, setCode] = useQueryState('i', parseAsString.withDefault(defaultInstrument(instruments)));
   const [tfParam, setTfParam] = useQueryState('tf', parseAsString.withDefault('5'));
   const tf = parseTimeframe(tfParam) ?? 5;
   const [prefs, setPrefs] = useState<Prefs>(DEFAULT_PREFS);
   const instrument = instruments.find((i) => i.code === code) ?? instruments[0];
+  const [at, setAt] = useQueryState('at', parseAsString.withOptions({ throttleMs: 500 }));
+  const [picking, setPicking] = useState(false);
+  const onCursor = useCallback(
+    (cursor: number | null) => void setAt(cursor === null ? null : new Date(cursor).toISOString()),
+    [setAt],
+  );
+  const replay = useReplay({
+    instrument: instrument?.code ?? 'US30',
+    tf,
+    initialCursor: at && !Number.isNaN(Date.parse(at)) ? Date.parse(at) : null,
+    onCursor,
+  });
+  const onBarClick = useCallback(
+    (barStart: number) => {
+      if (!picking) return;
+      setPicking(false);
+      replay.startAtBar(barStart);
+    },
+    [picking, replay.startAtBar],
+  );
 
   useEffect(() => setPrefs(readPrefs()), []);
 
@@ -61,17 +83,28 @@ export function ChartWorkspace({ instruments }: { instruments: WorkspaceInstrume
     });
   };
 
+  const { cursor, step, setPlaying, playing } = replay;
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       const target = event.target as HTMLElement | null;
       if (event.metaKey || event.ctrlKey || event.altKey) return;
       if (target && (target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName))) return;
+      if (cursor !== null && event.key === 'ArrowRight') {
+        event.preventDefault();
+        void step(event.shiftKey ? 'minute' : 'bar');
+        return;
+      }
+      if (cursor !== null && event.key === ' ') {
+        event.preventDefault();
+        setPlaying(!playing);
+        return;
+      }
       const next = timeframeForKey(event.key);
       if (next) void setTfParam(String(next));
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [setTfParam]);
+  }, [setTfParam, cursor, step, setPlaying, playing]);
 
   if (!instrument) {
     return <p className="p-4 text-muted-foreground text-sm">No instruments are set up yet.</p>;
@@ -145,8 +178,18 @@ export function ChartWorkspace({ instruments }: { instruments: WorkspaceInstrume
           </label>
         </div>
       </div>
-      <div className="min-h-0 flex-1">
-        <KLineChart instrument={instrument} tf={tf} timezone={prefs.timezone} sessions={prefs.sessions} />
+      <ReplayControls replay={replay} timezone={prefs.timezone} picking={picking} onPick={setPicking} />
+      <div className={cn('min-h-0 flex-1', picking && 'cursor-crosshair')}>
+        <KLineChart
+          instrument={instrument}
+          tf={tf}
+          timezone={prefs.timezone}
+          sessions={prefs.sessions}
+          cursorRef={replay.cursorRef}
+          reloadKey={replay.reloadKey}
+          onReady={replay.onChartReady}
+          onBarClick={onBarClick}
+        />
       </div>
       <p className="border-t px-4 py-1 text-muted-foreground text-xs">
         Historical data from Dukascopy; prices may differ slightly from your broker.

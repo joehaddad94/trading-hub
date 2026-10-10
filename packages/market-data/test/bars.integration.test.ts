@@ -4,7 +4,7 @@ import { afterAll, describe, expect, it } from 'vitest';
 import type { RawCandle } from '../src/candles';
 import { isMarketOpen } from '../src/hours';
 import type { MarketDataProvider } from '../src/provider';
-import { ingestDay, loadBars } from '../src/server';
+import { ingestDay, loadBars, nextMinuteAt } from '../src/server';
 
 const url = process.env.TEST_DATABASE_URL;
 const db = url ? createDb(url) : undefined;
@@ -108,6 +108,22 @@ describe.skipIf(!db)('loadBars forward', () => {
         if (!page.hasMore) break;
       }
       expect(pages.flat()).toEqual(all?.bars);
+    });
+  });
+});
+
+describe.skipIf(!db)('nextMinuteAt', () => {
+  it('skips the closed market to the next candle', async () => {
+    await inTx(async (tx) => {
+      await ingestDay(tx, walk, '2026-10-09');
+      await ingestDay(tx, walk, '2026-10-11');
+      expect((await nextMinuteAt(tx, 'US30', new Date('2026-10-09T20:59:00Z')))?.toISOString()).toBe(
+        '2026-10-09T20:59:00.000Z',
+      );
+      expect((await nextMinuteAt(tx, 'US30', new Date('2026-10-09T21:00:00Z')))?.toISOString()).toBe(
+        '2026-10-11T22:00:00.000Z',
+      );
+      expect(await nextMinuteAt(tx, 'US30', new Date('2026-10-12T00:00:00Z'))).toBeNull();
     });
   });
 });

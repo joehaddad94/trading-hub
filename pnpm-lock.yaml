@@ -165,6 +165,12 @@ importers:
 
   packages/backtest-engine:
     dependencies:
+      '@date-fns/tz':
+        specifier: ^1.5.0
+        version: 1.5.0
+      '@trading/core':
+        specifier: workspace:*
+        version: link:../core
       decimal.js:
         specifier: ^10.6.0
         version: 10.6.0

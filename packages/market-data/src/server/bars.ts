@@ -70,3 +70,18 @@ export async function loadBars(db: Executor, request: BarsRequest): Promise<Bars
   const more = hasMore || bars.length > count;
   return { bars: request.after ? bars.slice(0, count) : bars.slice(-count), hasMore: more };
 }
+
+/**
+ * Open time of the first 1m candle at or after `after`, or null at the end of the data. Lets replay skip a
+ * closed market without fetching any prices past the cursor.
+ */
+export async function nextMinuteAt(db: Executor, code: string, after: Date): Promise<Date | null> {
+  const [row] = await db
+    .select({ ts: candles1m.ts })
+    .from(candles1m)
+    .innerJoin(instruments, eq(instruments.id, candles1m.instrumentId))
+    .where(and(eq(instruments.code, code), gte(candles1m.ts, after)))
+    .orderBy(asc(candles1m.ts))
+    .limit(1);
+  return row?.ts ?? null;
+}

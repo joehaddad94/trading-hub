@@ -11,6 +11,8 @@
     "test": "vitest run --coverage"
   },
   "dependencies": {
+    "@date-fns/tz": "^1.5.0",
+    "@trading/core": "workspace:*",
     "decimal.js": "^10.6.0"
   },
   "devDependencies": {

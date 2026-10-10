@@ -1,6 +1,6 @@
 import 'server-only';
 import * as Sentry from '@sentry/nextjs';
-import { listInstruments, loadBars } from '@trading/market-data/server';
+import { listInstruments, loadBars, nextMinuteAt } from '@trading/market-data/server';
 import { connection } from 'next/server';
 import { getDb } from '@/lib/server/db';
 import type { BarsQuery } from '../lib/bars-query';
@@ -33,5 +33,17 @@ export async function getBars(query: BarsQuery, now = new Date()) {
   } catch (error) {
     Sentry.captureException(error);
     return { ok: false as const, error: 'Could not load candles.' };
+  }
+}
+
+export async function getNextMinute(code: string, after: Date) {
+  const db = getDb();
+  if (!db) return { ok: false as const, error: 'DATABASE_URL is not configured.' };
+  try {
+    const ts = await nextMinuteAt(db, code, after);
+    return { ok: true as const, data: { ts: ts?.toISOString() ?? null } };
+  } catch (error) {
+    Sentry.captureException(error);
+    return { ok: false as const, error: 'Could not look up the next candle.' };
   }
 }

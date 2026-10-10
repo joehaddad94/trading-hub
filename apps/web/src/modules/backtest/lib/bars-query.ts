@@ -28,3 +28,14 @@ export type BarsQuery = z.infer<typeof barsQuerySchema>;
 export function parseBarsQuery(params: URLSearchParams) {
   return barsQuerySchema.safeParse(Object.fromEntries(params));
 }
+
+export const nextQuerySchema = z
+  .object({
+    instrument: z.string().regex(/^[A-Z0-9]{2,12}$/),
+    after: z.iso.datetime({ offset: true }).transform((v) => new Date(v)),
+  })
+  .strict();
+
+export function parseNextQuery(params: URLSearchParams) {
+  return nextQuerySchema.safeParse(Object.fromEntries(params));
+}

@@ -41,3 +41,12 @@ export function toKLine(bar: Bar) {
     volume: bar.volume,
   };
 }
+
+/** First 1m candle time at or after `after` (replay over a closed market), or null at the end of the data. */
+export async function fetchNextMinute(instrument: string, after: Date): Promise<number | null> {
+  const q = new URLSearchParams({ instrument, after: after.toISOString() });
+  const response = await fetch(`/api/backtest/candles/next?${q}`, { cache: 'no-store' });
+  const body = (await response.json()) as { ok: true; data: { ts: string | null } } | { ok: false; error: string };
+  if (!body.ok) throw new Error(body.error);
+  return body.data.ts ? Date.parse(body.data.ts) : null;
+}
