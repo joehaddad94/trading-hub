@@ -20,6 +20,7 @@
     "@supabase/ssr": "^0.12.7",
     "@supabase/supabase-js": "^2.117.3",
     "@t3-oss/env-nextjs": "^0.13.11",
+    "@trading/backtest": "workspace:*",
     "@trading/backtest-engine": "workspace:*",
     "@trading/core": "workspace:*",
     "@trading/db": "workspace:*",

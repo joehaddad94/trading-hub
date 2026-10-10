@@ -74,6 +74,9 @@ importers:
       '@t3-oss/env-nextjs':
         specifier: ^0.13.11
         version: 0.13.11(typescript@6.0.3)(zod@4.6.5)
+      '@trading/backtest':
+        specifier: workspace:*
+        version: link:../../packages/backtest
       '@trading/backtest-engine':
         specifier: workspace:*
         version: link:../../packages/backtest-engine
@@ -162,6 +165,22 @@ importers:
       tw-animate-css:
         specifier: ^1.4.0
         version: 1.4.0
+
+  packages/backtest:
+    dependencies:
+      '@trading/backtest-engine':
+        specifier: workspace:*
+        version: link:../backtest-engine
+      '@trading/db':
+        specifier: workspace:*
+        version: link:../db
+      zod:
+        specifier: ^4.6.5
+        version: 4.6.5
+    devDependencies:
+      '@trading/config':
+        specifier: workspace:*
+        version: link:../config
 
   packages/backtest-engine:
     dependencies:

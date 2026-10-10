@@ -5,6 +5,7 @@ import type { NextConfig } from 'next';
 const nextConfig: NextConfig = {
   typedRoutes: true,
   transpilePackages: [
+    '@trading/backtest',
     '@trading/backtest-engine',
     '@trading/core',
     '@trading/db',

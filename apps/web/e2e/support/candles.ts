@@ -1,4 +1,5 @@
 import { createDb } from '@trading/db';
+import { drawings } from '@trading/db/schema';
 import { isMarketOpen, type MarketDataProvider, type RawCandle } from '@trading/market-data';
 import { ingestDay } from '@trading/market-data/server';
 
@@ -32,6 +33,18 @@ export async function seedCandles(days: string[]) {
   const db = createDb(url);
   try {
     for (const day of days) await ingestDay(db, syntheticProvider, day, { trigger: 'e2e' });
+  } finally {
+    await db.$client.end();
+  }
+}
+
+/** Backtest drawings are disposable (hard rule 2 covers live data only): each drawings test starts clean. */
+export async function clearDrawings() {
+  const url = process.env.DATABASE_URL;
+  if (!url) throw new Error('DATABASE_URL not set');
+  const db = createDb(url);
+  try {
+    await db.delete(drawings);
   } finally {
     await db.$client.end();
   }

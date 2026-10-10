@@ -6,14 +6,19 @@ import { connection } from 'next/server';
 import { getDb } from '@/lib/server/db';
 import type { BarsQuery, ChartEvent, EventsQuery } from '../lib/bars-query';
 
-export type ChartInstrument = { code: string; displayName: string; priceDigits: number };
+export type ChartInstrument = { code: string; displayName: string; priceDigits: number; pointValue: string };
 
 export async function getChartInstruments(): Promise<ChartInstrument[]> {
   await connection();
   const db = getDb();
   if (!db) return [];
   const list = await listInstruments(db);
-  return list.map((i) => ({ code: i.code, displayName: i.displayName, priceDigits: i.priceDigits }));
+  return list.map((i) => ({
+    code: i.code,
+    displayName: i.displayName,
+    priceDigits: i.priceDigits,
+    pointValue: i.pointValuePerLot,
+  }));
 }
 
 /** Candle window for the chart. `until` is clamped to now: the chart never asks for the future either. */

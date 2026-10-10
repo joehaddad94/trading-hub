@@ -10,6 +10,19 @@ export {
   visibleUntil,
 } from './bars';
 export {
+  DEFAULT_RR,
+  defaultLevels,
+  formatSpan,
+  LOT_STEP,
+  lotsFor,
+  measure,
+  type PositionInput,
+  type PositionMetrics,
+  positionMetrics,
+  type Side,
+  type Sizing,
+} from './position';
+export {
   applyMinutes,
   cursorForBar,
   DAY_OPEN_MINUTE_ET,

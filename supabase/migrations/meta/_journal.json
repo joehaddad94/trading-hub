@@ -71,6 +71,13 @@
       "when": 1791588977034,
       "tag": "20261009233617_market_data",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1791591542737,
+      "tag": "20261010001902_drawings",
+      "breakpoints": true
     }
   ]
 }

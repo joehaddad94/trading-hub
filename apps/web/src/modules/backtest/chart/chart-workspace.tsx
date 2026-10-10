@@ -1,16 +1,23 @@
 'use client';
 
+import type { Drawing } from '@trading/backtest';
 import { parseTimeframe, TIMEFRAMES, type Timeframe } from '@trading/backtest-engine';
 import { parseAsString, useQueryState } from 'nuqs';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { cn } from '@/lib/utils';
-import { KLineChart } from './kline-chart';
+import { DrawingProperties, DrawingToolbar } from './drawing-toolbar';
+import { type ChartApi, KLineChart } from './kline-chart';
 import { NewsPanel } from './news-panel';
 import { ReplayControls } from './replay-controls';
+import { toolForKey } from './tools/registry';
+import { type DrawingActions, useDrawings } from './use-drawings';
 import { eventsInBar, type NewsFilter, toMarkers, useNewsEvents } from './use-news-events';
 import { useReplay } from './use-replay';
 
-export type WorkspaceInstrument = { code: string; displayName: string; priceDigits: number };
+export type WorkspaceInstrument = { code: string; displayName: string; priceDigits: number; pointValue: string };
+
+/** Position sizing balance until backtest sessions carry their own (M21). */
+const DEFAULT_BALANCE = '25000';
 
 const TIMEZONES = [
   { id: 'Asia/Beirut', label: 'Beirut' },
@@ -53,10 +60,14 @@ export function timeframeForKey(key: string): Timeframe | null {
 export function ChartWorkspace({
   instruments,
   currencies,
+  drawings: initialDrawings,
+  drawingActions,
 }: {
   instruments: WorkspaceInstrument[];
   /** News › "currencies that count": the default marker filter. */
   currencies: string[];
+  drawings: Drawing[];
+  drawingActions: DrawingActions;
 }) {
   const [code, setCode] = useQueryState('i', parseAsString.withDefault(defaultInstrument(instruments)));
   const [tfParam, setTfParam] = useQueryState('tf', parseAsString.withDefault('5'));
@@ -75,13 +86,35 @@ export function ChartWorkspace({
     initialCursor: at && !Number.isNaN(Date.parse(at)) ? Date.parse(at) : null,
     onCursor,
   });
+  const [chartApi, setChartApi] = useState<ChartApi | null>(null);
+  const onChartReady = useCallback(
+    (api: ChartApi | null) => {
+      replay.onChartReady(api);
+      setChartApi(api);
+    },
+    [replay.onChartReady],
+  );
+  const drawings = useDrawings(
+    chartApi?.chart ?? null,
+    {
+      instrument: instrument?.code ?? 'US30',
+      pointValue: instrument?.pointValue ?? '10',
+      priceDigits: instrument?.priceDigits ?? 2,
+      tf,
+      balance: DEFAULT_BALANCE,
+    },
+    initialDrawings,
+    drawingActions,
+  );
+  const { onChartClick } = drawings;
   const onBarClick = useCallback(
     (barStart: number) => {
+      onChartClick();
       if (!picking) return;
       setPicking(false);
       replay.startAtBar(barStart);
     },
-    [picking, replay.startAtBar],
+    [picking, replay.startAtBar, onChartClick],
   );
 
   useEffect(() => setPrefs(readPrefs()), []);
@@ -99,6 +132,7 @@ export function ChartWorkspace({
   };
 
   const { cursor, step, setPlaying, playing } = replay;
+  const { start: startTool, cancel: cancelTool, removeSelected } = drawings;
   const [hoverBar, setHoverBar] = useState<number | null>(null);
   const filter = useMemo<NewsFilter>(
     () => ({ impacts: prefs.impacts, currencies: prefs.allCurrencies ? [] : currencies }),
@@ -110,8 +144,24 @@ export function ChartWorkspace({
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       const target = event.target as HTMLElement | null;
-      if (event.metaKey || event.ctrlKey || event.altKey) return;
       if (target && (target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName))) return;
+      if (event.altKey && !event.metaKey && !event.ctrlKey) {
+        const tool = toolForKey(event.code);
+        if (tool) {
+          event.preventDefault();
+          startTool(tool.id);
+        }
+        return;
+      }
+      if (event.metaKey || event.ctrlKey || event.altKey) return;
+      if (event.key === 'Escape') {
+        cancelTool();
+        return;
+      }
+      if (event.key === 'Delete' || event.key === 'Backspace') {
+        removeSelected();
+        return;
+      }
       if (cursor !== null && event.key === 'ArrowRight') {
         event.preventDefault();
         void step(event.shiftKey ? 'minute' : 'bar');
@@ -127,7 +177,7 @@ export function ChartWorkspace({
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [setTfParam, cursor, step, setPlaying, playing]);
+  }, [setTfParam, cursor, step, setPlaying, playing, startTool, cancelTool, removeSelected]);
 
   if (!instrument) {
     return <p className="p-4 text-muted-foreground text-sm">No instruments are set up yet.</p>;
@@ -238,20 +288,35 @@ export function ChartWorkspace({
         </div>
       </div>
       <ReplayControls replay={replay} timezone={prefs.timezone} picking={picking} onPick={setPicking} />
-      <div className={cn('relative min-h-0 flex-1', picking && 'cursor-crosshair')}>
-        <NewsPanel events={hovered} timezone={prefs.timezone} />
-        <KLineChart
-          instrument={instrument}
-          tf={tf}
-          timezone={prefs.timezone}
-          sessions={prefs.sessions}
-          cursorRef={replay.cursorRef}
-          reloadKey={replay.reloadKey}
-          onReady={replay.onChartReady}
-          onBarClick={onBarClick}
-          markers={markers}
-          onCrosshair={setHoverBar}
-        />
+      <div className="flex min-h-0 flex-1 flex-col-reverse md:flex-row">
+        <DrawingToolbar drawings={drawings} />
+        <div
+          className={cn('relative min-h-0 flex-1', picking && 'cursor-crosshair')}
+          data-testid="chart-area"
+          data-drawings={JSON.stringify(
+            drawings.shown.map((d) => ({ tool: d.tool, points: d.points, style: d.style, label: d.label })),
+          )}
+        >
+          <NewsPanel events={hovered} timezone={prefs.timezone} />
+          <DrawingProperties drawings={drawings} />
+          {drawings.error && (
+            <p role="alert" className="absolute top-2 left-2 z-10 rounded-md bg-loss/20 px-3 py-1 text-sm">
+              {drawings.error}
+            </p>
+          )}
+          <KLineChart
+            instrument={instrument}
+            tf={tf}
+            timezone={prefs.timezone}
+            sessions={prefs.sessions}
+            cursorRef={replay.cursorRef}
+            reloadKey={replay.reloadKey}
+            onReady={onChartReady}
+            onBarClick={onBarClick}
+            markers={markers}
+            onCrosshair={setHoverBar}
+          />
+        </div>
       </div>
       <p className="border-t px-4 py-1 text-muted-foreground text-xs">
         Historical data from Dukascopy; prices may differ slightly from your broker.

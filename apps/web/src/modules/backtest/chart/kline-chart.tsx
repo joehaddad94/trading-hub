@@ -7,6 +7,7 @@ import { fetchBars, toKLine } from './loader';
 import { type Marker, NEWS_INDICATOR, newsMarkers } from './news-markers';
 import { SESSION_INDICATOR, sessionShading } from './session-shading';
 import { chartStyles } from './styles';
+import { TOOLS } from './tools/registry';
 
 /** Bars per lazy-load request (spec §2.2: windows, never the whole year). */
 const PAGE = 500;
@@ -18,6 +19,8 @@ export type ChartApi = {
   /** Upserts bars at the right edge: a bar with the last bar's time replaces it, a newer one is appended. */
   upsert(bars: Bar[]): void;
   lastBar(): Bar | null;
+  /** The KLineCharts instance, for the drawing controller. */
+  chart: Chart;
 };
 
 export type ChartProps = {
@@ -95,6 +98,8 @@ export function KLineChart(props: ChartProps) {
       lib = k;
       if (!k.getSupportedIndicators().includes(SESSION_INDICATOR)) k.registerIndicator(sessionShading);
       if (!k.getSupportedIndicators().includes(NEWS_INDICATOR)) k.registerIndicator(newsMarkers);
+      const overlays = k.getSupportedOverlays();
+      for (const tool of TOOLS) if (!overlays.includes(tool.overlay.name)) k.registerOverlay(tool.overlay);
       const chart = k.init(node, { styles: chartStyles, timezone });
       if (!chart) return;
       chartRef.current = chart;
@@ -135,6 +140,7 @@ export function KLineChart(props: ChartProps) {
         const last = chart.getDataList().at(-1);
         return last ? toBar(last) : null;
       },
+      chart,
     };
     onReady?.(api);
     return () => onReady?.(null);
