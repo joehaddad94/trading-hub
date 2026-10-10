@@ -6,7 +6,7 @@ import { getInbox, getRecentAlerts, listRecentImports } from '@/lib/server/impor
 import { ImportOnOpen } from '@/shell/import-on-open';
 import { ModuleHeader } from '@/shell/module-header';
 import { SyncBanner } from '@/shell/sync-banner';
-import { HealthForms, SyncNowForm, UploadForm } from './import-forms';
+import { HealthForms, ReprocessForm, SyncNowForm, UploadForm } from './import-forms';
 
 export default async function ImportsPage() {
   await connection();
@@ -90,6 +90,7 @@ export default async function ImportsPage() {
                         {r.importError}
                       </pre>
                     )}
+                    {r.importResult !== null && r.importResult !== 'ok' && <ReprocessForm id={r.id} />}
                   </li>
                 ))}
               </ul>

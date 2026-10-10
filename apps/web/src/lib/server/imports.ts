@@ -12,9 +12,11 @@ import {
   type Inbox,
   InboxAccessError,
   listRecentAlerts,
+  ReprocessError,
   readSyncHealthInput,
   recordRunError,
   releaseImportLease,
+  reprocessImport,
   runInboxImport,
 } from '@trading/importer/server';
 import { env } from '@/lib/env';
@@ -57,6 +59,23 @@ export async function importFromInbox(now = new Date()): Promise<ImportRun> {
       (e: unknown) => Sentry.captureException(e),
     );
     return { ok: false, error: message };
+  } finally {
+    await releaseImportLease(db).catch((e: unknown) => Sentry.captureException(e));
+    await runHealthCheck(now);
+  }
+}
+
+/** Settings › Imports "Reprocess": the stored copy through today's importer, under the same lease as a sync. */
+export async function reprocessStoredImport(rawImportId: string, now = new Date()): Promise<ImportRun> {
+  const db = getDb();
+  if (!db) return { ok: false, error: 'DATABASE_URL is not configured.' };
+  if (!(await acquireImportLease(db, now))) return { ok: true, outcomes: [], busy: true };
+  try {
+    return { ok: true, outcomes: [await reprocessImport(db, rawImportId, now)] };
+  } catch (error) {
+    if (error instanceof ReprocessError) return { ok: false, error: error.message };
+    Sentry.captureException(error);
+    return { ok: false, error: 'Reprocessing failed; it was reported.' };
   } finally {
     await releaseImportLease(db).catch((e: unknown) => Sentry.captureException(e));
     await runHealthCheck(now);

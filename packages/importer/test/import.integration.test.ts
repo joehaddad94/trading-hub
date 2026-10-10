@@ -7,7 +7,9 @@ import {
   type Inbox,
   importUploadedFile,
   processExportFile,
+  ReprocessError,
   releaseImportLease,
+  reprocessImport,
   runInboxImport,
   type Tx,
 } from '../src/server';
@@ -167,6 +169,32 @@ describe.skipIf(!url)('import pipeline', () => {
         { drive_file_id: 'bad', import_result: 'rejected', schema_version: null },
         { drive_file_id: 'v2', import_result: 'rejected', schema_version: 2 },
       ]);
+    });
+  });
+
+  it('reprocesses a stored file that was rejected, but not an unparseable or a clean one', async () => {
+    await inTx(async (tx) => {
+      await processExportFile(tx, { driveFileId: 'bad', fileName: 'x.json', content: '{nope' }, NOW);
+      const v2 = withFixture((f) => {
+        f.schema_version = 2;
+      });
+      await processExportFile(tx, { driveFileId: 'v2', fileName: FIXTURE_NAME, content: v2 }, NOW);
+      const idOf = async (driveId: string) => {
+        const [r] = await tx.execute<{ id: string }>(sql`select id from raw_imports where drive_file_id = ${driveId}`);
+        return r?.id ?? '';
+      };
+      // Stand-in for "the importer now accepts it": the stored copy becomes valid.
+      await tx.execute(
+        sql`update raw_imports set payload = jsonb_set(payload, '{schema_version}', '1') where drive_file_id = 'v2'`,
+      );
+      const again = await reprocessImport(tx, await idOf('v2'), NOW);
+      expect(again.result).toBe('partial');
+      expect((await counts(tx)).trades).toBe(99);
+
+      await expect(reprocessImport(tx, await idOf('bad'), NOW)).rejects.toThrow(ReprocessError);
+      await tx.execute(sql`update raw_imports set import_result = 'ok' where drive_file_id = 'v2'`);
+      await expect(reprocessImport(tx, await idOf('v2'), NOW)).rejects.toThrow(/already imported/);
+      await expect(reprocessImport(tx, '00000000-0000-4000-8000-000000000000', NOW)).rejects.toThrow(/not found/);
     });
   });
 

@@ -4,7 +4,14 @@ import { useActionState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { type ActionResult, runHealthCheckAction, sendTestAlertAction, syncNow, uploadExport } from './actions';
+import {
+  type ActionResult,
+  reprocessAction,
+  runHealthCheckAction,
+  sendTestAlertAction,
+  syncNow,
+  uploadExport,
+} from './actions';
 
 function Result({ state }: { state: ActionResult<string> | null }) {
   if (!state) return null;
@@ -67,5 +74,19 @@ export function HealthForms() {
       <Result state={check} />
       <Result state={test} />
     </div>
+  );
+}
+
+/** One row's "Reprocess" button (tracker spec §8.3 #11). */
+export function ReprocessForm({ id }: { id: string }) {
+  const [state, action, pending] = useActionState(reprocessAction, null);
+  return (
+    <form action={action} className="flex flex-col gap-1">
+      <input type="hidden" name="id" value={id} />
+      <Button type="submit" variant="outline" size="sm" disabled={pending} className="self-start">
+        {pending ? 'Reprocessing…' : 'Reprocess'}
+      </Button>
+      <Result state={state} />
+    </form>
   );
 }

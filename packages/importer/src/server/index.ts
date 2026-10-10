@@ -20,7 +20,9 @@ export {
   type FileOutcome,
   importUploadedFile,
   processExportFile,
+  ReprocessError,
   releaseImportLease,
+  reprocessImport,
   runInboxImport,
 } from './run';
 export { learnSymbolSpecs } from './symbols';
