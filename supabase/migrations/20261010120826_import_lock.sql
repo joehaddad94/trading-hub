@@ -1,0 +1,1 @@
+ALTER TABLE "sync_health" ADD COLUMN "import_locked_until" timestamp with time zone;

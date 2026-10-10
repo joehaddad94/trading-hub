@@ -12,6 +12,9 @@ import { StatusBadge } from './account-badge';
 
 type SortHeader = { label: string; href?: string | undefined; active?: 'asc' | 'desc' | undefined };
 
+/** Opens the trade from anywhere on its row: the link's overlay covers the row (which must be `relative`). */
+const ROW_LINK = 'after:absolute after:inset-0 after:content-[""]';
+
 /** Trades list: a table on desktop, cards on phone. Every row says which account it came from (§8.1). */
 export function TradesTable({
   rows,
@@ -61,13 +64,13 @@ export function TradesTable({
               const a = byId.get(t.accountId);
               const net = new Decimal(t.netProfit);
               return (
-                <tr key={t.id} className="border-b last:border-0" data-testid="trade-row">
+                <tr key={t.id} className="relative border-b last:border-0 hover:bg-muted/50" data-testid="trade-row">
                   <td className="p-2 tabular-nums">{formatBeirut(t.closedAt, 'd MMM yy HH:mm')}</td>
                   <td className="p-2">
                     {a ? (
                       <Link
                         href={`/tracker/accounts/${a.login}` as Route}
-                        className="inline-flex items-center gap-1 hover:underline"
+                        className="relative z-10 inline-flex items-center gap-1 hover:underline"
                       >
                         <span className="tabular-nums">{accountLabel(a)}</span>
                         <StatusBadge status={a.status} />
@@ -77,7 +80,7 @@ export function TradesTable({
                     )}
                   </td>
                   <td className="p-2">
-                    <Link href={`/tracker/trades/${t.id}` as Route} className="font-medium hover:underline">
+                    <Link href={`/tracker/trades/${t.id}` as Route} className={cn('font-medium', ROW_LINK)}>
                       {t.symbol}
                     </Link>
                   </td>
@@ -94,9 +97,7 @@ export function TradesTable({
                   </td>
                   <td className="p-2 text-right tabular-nums">
                     {formatR(rMultiple(t.netProfit, t.riskUsd))}
-                    {t.riskSource === 'estimated' && (
-                      <span className="ml-1 text-[10px] text-muted-foreground">est.</span>
-                    )}
+                    {t.riskSource === 'estimated' && <EstBadge />}
                   </td>
                   <td className="p-2 text-xs">
                     <Flags trade={t} />
@@ -112,9 +113,13 @@ export function TradesTable({
           const a = byId.get(t.accountId);
           const net = new Decimal(t.netProfit);
           return (
-            <li key={t.id} className="rounded-lg border p-3 text-sm" data-testid="trade-row">
+            <li
+              key={t.id}
+              className="relative rounded-lg border p-3 text-sm active:bg-muted/50"
+              data-testid="trade-row"
+            >
               <div className="flex items-center justify-between gap-2">
-                <Link href={`/tracker/trades/${t.id}` as Route} className="font-medium hover:underline">
+                <Link href={`/tracker/trades/${t.id}` as Route} className={cn('font-medium', ROW_LINK)}>
                   {t.symbol} <span className="capitalize">{t.side}</span> · {t.lots}
                 </Link>
                 <span
@@ -128,13 +133,13 @@ export function TradesTable({
                   {a ? accountLabel(a) : '—'} · {formatBeirut(t.closedAt, 'd MMM HH:mm')} ·{' '}
                   {SESSION_LABELS[sessionOf(t.openedAt)]}
                 </span>
-                <span className="tabular-nums">
-                  {formatR(rMultiple(t.netProfit, t.riskUsd))}
-                  {t.riskSource === 'estimated' ? ' est.' : ''}
+                <span className="inline-flex items-center gap-2 tabular-nums">
+                  <Flags trade={t} />
+                  <span>
+                    {formatR(rMultiple(t.netProfit, t.riskUsd))}
+                    {t.riskSource === 'estimated' && <EstBadge />}
+                  </span>
                 </span>
-              </div>
-              <div className="mt-1 text-xs">
-                <Flags trade={t} />
               </div>
             </li>
           );
@@ -144,12 +149,30 @@ export function TradesTable({
   );
 }
 
+function EstBadge() {
+  return (
+    <span className="ml-1 rounded bg-muted px-1 text-[10px] text-muted-foreground" title="Risk is estimated">
+      est.
+    </span>
+  );
+}
+
+/** Quiet by design: one amber dot for "needs journal" (the R column already marks estimated risk). */
 function Flags({ trade: t }: { trade: ListTrade }) {
   return (
-    <span className="flex flex-wrap gap-1">
+    <span className="flex flex-wrap items-center gap-1">
       {t.isNews && <span title="News trade">📰</span>}
-      {t.journaled ? <span title="Journaled">📝</span> : <span className="text-amber-400">not journaled</span>}
-      {t.riskSource === 'estimated' && <span className="text-amber-400">risk missing</span>}
+      {t.journaled ? (
+        <span title="Journaled">📝</span>
+      ) : (
+        <span
+          className="inline-block h-2 w-2 rounded-full bg-amber-400"
+          title="Not journaled"
+          data-testid="needs-journal"
+        >
+          <span className="sr-only">Not journaled</span>
+        </span>
+      )}
       {t.tags.map((tag) => (
         <span key={tag} className="rounded bg-muted px-1">
           {tag}

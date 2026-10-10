@@ -71,6 +71,15 @@ test.describe('tracker screens (M8)', () => {
     expect(lines).toHaveLength(count + 1);
     expect(lines.slice(1).every((l) => l.includes(',US30,'))).toBe(true);
     await noSideScroll(page);
+
+    // The whole row opens the trade, not just the symbol; an unjournaled trade shows one quiet dot.
+    const row = page.getByTestId('trade-row').filter({ visible: true }).first();
+    await expect(row.getByTestId('needs-journal')).toBeVisible();
+    await expect(row).not.toContainText('not journaled');
+    const box = await row.boundingBox();
+    if (!box) throw new Error('no row box');
+    await page.mouse.click(box.x + box.width - 8, box.y + box.height / 2);
+    await expect(page).toHaveURL(/\/tracker\/trades\/[0-9a-f-]{36}/);
   });
 
   test('settings save the day boundary and show learned point values', async ({ page }) => {
