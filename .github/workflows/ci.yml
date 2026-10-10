@@ -1,9 +1,9 @@
 name: CI
 
+# Manual only until v1 (Joe, 9 Oct 2026): the local gate is the check meanwhile; the full pipeline is a
+# post-v1 milestone.
 on:
-  pull_request:
-  push:
-    branches: [main]
+  workflow_dispatch:
 
 concurrency:
   group: ci-${{ github.ref }}
