@@ -42,6 +42,7 @@ describe('evaluateSyncHealth', () => {
         kind: 'stale',
         message: 'Expected sync file is missing — scheduled task may be broken or paused.',
         since: new Date('2026-10-08T21:20:00Z'),
+        severity: 'error',
       },
     ]);
   });
@@ -70,6 +71,21 @@ describe('evaluateSyncHealth', () => {
     expect(c).toMatchObject({ kind: 'file_status', message: 'Latest export is partial: timeout; second' });
     expect(evaluateSyncHealth(input({ latestImport: { ...LATEST, status: 'error', errors: null } }))[0]?.message).toBe(
       'Latest export is error.',
+    );
+  });
+
+  it('a partial file is amber when the missing part cannot hold trades, red when it can', () => {
+    const severity = (errors: unknown) =>
+      evaluateSyncHealth(input({ latestImport: { ...LATEST, status: 'partial', errors } }))[0]?.severity;
+    expect(severity([{ step: 'test_export', account_id: null, message: "next week's calendar not published" }])).toBe(
+      'warning',
+    );
+    expect(severity([{ step: 'get_news_calendar', message: 'not published yet' }])).toBe('warning');
+    expect(severity([{ step: 'get_trading_history', account_id: null, message: 'timeout' }])).toBe('error');
+    expect(severity([{ step: 'get_risk_card', account_id: 4288969, message: 'timeout' }])).toBe('error');
+    expect(severity([])).toBe('error');
+    expect(evaluateSyncHealth(input({ latestImport: { ...LATEST, status: 'error', errors: [] } }))[0]?.severity).toBe(
+      'error',
     );
   });
 
@@ -119,7 +135,7 @@ describe('evaluateSyncHealth', () => {
   it('reports Drive access and run errors', () => {
     const at = new Date('2026-10-10T22:00:00Z');
     expect(evaluateSyncHealth(input({ lastRunError: { kind: 'drive_access', message: '403', at } }))).toEqual([
-      { kind: 'drive_access', message: "App can't read Drive folder. 403", since: at },
+      { kind: 'drive_access', message: "App can't read Drive folder. 403", since: at, severity: 'error' },
     ]);
     expect(
       evaluateSyncHealth(input({ lastRunError: { kind: 'import_failed', message: 'boom', at } }))[0]?.message,
@@ -140,6 +156,7 @@ describe('evaluateSyncHealth', () => {
       kind: 'account_missing',
       message: 'Account 1, 2, 3 disappeared from export.',
       since: new Date('2026-10-09T00:00:00Z'),
+      severity: 'error',
     });
   });
 });

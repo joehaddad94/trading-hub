@@ -11,7 +11,10 @@ export type SyncConditionKind =
   | 'drive_access'
   | 'account_missing';
 
-export type SyncCondition = { kind: SyncConditionKind; message: string; since: Date | null };
+/** `warning`: data still arrived and only a known, non-trade part is missing (e.g. next week's calendar). */
+export type SyncSeverity = 'error' | 'warning';
+
+export type SyncCondition = { kind: SyncConditionKind; message: string; since: Date | null; severity: SyncSeverity };
 
 export type SyncHealthInput = {
   now: Date;
@@ -45,6 +48,7 @@ export function evaluateSyncHealth(input: SyncHealthInput): SyncCondition[] {
       kind: 'stale',
       message: 'Expected sync file is missing — scheduled task may be broken or paused.',
       since: due,
+      severity: 'error',
     });
   }
 
@@ -58,6 +62,7 @@ export function evaluateSyncHealth(input: SyncHealthInput): SyncCondition[] {
         kind: 'file_status',
         message: `Latest export is ${latestImport.status}${details.length ? `: ${details.join('; ')}` : '.'}`,
         since,
+        severity: latestImport.status === 'partial' && !touchesTrades(latestImport.errors) ? 'warning' : 'error',
       });
     }
     if (latestImport.importResult === 'rejected') {
@@ -65,16 +70,22 @@ export function evaluateSyncHealth(input: SyncHealthInput): SyncCondition[] {
         kind: 'rejected',
         message: firstLine(latestImport.importError) ?? 'Export format changed — import rejected.',
         since,
+        severity: 'error',
       });
     }
     if (latestImport.importResult === 'failed') {
-      conditions.push({ kind: 'import_failed', message: latestImport.importError ?? 'Import failed.', since });
+      conditions.push({
+        kind: 'import_failed',
+        message: latestImport.importError ?? 'Import failed.',
+        since,
+        severity: 'error',
+      });
     }
     const rejectedAccounts = (latestImport.importError ?? '')
       .split('\n')
       .filter((line) => /^Account \d+ rejected/.test(line));
     if (rejectedAccounts.length > 0) {
-      conditions.push({ kind: 'checksum', message: rejectedAccounts.join('; '), since });
+      conditions.push({ kind: 'checksum', message: rejectedAccounts.join('; '), since, severity: 'error' });
     }
   }
 
@@ -84,6 +95,7 @@ export function evaluateSyncHealth(input: SyncHealthInput): SyncCondition[] {
       kind,
       message: kind === 'drive_access' ? `App can't read Drive folder. ${message}` : `Import failed: ${message}`,
       since: at,
+      severity: 'error',
     });
   }
 
@@ -97,6 +109,7 @@ export function evaluateSyncHealth(input: SyncHealthInput): SyncCondition[] {
       kind: 'account_missing',
       message: `Account ${logins.join(', ')} disappeared from export.`,
       since,
+      severity: 'error',
     });
   }
 
@@ -110,6 +123,20 @@ function errorMessages(errors: unknown): string[] {
       ? [(e as { message: string }).message]
       : [],
   );
+}
+
+/**
+ * A partial file is a real problem when a failed step could have lost trades or balances: it names an account,
+ * or its step is about trades, history or accounts. Anything else (news not published yet) is a warning.
+ */
+function touchesTrades(errors: unknown): boolean {
+  if (!Array.isArray(errors) || errors.length === 0) return true;
+  return errors.some((e) => {
+    if (!e || typeof e !== 'object') return true;
+    const { account_id: accountId, step } = e as { account_id?: unknown; step?: unknown };
+    if (accountId !== null && accountId !== undefined) return true;
+    return typeof step !== 'string' || /trad|history|account|balance|cycle/i.test(step);
+  });
 }
 
 function firstLine(text: string | null): string | null {
