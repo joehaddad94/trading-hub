@@ -43,6 +43,7 @@ A milestone marked **⛔ Blocked** needs an answer from Joe (see "Open questions
 | M20 | Simulated trading | backtest B6 | ✅ Done — PR #1 (chart snapshots blocked, see log) |
 | M21 | Sessions, analytics, live vs backtest | backtest B7, tracker phase 6 | ✅ Done — PR #1 |
 | M22 | Production launch | arch §9, §11 | ⛔ Repo side done; needs Joe's accounts (runbook `docs/ops/launch.md`) |
+| M23 | GitHub Actions pipeline (post-v1) | arch §9 | Not started — local gate is the only gate until v1 (Joe, 9 Oct) |
 
 ---
 
@@ -132,6 +133,10 @@ A milestone marked **⛔ Blocked** needs an answer from Joe (see "Open questions
 **Scope:** Supabase cloud project, `supabase db push` on merge, Vercel env vars, Google service account shared on `trading-tracker/`, Sentry project; set `private.app_config.allowed_email` to Joe's email in the cloud DB; served on the free `*.vercel.app` address (Q2).
 **Done when:** the daily cron imports the real inbox in production and the hub shows today's sync status.
 
+## M23 · GitHub Actions pipeline  *(post-v1, arch §9)*
+**Scope:** turn `ci.yml` back on for PRs and pushes to main (lint, typecheck, tests, boundaries, build, Playwright against local Supabase); keep `migrate.yml` running migrations before deploy.
+**Done when:** a PR shows green checks from Actions and the local gate is no longer the only gate.
+
 ---
 
 ## Open questions (asked in the project chat)
@@ -158,7 +163,6 @@ Things that stopped a step. Work continues on the next milestone; each entry is 
 | 2026-10-09 | M1 | ~~`git push` refused (403, no GitHub access).~~ Resolved same day: Joe reconnected GitHub; pushed as PR #1. | — |
 | 2026-10-09 | M1 | ~~Signed-in Playwright tests can't run in the cloud container.~~ Worked around in M6: `E2E_FAKE_AUTH=1` starts a local stand-in for Supabase Auth (`apps/web/e2e/support/fake-auth.mjs`, never used in CI), so signed-in pages are tested locally against plain Postgres. Real Supabase Auth still only runs in CI. | First CI run after the push |
 | 2026-10-09 | M2 | `supabase db reset` can't run in the cloud container. Migrations and the 11 DB integration tests were verified on a plain Postgres 16 with a Supabase stub (`scripts/db-plain-postgres.sh`); CI runs them on real Supabase. | First CI run after the push |
-| 2026-10-09 | M1 | GitHub Actions jobs on PR #1 fail before any step (no runner assigned, empty logs): account-level refusal, likely billing/spending limit or Actions disabled. Local gate used instead; later milestones keep adding commits to PR #1 since nothing can merge green. | Joe checks the run page reason and fixes Actions |
 | 2026-10-09 | M3 | Payout rows: no payout exists in the data yet, so their shape is unverified. They are validated loosely and kept raw only (importer warning); mapping lands when a real payout appears. Firm status-history labels (e.g. "Migration Request") don't map cleanly to §5.1 statuses; they're stored with the raw label as the reason. | A real payout in an export |
 | 2026-10-09 | M4 | Real Google Drive reads untested: no service account exists yet. The Drive adapter is written against the googleapis v3 API; the pipeline is tested with a fake inbox plus a manual-upload run against a real Postgres. | Joe creates the Google service account and shares `trading-tracker/` with it (M22) |
 | 2026-10-09 | M6 | Which `reason_code` means "closed by stop loss" is unverified (tracker §6 step 3), so `STOP_LOSS_REASON_CODES` (packages/importer/src/server/risk.ts) is empty: every trade's risk is `estimated` at 0.5% of starting balance ($125 on a 25K) until Joe journals an initial SL or the code is confirmed. Decision taken meanwhile: an estimated risk never makes a trade a scratch, otherwise small wins drop out of the win rate (17.65% instead of FundedNext's 35.29%). | Joe confirms the SL reason code (a trade he knows hit its stop) |
