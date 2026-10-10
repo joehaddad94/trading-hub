@@ -25,6 +25,7 @@
     "@trading/core": "workspace:*",
     "@trading/db": "workspace:*",
     "@trading/importer": "workspace:*",
+    "@trading/indicators": "workspace:*",
     "@trading/market-data": "workspace:*",
     "@trading/news": "workspace:*",
     "@trading/tracker": "workspace:*",

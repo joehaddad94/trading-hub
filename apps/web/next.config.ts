@@ -11,6 +11,7 @@ const nextConfig: NextConfig = {
     '@trading/db',
     '@trading/contract',
     '@trading/importer',
+    '@trading/indicators',
     '@trading/market-data',
     '@trading/news',
     '@trading/tracker',

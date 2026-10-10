@@ -89,6 +89,9 @@ importers:
       '@trading/importer':
         specifier: workspace:*
         version: link:../../packages/importer
+      '@trading/indicators':
+        specifier: workspace:*
+        version: link:../../packages/indicators
       '@trading/market-data':
         specifier: workspace:*
         version: link:../../packages/market-data
@@ -266,6 +269,12 @@ importers:
       postgres:
         specifier: ^3.4.9
         version: 3.4.9
+
+  packages/indicators:
+    devDependencies:
+      '@trading/config':
+        specifier: workspace:*
+        version: link:../config
 
   packages/market-data:
     dependencies:

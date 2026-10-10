@@ -6,6 +6,8 @@ import { parseAsString, useQueryState } from 'nuqs';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { cn } from '@/lib/utils';
 import { DrawingProperties, DrawingToolbar } from './drawing-toolbar';
+import { IndicatorMenu } from './indicator-menu';
+import { activeIndicators, type IndicatorPrefs, normalisePrefs } from './indicators';
 import { type ChartApi, KLineChart } from './kline-chart';
 import { NewsPanel } from './news-panel';
 import { ReplayControls } from './replay-controls';
@@ -26,8 +28,20 @@ const TIMEZONES = [
 
 const PREFS_KEY = 'backtest.chart';
 type Impact = NewsFilter['impacts'][number];
-type Prefs = { timezone: string; sessions: boolean; impacts: Impact[]; allCurrencies: boolean };
-const DEFAULT_PREFS: Prefs = { timezone: 'Asia/Beirut', sessions: true, impacts: ['high'], allCurrencies: false };
+type Prefs = {
+  timezone: string;
+  sessions: boolean;
+  impacts: Impact[];
+  allCurrencies: boolean;
+  indicators: IndicatorPrefs;
+};
+const DEFAULT_PREFS: Prefs = {
+  timezone: 'Asia/Beirut',
+  sessions: true,
+  impacts: ['high'],
+  allCurrencies: false,
+  indicators: normalisePrefs(null),
+};
 const IMPACT_TOGGLES: { id: Impact; label: string }[] = [
   { id: 'high', label: 'High' },
   { id: 'medium', label: 'Med' },
@@ -37,7 +51,9 @@ const IMPACT_TOGGLES: { id: Impact; label: string }[] = [
 function readPrefs(): Prefs {
   try {
     const raw = window.localStorage.getItem(PREFS_KEY);
-    return raw ? { ...DEFAULT_PREFS, ...(JSON.parse(raw) as Partial<Prefs>) } : DEFAULT_PREFS;
+    if (!raw) return DEFAULT_PREFS;
+    const stored = JSON.parse(raw) as Partial<Prefs>;
+    return { ...DEFAULT_PREFS, ...stored, indicators: normalisePrefs(stored.indicators) };
   } catch {
     return DEFAULT_PREFS;
   }
@@ -141,6 +157,7 @@ export function ChartWorkspace({
   const events = useNewsEvents(cursor, filter, prefs.impacts.length > 0);
   const markers = useMemo(() => toMarkers(events, tf), [events, tf]);
   const hovered = eventsInBar(events, hoverBar, tf, cursor);
+  const indicators = useMemo(() => activeIndicators(prefs.indicators), [prefs.indicators]);
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       const target = event.target as HTMLElement | null;
@@ -260,6 +277,13 @@ export function ChartWorkspace({
             <option value="all">All currencies</option>
           </select>
         </fieldset>
+        <IndicatorMenu
+          prefs={prefs.indicators}
+          onChange={(id, next) => {
+            const merged = { ...prefs.indicators, [id]: { ...prefs.indicators[id], ...next } };
+            updatePrefs({ indicators: normalisePrefs(merged) });
+          }}
+        />
         <div className="ml-auto flex items-center gap-2">
           <label className="flex h-9 items-center gap-2 text-muted-foreground">
             <input
@@ -315,6 +339,7 @@ export function ChartWorkspace({
             onBarClick={onBarClick}
             markers={markers}
             onCrosshair={setHoverBar}
+            indicators={indicators}
           />
         </div>
       </div>

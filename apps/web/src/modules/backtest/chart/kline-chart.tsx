@@ -1,8 +1,10 @@
 'use client';
 
 import { type Bar, MINUTE_MS, type Timeframe } from '@trading/backtest-engine';
+import { INDICATORS } from '@trading/indicators';
 import type { Chart, DataLoaderGetBarsParams, KLineData, Point } from 'klinecharts';
 import { type RefObject, useEffect, useRef, useState } from 'react';
+import { type ActiveIndicator, INDICATOR_TEMPLATES, indicatorName, indicatorPane } from './indicators';
 import { fetchBars, toKLine } from './loader';
 import { type Marker, NEWS_INDICATOR, newsMarkers } from './news-markers';
 import { SESSION_INDICATOR, sessionShading } from './session-shading';
@@ -39,7 +41,12 @@ export type ChartProps = {
   markers?: Marker[];
   /** Bar under the crosshair, or null when the pointer leaves. */
   onCrosshair?: (barStart: number | null) => void;
+  /** Indicators shown in their own panes below the price chart. */
+  indicators?: ActiveIndicator[];
 };
+
+/** Height of an indicator pane in px: smaller when the chart is short (phones), so prices keep most room. */
+const indicatorPaneHeight = (chartHeight: number) => (chartHeight < 520 ? 70 : 110);
 
 type Klinecharts = typeof import('klinecharts');
 
@@ -65,7 +72,19 @@ function barAt(chart: Chart, x: number): number | null {
  * edge of the view, so the time range is kept.
  */
 export function KLineChart(props: ChartProps) {
-  const { instrument, tf, timezone, sessions, cursorRef, reloadKey, onReady, onBarClick, markers, onCrosshair } = props;
+  const {
+    instrument,
+    tf,
+    timezone,
+    sessions,
+    cursorRef,
+    reloadKey,
+    onReady,
+    onBarClick,
+    markers,
+    onCrosshair,
+    indicators,
+  } = props;
   const el = useRef<HTMLDivElement>(null);
   const chartRef = useRef<Chart | null>(null);
   const anchorRef = useRef<number | null>(null);
@@ -98,6 +117,7 @@ export function KLineChart(props: ChartProps) {
       lib = k;
       if (!k.getSupportedIndicators().includes(SESSION_INDICATOR)) k.registerIndicator(sessionShading);
       if (!k.getSupportedIndicators().includes(NEWS_INDICATOR)) k.registerIndicator(newsMarkers);
+      for (const t of INDICATOR_TEMPLATES) if (!k.getSupportedIndicators().includes(t.name)) k.registerIndicator(t);
       const overlays = k.getSupportedOverlays();
       for (const tool of TOOLS) if (!overlays.includes(tool.overlay.name)) k.registerOverlay(tool.overlay);
       const chart = k.init(node, { styles: chartStyles, timezone });
@@ -241,6 +261,35 @@ export function KLineChart(props: ChartProps) {
       chart.overrideIndicator({ name: NEWS_INDICATOR, extendData: { markers: list } });
     }
   }, [ready, markers]);
+
+  useEffect(() => {
+    const chart = chartRef.current;
+    const node = el.current;
+    if (!ready || !chart || !node) return;
+    const list = indicators ?? [];
+    for (const { id } of INDICATORS) {
+      const want = list.find((i) => i.id === id);
+      const name = indicatorName(id);
+      if (!want) {
+        chart.removeIndicator({ name });
+        node.removeAttribute(`data-indicator-${id}`);
+        continue;
+      }
+      const extendData = {
+        settings: want.settings,
+        color: want.color,
+        onResult: (last: number | null) => node.setAttribute(`data-indicator-${id}`, last === null ? '' : String(last)),
+      };
+      const calcParams = Object.values(want.settings);
+      if (chart.getIndicators({ name }).length === 0) {
+        const paneId = indicatorPane(id);
+        chart.createIndicator({ name, paneId, calcParams, extendData });
+        chart.setPaneOptions({ id: paneId, height: indicatorPaneHeight(node.clientHeight), minHeight: 50 });
+      } else {
+        chart.overrideIndicator({ name, calcParams, extendData });
+      }
+    }
+  }, [ready, indicators]);
 
   return (
     <div className="relative h-full w-full">
