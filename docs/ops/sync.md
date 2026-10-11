@@ -59,3 +59,5 @@ Env: `DRIVE_INBOX_FOLDER_ID=105BHu-A_DxDA1W6otpt_gYBsbt3TN8DB`, `DRIVE_PROCESSED
 2. Check the inbox in Drive for an `error` or `partial` file and read its `errors[]`.
 3. If FundedNext's connector disconnected: reconnect it in claude.ai, then run the task manually ("Run now").
 4. Manual fallback: Settings › Imports › upload a JSON file in the contract format.
+5. A rejected file is retried automatically on every sync for 14 days, so once a fix that accepts its format is deployed it imports by itself. Older ones: Settings › Imports › Reprocess.
+6. A file Drive refuses (download or move) is reported on its own and never blocks the other files in the inbox.

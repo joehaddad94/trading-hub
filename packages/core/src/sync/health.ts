@@ -42,8 +42,13 @@ export function evaluateSyncHealth(input: SyncHealthInput): SyncCondition[] {
   const { now, latestImport } = input;
 
   // 1. No file 26 h after an expected run. Find the newest run whose 26 h grace has passed.
+  // A file that arrived but was rejected is reported as rejected, not as missing too.
   const due = lastExpectedRun(new Date(now.getTime() - STALE_AFTER_MS));
-  if (!input.lastFileAt || input.lastFileAt.getTime() < due.getTime() - RUN_TOLERANCE_MS) {
+  const cutoff = due.getTime() - RUN_TOLERANCE_MS;
+  const rejectedOnTime =
+    latestImport?.importResult === 'rejected' &&
+    (latestImport.generatedAt ?? latestImport.createdAt).getTime() >= cutoff;
+  if (!rejectedOnTime && (!input.lastFileAt || input.lastFileAt.getTime() < cutoff)) {
     conditions.push({
       kind: 'stale',
       message: 'Expected sync file is missing — scheduled task may be broken or paused.',
@@ -68,7 +73,7 @@ export function evaluateSyncHealth(input: SyncHealthInput): SyncCondition[] {
     if (latestImport.importResult === 'rejected') {
       conditions.push({
         kind: 'rejected',
-        message: firstLine(latestImport.importError) ?? 'Export format changed — import rejected.',
+        message: headline(latestImport.importError) ?? 'Export format changed — import rejected.',
         since,
         severity: 'error',
       });
@@ -139,8 +144,16 @@ function touchesTrades(errors: unknown): boolean {
   });
 }
 
-function firstLine(text: string | null): string | null {
-  return text?.split('\n')[0] ?? null;
+/** The rejection plus its first reason, so the banner says what failed, not only that something did. */
+function headline(text: string | null): string | null {
+  if (!text) return null;
+  const [first, ...rest] = text
+    .split('\n')
+    .map((line) => line.trim())
+    .filter(Boolean);
+  const reason = rest[0];
+  const line = reason ? `${first} ${reason}` : (first ?? null);
+  return line && line.length > 300 ? `${line.slice(0, 299)}…` : line;
 }
 
 /** Anti-spam (tracker spec §7): one alert per condition per 12 h. */

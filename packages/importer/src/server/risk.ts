@@ -1,6 +1,6 @@
 import { median, type RiskSource, resolveRisk } from '@trading/core';
 import type { Executor } from '@trading/db';
-import { and, asc, eq, inArray } from '@trading/db/orm';
+import { and, asc, eq, inArray, sql } from '@trading/db/orm';
 import { accounts, journalEntries, symbolSpecs, tradeRisk, trades } from '@trading/db/schema';
 import Decimal from 'decimal.js';
 
@@ -55,7 +55,7 @@ export async function refreshTradeRisk(db: Executor, accountIds: string[]): Prom
     .orderBy(asc(trades.accountId), asc(trades.closedAt), asc(trades.ticket));
 
   const fullStops = new Map<string, { at: number; risk: string }[]>();
-  let updated = 0;
+  const changed: { id: string; riskUsd: string; source: RiskSource }[] = [];
   for (const t of rows) {
     const history = fullStops.get(t.accountId) ?? [];
     const at = t.closedAt.getTime();
@@ -83,16 +83,24 @@ export async function refreshTradeRisk(db: Executor, accountIds: string[]): Prom
       history.push({ at, risk: resolved.riskUsd });
       fullStops.set(t.accountId, history);
     }
-    if (!sameRisk(t, resolved)) {
-      await db
-        .update(trades)
-        .set({ riskUsd: resolved.riskUsd, riskSource: resolved.source })
-        .where(eq(trades.id, t.id));
-      updated += 1;
-    }
+    if (!sameRisk(t, resolved)) changed.push({ id: t.id, riskUsd: resolved.riskUsd, source: resolved.source });
   }
-  return updated;
+
+  // One statement per chunk: a first import changes every trade, and each statement is a round trip.
+  for (let i = 0; i < changed.length; i += UPDATE_CHUNK) {
+    const values = sql.join(
+      changed.slice(i, i + UPDATE_CHUNK).map((c) => sql`(${c.id}::uuid, ${c.riskUsd}::numeric, ${c.source})`),
+      sql`, `,
+    );
+    await db.execute(sql`
+      update trades set risk_usd = v.risk_usd, risk_source = v.risk_source::risk_source
+      from (values ${values}) as v(id, risk_usd, risk_source)
+      where trades.id = v.id`);
+  }
+  return changed.length;
 }
+
+const UPDATE_CHUNK = 500;
 
 function sameRisk(
   t: { riskUsd: string | null; riskSource: RiskSource | null },
