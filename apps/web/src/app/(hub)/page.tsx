@@ -1,21 +1,36 @@
+import { TZDate } from '@date-fns/tz';
 import Decimal from 'decimal.js';
-import Link from 'next/link';
+import { FlaskConical, Newspaper } from 'lucide-react';
 import { connection } from 'next/server';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { DISPLAY_TZ } from '@/lib/format';
+import { getSessionsPage } from '@/modules/backtest/server/sessions';
 import { NewsHubCardSummary } from '@/modules/news/components/hub-card-summary';
 import { getNewsHubSummary } from '@/modules/news/server/news';
-import { TrackerHubCardSummary } from '@/modules/tracker/components/hub-card-summary';
+import {
+  JournalHubTile,
+  RecentTradesCard,
+  TrackerHubHero,
+  TrackerHubTile,
+} from '@/modules/tracker/components/hub-card-summary';
 import { getAccountDetail } from '@/modules/tracker/server/accounts';
 import { getTrackerHubSummary } from '@/modules/tracker/server/hub';
-import { MODULES } from '@/shell/modules';
+import { HubTile } from '@/shell/hub-tile';
 import { SyncStatusLine } from '@/shell/sync-banner';
 
-/** Tracker spec §8.0 hub. The Backtest summary arrives with M21. */
+function greeting(now: Date) {
+  const hour = new TZDate(now, DISPLAY_TZ).getHours();
+  return hour < 5 ? 'Good night' : hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
+}
+
+/** Tracker spec §8.0 hub, redesigned (design spec): today's P&L hero, module tiles, recent trades. */
 export default async function HubPage() {
   await connection();
   const now = new Date();
-  const [tracker, news] = await Promise.all([getTrackerHubSummary(), getNewsHubSummary(now)]);
+  const [tracker, news, backtest] = await Promise.all([
+    getTrackerHubSummary(),
+    getNewsHubSummary(now),
+    getSessionsPage().catch(() => null),
+  ]);
   // Max-loss room for the main active account (live before demo), from the account page's rule usage (U7).
   const active = tracker?.activeAccounts[0];
   const detail = active ? await getAccountDetail(active.login) : null;
@@ -27,41 +42,46 @@ export default async function HubPage() {
           limit: new Decimal(detail.startingBalance).minus(usage.maxLossFloor).toFixed(2),
         }
       : null;
+  const sessions = backtest?.sessions ?? [];
   return (
-    <main className="mx-auto flex max-w-6xl flex-col gap-6 p-4 md:p-8">
-      <header className="flex items-center justify-between">
-        <div>
-          <h1 className="font-semibold text-2xl">Trading Hub</h1>
-          <SyncStatusLine />
-        </div>
-        <Link href="/settings" className="text-muted-foreground text-sm hover:text-foreground">
-          Settings
-        </Link>
+    <main className="mx-auto flex w-full max-w-6xl flex-col gap-5 p-4 md:gap-6 md:p-8">
+      <header className="rise flex flex-col gap-1">
+        <p className="text-muted-foreground text-sm">{greeting(now)}, Joe</p>
+        <h1 className="font-semibold text-3xl tracking-tight">Trading Hub</h1>
+        <SyncStatusLine />
       </header>
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        {MODULES.map((m) => (
-          <Card key={m.id} className={m.id === 'tracker' ? 'md:col-span-2' : undefined}>
-            <CardHeader>
-              <CardTitle>{m.name}</CardTitle>
-              <CardDescription>{m.description}</CardDescription>
-            </CardHeader>
-            <CardContent className="text-muted-foreground text-sm">
-              {m.id === 'tracker' && <TrackerHubCardSummary summary={tracker} maxLoss={maxLoss} />}
-              {m.id === 'news' && <NewsHubCardSummary summary={news} now={now} />}
-              {m.id === 'backtest' && (
-                <>
-                  <span>No sessions yet.</span> <span className="md:hidden">Best on desktop.</span>
-                </>
-              )}
-            </CardContent>
-            <CardFooter className="mt-auto">
-              <Button asChild className="w-full">
-                <Link href={m.href}>Open {m.name}</Link>
-              </Button>
-            </CardFooter>
-          </Card>
-        ))}
+      <TrackerHubHero summary={tracker} maxLoss={maxLoss} />
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <TrackerHubTile summary={tracker} />
+        <JournalHubTile summary={tracker} />
+        <HubTile
+          title="News"
+          icon={<Newspaper className="size-4 text-primary" aria-hidden />}
+          href="/news"
+          linkLabel="Open News"
+          index={3}
+        >
+          <NewsHubCardSummary summary={news} now={now} />
+        </HubTile>
+        <HubTile
+          title="Backtest Lab"
+          icon={<FlaskConical className="size-4 text-primary" aria-hidden />}
+          href="/backtest"
+          linkLabel="Open Backtest Lab"
+          index={4}
+        >
+          {sessions.length === 0 ? (
+            <p className="text-muted-foreground">No sessions yet. Replay US30 or NAS100 bar by bar.</p>
+          ) : (
+            <p>
+              <span className="num block font-semibold text-4xl">{sessions.length}</span>
+              <span className="text-muted-foreground">{sessions.length === 1 ? 'session' : 'sessions'}</span>
+            </p>
+          )}
+          <p className="mt-2 text-muted-foreground text-xs md:hidden">Best on desktop.</p>
+        </HubTile>
       </div>
+      <RecentTradesCard summary={tracker} />
     </main>
   );
 }

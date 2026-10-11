@@ -1,4 +1,12 @@
-import { type DayBoundary, DEFAULT_DAY_BOUNDARY, monthRange, sumMoney, tradingDay } from '@trading/core';
+import {
+  type DayBoundary,
+  DEFAULT_DAY_BOUNDARY,
+  mondayOf,
+  monthRange,
+  sumMoney,
+  tradeStats,
+  tradingDay,
+} from '@trading/core';
 import type { Executor } from '@trading/db';
 import { and, asc, desc, eq, isNull, sql } from '@trading/db/orm';
 import { accounts, balanceSnapshots, journalEntries, trades } from '@trading/db/schema';
@@ -13,6 +21,14 @@ export type TrackerHubSummary = {
   tradingDays: number;
   awaitingJournal: number;
   activeAccounts: { login: number; phase: string; balance: string | null }[];
+  /** Today's closed trades (trading day by the day boundary). */
+  today: { net: string; trades: number };
+  /** Monday to now: net, trade count and win rate (from core metrics). */
+  week: { net: string; trades: number; winRate: string | null };
+  /** Cumulative net after each trade this month, starting at 0 — the hub's small curve. */
+  monthCurve: string[];
+  /** Latest closed live trades, newest first. */
+  recent: { id: string; login: number; symbol: string; side: string; closedAt: Date; netProfit: string }[];
   hasData: boolean;
 };
 
@@ -27,6 +43,20 @@ export async function trackerHubSummary(
   const [year, month] = day.split('-').map(Number) as [number, number];
   const range = monthRange(year, month, boundary);
   const monthTrades = await scopedTrades(db, scope, { from: range.start, to: range.end });
+  // The week can start in the previous month: read from 8 days before whichever starts first.
+  const weekStart = mondayOf(day);
+  const lookback = new Date(Math.min(range.start.getTime(), now.getTime() - 8 * 86_400_000));
+  const recentTrades = await scopedTrades(db, scope, { from: lookback });
+  const weekTrades = recentTrades.filter((t) => tradingDay(t.closedAt, boundary) >= weekStart);
+  const todayTrades = recentTrades.filter((t) => tradingDay(t.closedAt, boundary) === day);
+  const weekStats = tradeStats(weekTrades);
+  const monthCurve = ['0.00'];
+  let running = new Decimal(0);
+  for (const t of monthTrades) {
+    running = running.plus(t.netProfit);
+    monthCurve.push(running.toFixed(2));
+  }
+  const loginOf = new Map(scope.accounts.map((a) => [a.id, a.login]));
 
   const byDay = new Map<string, string[]>();
   for (const t of monthTrades) {
@@ -66,6 +96,24 @@ export async function trackerHubSummary(
       ...a,
       balance: a.balance === null ? null : new Decimal(a.balance).toFixed(2),
     })),
+    today: { net: sumMoney(todayTrades.map((t) => t.netProfit)).toFixed(2), trades: todayTrades.length },
+    week: {
+      net: weekStats.net.toFixed(2),
+      trades: weekStats.trades,
+      winRate: weekStats.winRate === null ? null : weekStats.winRate.toFixed(4),
+    },
+    monthCurve,
+    recent: recentTrades
+      .slice(-5)
+      .reverse()
+      .map((t) => ({
+        id: t.id,
+        login: loginOf.get(t.accountId) ?? 0,
+        symbol: t.symbol,
+        side: t.side,
+        closedAt: t.closedAt,
+        netProfit: new Decimal(t.netProfit).toFixed(2),
+      })),
     hasData: scope.accountIds.length > 0,
   };
 }
