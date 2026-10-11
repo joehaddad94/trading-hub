@@ -282,7 +282,7 @@ importers:
   packages/market-data:
     dependencies:
       '@aws-sdk/client-s3':
-        specifier: ^3.1149.0
+        specifier: 3.1149.0
         version: 3.1149.0
       '@date-fns/tz':
         specifier: ^1.5.0
