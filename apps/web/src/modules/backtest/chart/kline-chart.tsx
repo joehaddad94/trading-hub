@@ -38,6 +38,8 @@ export type ChartProps = {
   onReady?: (api: ChartApi | null) => void;
   /** Called with the bar under the pointer when the chart is clicked. */
   onBarClick?: (barStart: number) => void;
+  /** Called on right-click with the bar under the pointer and the pointer position relative to the chart. */
+  onBarContextMenu?: (barStart: number, at: { x: number; y: number }) => void;
   /** News markers (one per bar); empty hides them. */
   markers?: Marker[];
   /** Bar under the crosshair, or null when the pointer leaves. */
@@ -84,6 +86,7 @@ export function KLineChart(props: ChartProps) {
     reloadKey,
     onReady,
     onBarClick,
+    onBarContextMenu,
     markers,
     onCrosshair,
     indicators,
@@ -95,6 +98,8 @@ export function KLineChart(props: ChartProps) {
   const pushRef = useRef<((bar: KLineData) => void) | null>(null);
   const clickRef = useRef(onBarClick);
   clickRef.current = onBarClick;
+  const menuRef = useRef(onBarContextMenu);
+  menuRef.current = onBarContextMenu;
   const crosshairRef = useRef(onCrosshair);
   crosshairRef.current = onCrosshair;
   const generation = useRef(0);
@@ -116,6 +121,15 @@ export function KLineChart(props: ChartProps) {
       const ts = barAt(chart, event.clientX - node.getBoundingClientRect().left);
       if (ts !== null) clickRef.current(ts);
     };
+    const onMenu = (event: MouseEvent) => {
+      const chart = chartRef.current;
+      if (!chart || !node || !menuRef.current) return;
+      const box = node.getBoundingClientRect();
+      const ts = barAt(chart, event.clientX - box.left);
+      if (ts === null) return;
+      event.preventDefault();
+      menuRef.current(ts, { x: event.clientX - box.left, y: event.clientY - box.top });
+    };
     void import('klinecharts').then((k) => {
       if (disposed || !node) return;
       lib = k;
@@ -134,6 +148,7 @@ export function KLineChart(props: ChartProps) {
         crosshairRef.current?.(typeof x === 'number' ? barAt(chart, x) : null);
       });
       node.addEventListener('click', onClick, true);
+      node.addEventListener('contextmenu', onMenu);
       node.addEventListener('mouseleave', onLeave);
       observer = new ResizeObserver(() => chart.resize());
       observer.observe(node);
@@ -143,6 +158,7 @@ export function KLineChart(props: ChartProps) {
       disposed = true;
       observer?.disconnect();
       node?.removeEventListener('click', onClick, true);
+      node?.removeEventListener('contextmenu', onMenu);
       node?.removeEventListener('mouseleave', onLeave);
       if (lib && node) lib.dispose(node);
       chartRef.current = null;

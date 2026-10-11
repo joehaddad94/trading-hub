@@ -1,6 +1,8 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { LoginForm } from './login-form';
 
+export const metadata = { title: 'Sign in · Trading Hub' };
+
 export default async function LoginPage({ searchParams }: PageProps<'/login'>) {
   const { error } = await searchParams;
   return (

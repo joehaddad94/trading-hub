@@ -28,6 +28,8 @@ export type DayCellProps = {
   preview: DayCellPreview | null;
   /** Where the preview anchors so it never leaves the screen. */
   align: 'start' | 'center' | 'end';
+  /** A day in an empty future week: a thin row with just the date (audit U5). */
+  compact?: boolean;
 };
 
 const LONG_PRESS_MS = 450;
@@ -50,6 +52,7 @@ export function DayCell(props: DayCellProps) {
     dots,
     preview,
     align,
+    compact = false,
   } = props;
   const [open, setOpen] = useState(false);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -68,15 +71,16 @@ export function DayCell(props: DayCellProps) {
   };
 
   return (
-    <div className="relative min-w-0">
+    <div className="@container relative min-w-0">
       <Link
         href={href as Route}
         scroll={false}
         data-testid={`day-${date}`}
-        aria-label={`${date}${value ? `, ${value}${sub ? `, ${sub}` : ''}` : ', no trades'}`}
+        aria-label={`${date}${value ? `, ${value}${sub ? `, ${sub}` : ''}` : ', no trades'}${icons.news ? ', red-folder news' : ''}`}
         aria-current={selected ? 'date' : undefined}
         className={cn(
-          'flex h-16 min-w-0 flex-col justify-between overflow-hidden rounded-md border p-1 text-left md:h-24 md:p-2',
+          'flex min-w-0 flex-col justify-between overflow-hidden rounded-md border p-1 text-left md:p-2',
+          compact ? 'h-8 md:h-9 md:py-1' : 'h-16 md:h-24',
           !inMonth && 'opacity-40',
           tone === null && 'border-transparent bg-muted/30',
           selected && 'ring-2 ring-foreground',
@@ -114,7 +118,6 @@ export function DayCell(props: DayCellProps) {
             {day}
           </span>
           <span className="flex gap-px text-[9px] leading-none md:text-xs" aria-hidden>
-            {icons.news && <span title="Red-folder news">📰</span>}
             {icons.journaled && <span title="Journaled">📝</span>}
             {icons.warning && <span title="Close to a rule limit">⚠️</span>}
             {icons.status && <span title="Account status changed">🔄</span>}
@@ -129,8 +132,9 @@ export function DayCell(props: DayCellProps) {
                 tone === 'loss' && 'text-red-300',
               )}
             >
-              <span className="md:hidden">{valueShort ?? value}</span>
-              <span className="hidden md:inline">{value}</span>
+              {/* Full value only when the cell is wide enough (phone, or Overview beside an open day). */}
+              <span className="@[5rem]:hidden">{valueShort ?? value}</span>
+              <span className="hidden @[5rem]:inline">{value}</span>
             </div>
             <div className="flex items-center gap-1">
               <span className="truncate text-[10px] text-muted-foreground md:text-xs">{sub}</span>
@@ -145,6 +149,15 @@ export function DayCell(props: DayCellProps) {
           </div>
         )}
       </Link>
+      {/* Red-folder news day (audit U12): a corner flag, readable at a glance where the old icon wasn't. */}
+      {icons.news && (
+        <span
+          aria-hidden
+          title="Red-folder news"
+          data-testid="news-flag"
+          className="pointer-events-none absolute top-0 right-0 size-0 rounded-tr-md border-t-[14px] border-t-red-500 border-l-[14px] border-l-transparent md:border-t-[18px] md:border-l-[18px]"
+        />
+      )}
       {open && preview && (
         <div
           role="tooltip"

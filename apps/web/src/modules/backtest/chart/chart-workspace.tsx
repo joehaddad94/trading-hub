@@ -4,6 +4,7 @@ import type { Drawing, OrderView, SessionView } from '@trading/backtest';
 import { parseTimeframe, TIMEFRAMES, type Timeframe } from '@trading/backtest-engine';
 import { parseAsString, useQueryState } from 'nuqs';
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { symbolWithAlias } from '@/lib/symbols';
 import { cn } from '@/lib/utils';
 import { DrawingProperties, DrawingToolbar } from './drawing-toolbar';
 import { IndicatorMenu } from './indicator-menu';
@@ -139,6 +140,19 @@ export function ChartWorkspace({
     },
     [picking, replay.startAtBar, onChartClick],
   );
+  // Right-click › "Replay from here" (audit U8); the menu sits where the pointer was.
+  const [menu, setMenu] = useState<{ bar: number; x: number; y: number } | null>(null);
+  const onBarContextMenu = useCallback((bar: number, at: { x: number; y: number }) => setMenu({ bar, ...at }), []);
+  useEffect(() => {
+    if (!picking && !menu) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      setPicking(false);
+      setMenu(null);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [picking, menu]);
 
   useEffect(() => setPrefs(readPrefs()), []);
 
@@ -248,7 +262,7 @@ export function ChartWorkspace({
               type="button"
               aria-pressed={i.code === instrument.code}
               onClick={() => void setCode(i.code)}
-              title={i.displayName}
+              title={`${i.displayName} · ${symbolWithAlias(i.code)}`}
               className={cn(
                 'h-9 rounded-md px-3 font-medium',
                 i.code === instrument.code
@@ -359,6 +373,47 @@ export function ChartWorkspace({
           )}
         >
           <NewsPanel events={hovered} timezone={prefs.timezone} />
+          {picking && (
+            <p
+              role="status"
+              className="pointer-events-none absolute top-2 left-1/2 z-10 -translate-x-1/2 rounded-full border bg-popover px-3 py-1 text-xs shadow"
+              data-testid="replay-pick-hint"
+            >
+              Click a candle to start replay · Esc to cancel
+            </p>
+          )}
+          {menu && (
+            <>
+              <button
+                type="button"
+                aria-label="Close menu"
+                className="absolute inset-0 z-10 cursor-default"
+                onClick={() => setMenu(null)}
+                onContextMenu={(e) => {
+                  e.preventDefault();
+                  setMenu(null);
+                }}
+              />
+              <div
+                role="menu"
+                className="absolute z-20 min-w-40 rounded-md border bg-popover p-1 text-sm shadow-lg"
+                style={{ left: menu.x, top: menu.y }}
+              >
+                <button
+                  type="button"
+                  role="menuitem"
+                  className="flex h-8 w-full items-center rounded px-2 text-left hover:bg-accent"
+                  onClick={() => {
+                    replay.startAtBar(menu.bar);
+                    setMenu(null);
+                    setPicking(false);
+                  }}
+                >
+                  Replay from here
+                </button>
+              </div>
+            </>
+          )}
           <DrawingProperties drawings={drawings}>
             {cursor !== null && selected && (selected.tool === 'long' || selected.tool === 'short') && (
               <>
@@ -396,6 +451,7 @@ export function ChartWorkspace({
             reloadKey={replay.reloadKey}
             onReady={onChartReady}
             onBarClick={onBarClick}
+            onBarContextMenu={onBarContextMenu}
             markers={markers}
             onCrosshair={setHoverBar}
             indicators={indicators}

@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import type { ActionResult } from '@/lib/action-result';
+import { formatPrice } from '@/lib/symbols';
 import { cn } from '@/lib/utils';
 import { EMOTIONS, type JournalFormInput, type JournalFormValues, journalSchema, RISK_PCT_CHOICES } from './schema';
 
@@ -128,7 +129,7 @@ export function JournalForm({
           label="Initial SL"
           htmlFor="initialSl"
           error={formState.errors.initialSl?.message}
-          hint={`${side === 'buy' ? 'Below' : 'Above'} ${openPrice}`}
+          hint={`${side === 'buy' ? 'Below' : 'Above'} ${formatPrice(openPrice)}`}
         >
           <Input id="initialSl" inputMode="decimal" autoComplete="off" {...register('initialSl')} />
         </Field>

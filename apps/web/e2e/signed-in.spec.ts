@@ -100,5 +100,10 @@ test.describe('signed in', () => {
     await page.goto('/');
     await expect(page.getByTestId('tracker-hub-summary')).toContainText('Active account');
     await expect(page.getByTestId('tracker-hub-summary')).toContainText('7002880 · Funded');
+    // U7: max-loss room for the active account, and "To journal" goes straight to the quick-journal queue.
+    await expect(page.getByTestId('hub-max-loss')).toContainText('Room to max loss');
+    await page.getByTestId('hub-quick-journal').click();
+    await expect(page).toHaveURL(/\/tracker\/journal\?.*view=quick/);
+    await expect(page.getByTestId('quick-journal')).toBeVisible();
   });
 });

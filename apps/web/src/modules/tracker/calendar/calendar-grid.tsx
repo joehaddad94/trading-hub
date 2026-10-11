@@ -16,12 +16,14 @@ export type CalendarGridProps = {
   cell: CellMode;
   accounts: ScopeAccount[];
   selectedDay: string | null;
+  /** Today's trading day (YYYY-MM-DD); weeks wholly after it with no trades collapse to a thin row. */
+  today: string;
   /** Link that opens a day in the day view (keeps scope, month and cell mode). */
   dayHref: (date: string) => string;
 };
 
 /** The §8.2 month grid: Mon–Fri (weekends only when traded), weekly summary column, one component for any scope. */
-export function CalendarGrid({ data, cell, accounts, selectedDay, dayHref }: CalendarGridProps) {
+export function CalendarGrid({ data, cell, accounts, selectedDay, today, dayHref }: CalendarGridProps) {
   const { calendar, statusEvents, warningDays, startingBalanceTotal } = data;
   const colourOf = new Map(accounts.map((a, i) => [a.id, ACCOUNT_COLOURS[i % ACCOUNT_COLOURS.length] ?? '#888']));
   const loginOf = new Map(accounts.map((a) => [a.id, accountLabel(a)]));
@@ -85,13 +87,22 @@ export function CalendarGrid({ data, cell, accounts, selectedDay, dayHref }: Cal
         </div>
       ))}
       <div className="hidden px-1 text-muted-foreground text-xs md:block">Week</div>
-      {calendar.weeks.map((week) => (
-        <Week key={week.days[0]?.date} summary={week.summary} cell={cell} total={startingBalanceTotal}>
-          {week.days.map((d, i) => (
-            <DayCell key={d.date} {...cellProps(d, i)} />
-          ))}
-        </Week>
-      ))}
+      {calendar.weeks.map((week) => {
+        const future = week.summary.trades === 0 && (week.days[0]?.date ?? '') > today;
+        return (
+          <Week
+            key={week.days[0]?.date}
+            summary={week.summary}
+            cell={cell}
+            total={startingBalanceTotal}
+            future={future}
+          >
+            {week.days.map((d, i) => (
+              <DayCell key={d.date} {...cellProps(d, i)} compact={future} />
+            ))}
+          </Week>
+        );
+      })}
     </div>
   );
 }
@@ -101,37 +112,43 @@ function Week({
   summary,
   cell,
   total,
+  future,
 }: {
   children: ReactNode;
   summary: PeriodSummary;
   cell: CellMode;
   total: string;
+  future: boolean;
 }) {
   const tone = summary.net.gt(0) ? 'text-profit' : summary.net.lt(0) ? 'text-loss' : 'text-muted-foreground';
   return (
     <>
       {children}
-      <div
-        className="col-span-full mb-2 flex items-center justify-between gap-2 rounded-md bg-muted/30 px-2 py-1 text-[11px] md:col-span-1 md:mb-0 md:flex-col md:items-start md:justify-center md:text-xs"
-        data-testid="week-summary"
-      >
-        {summary.trades === 0 ? (
-          <span className="text-muted-foreground">No trades</span>
-        ) : (
-          <>
-            <span className={cn('font-semibold tabular-nums', tone)}>
-              {cell === 'pct' ? cellValue(summary, 'pct', total) : formatMoneyShort(summary.net)}
-              <span className="ml-1 font-normal text-muted-foreground">{formatR(summary.netR)}</span>
-            </span>
-            <span className="text-muted-foreground tabular-nums">
-              {pluralTrades(summary.trades)} · {formatPct(summary.winRate)}
-            </span>
-            <span className="text-muted-foreground tabular-nums">
-              {summary.greenDays} green · {summary.redDays} red
-            </span>
-          </>
-        )}
-      </div>
+      {future ? (
+        <div className="hidden md:block" data-testid="week-summary" />
+      ) : (
+        <div
+          className="col-span-full mb-2 flex items-center justify-between gap-2 rounded-md bg-muted/30 px-2 py-1 text-[11px] md:col-span-1 md:mb-0 md:flex-col md:items-start md:justify-center md:text-xs"
+          data-testid="week-summary"
+        >
+          {summary.trades === 0 ? (
+            <span className="text-muted-foreground">No trades</span>
+          ) : (
+            <>
+              <span className={cn('font-semibold tabular-nums', tone)}>
+                {cell === 'pct' ? cellValue(summary, 'pct', total) : formatMoneyShort(summary.net)}
+              </span>
+              <span className="text-muted-foreground tabular-nums">{formatR(summary.netR)}</span>
+              <span className="text-muted-foreground tabular-nums">
+                {pluralTrades(summary.trades)} · {formatPct(summary.winRate)}
+              </span>
+              <span className="text-muted-foreground tabular-nums">
+                {summary.greenDays} green · {summary.redDays} red
+              </span>
+            </>
+          )}
+        </div>
+      )}
     </>
   );
 }

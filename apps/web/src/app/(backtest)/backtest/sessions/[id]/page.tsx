@@ -73,12 +73,7 @@ export default async function SessionPage({ params }: { params: Promise<{ id: st
         <section className="rounded-lg border p-4">
           <h3 className="mb-2 font-medium">Equity</h3>
           <EquityCurve
-            points={data.curve.map((p) => ({
-              i: p.i,
-              label: formatBeirut(new Date(p.at)),
-              equity: p.equity,
-              account: session.name,
-            }))}
+            points={data.curve.map((p) => ({ i: p.i, t: p.at, equity: p.equity, pnl: p.pnl, account: '' }))}
             boundaries={[]}
           />
         </section>

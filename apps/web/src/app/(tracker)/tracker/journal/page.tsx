@@ -7,15 +7,18 @@ import { formatBeirut, formatMoney } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { calendarHref } from '@/modules/tracker/calendar/tracker-calendar';
 import { ScopeNotice } from '@/modules/tracker/components/scope-notice';
+import { QuickJournal } from '@/modules/tracker/journal/quick-journal';
 import { RiskQueue } from '@/modules/tracker/journal/risk-queue';
 import { accountLabel } from '@/modules/tracker/scope-label';
 import { getCalendarMonth, readCalendarParams } from '@/modules/tracker/server/calendar';
-import { getDailyNotes, getJournalQueue, getRiskQueue } from '@/modules/tracker/server/journal';
+import { getDailyNotes, getJournalQueue, getRiskQueue, getTags } from '@/modules/tracker/server/journal';
 import { getPageScope } from '@/modules/tracker/server/scope';
-import { tagRiskAction } from './actions';
+import { quickJournalAction, tagRiskAction } from './actions';
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+
+export const metadata = { title: 'Journal · Tracker' };
 
 /**
  * Journal: trades still to journal (screen 6 entry point), the risk queue (tag the % risked so R is real) and
@@ -26,7 +29,7 @@ export default async function JournalPage({ searchParams }: { searchParams: Prom
   const scope = await getPageScope(searchParams);
   if (!scope) return <p className="p-4 text-muted-foreground text-sm md:p-6">Database not configured.</p>;
   const scopeParam = raw.scope?.toString() ?? 'all';
-  const view = raw.view === 'notes' || raw.view === 'risk' ? raw.view : 'queue';
+  const view = raw.view === 'notes' || raw.view === 'risk' || raw.view === 'quick' ? raw.view : 'queue';
   const href = (params: Record<string, string | null>) => {
     const q = new URLSearchParams();
     if (scopeParam !== 'all') q.set('scope', scopeParam);
@@ -34,18 +37,21 @@ export default async function JournalPage({ searchParams }: { searchParams: Prom
     const s = q.toString();
     return (s ? `/tracker/journal?${s}` : '/tracker/journal') as Route;
   };
-  const tab = (id: 'queue' | 'risk' | 'notes', label: string) => (
-    <Link
-      href={href({ view: id === 'queue' ? null : id, month: raw.month?.toString() ?? null })}
-      aria-current={view === id ? 'page' : undefined}
-      className={cn(
-        'flex h-11 items-center border-b-2 px-3 text-sm md:h-9',
-        view === id ? 'border-foreground font-medium' : 'border-transparent text-muted-foreground',
-      )}
-    >
-      {label}
-    </Link>
-  );
+  const tab = (id: 'queue' | 'risk' | 'notes', label: string) => {
+    const active = view === id || (id === 'queue' && view === 'quick');
+    return (
+      <Link
+        href={href({ view: id === 'queue' ? null : id, month: raw.month?.toString() ?? null })}
+        aria-current={active ? 'page' : undefined}
+        className={cn(
+          'flex h-11 items-center border-b-2 px-3 text-sm md:h-9',
+          active ? 'border-foreground font-medium' : 'border-transparent text-muted-foreground',
+        )}
+      >
+        {label}
+      </Link>
+    );
+  };
 
   return (
     <div className="flex flex-col gap-4 p-4 md:p-6">
@@ -57,7 +63,9 @@ export default async function JournalPage({ searchParams }: { searchParams: Prom
       </nav>
       <ScopeNotice scope={scope} />
       {view === 'queue' ? (
-        <Queue scope={scope} />
+        <Queue scope={scope} quickHref={href({ view: 'quick' })} />
+      ) : view === 'quick' ? (
+        <Quick scope={scope} />
       ) : view === 'risk' ? (
         <Risk scope={scope} />
       ) : (
@@ -78,7 +86,26 @@ async function Risk({ scope }: { scope: NonNullable<Awaited<ReturnType<typeof ge
   return <RiskQueue items={items} total={q.count} tag={tagRiskAction} />;
 }
 
-async function Queue({ scope }: { scope: NonNullable<Awaited<ReturnType<typeof getPageScope>>> }) {
+async function Quick({ scope }: { scope: NonNullable<Awaited<ReturnType<typeof getPageScope>>> }) {
+  const [q, tags] = await Promise.all([getJournalQueue(scope), getTags()]);
+  if (!q) return null;
+  const byId = new Map(scope.accounts.map((a) => [a.id, a]));
+  // Oldest first, so a backlog is journaled in the order it was traded.
+  const items = [...q.pending].reverse().map((t) => {
+    const a = byId.get(t.accountId);
+    return { ...t, account: a ? accountLabel(a) : '—' };
+  });
+  const setups = tags.filter((t) => t.kind === 'setup').map((t) => ({ id: t.id, name: t.name }));
+  return <QuickJournal items={items} total={q.pendingCount} setups={setups} save={quickJournalAction} />;
+}
+
+async function Queue({
+  scope,
+  quickHref,
+}: {
+  scope: NonNullable<Awaited<ReturnType<typeof getPageScope>>>;
+  quickHref: Route;
+}) {
   const q = await getJournalQueue(scope);
   if (!q) return null;
   const byId = new Map(scope.accounts.map((a) => [a.id, a]));
@@ -111,9 +138,19 @@ async function Queue({ scope }: { scope: NonNullable<Awaited<ReturnType<typeof g
   return (
     <div className="grid gap-6 md:grid-cols-2">
       <section className="flex flex-col gap-2">
-        <h3 className="font-medium text-sm" data-testid="journal-pending-count">
-          {q.pendingCount} {q.pendingCount === 1 ? 'trade' : 'trades'} to journal
-        </h3>
+        <div className="flex items-center justify-between gap-2">
+          <h3 className="font-medium text-sm" data-testid="journal-pending-count">
+            {q.pendingCount} {q.pendingCount === 1 ? 'trade' : 'trades'} to journal
+          </h3>
+          {q.pendingCount > 0 && (
+            <Link
+              href={quickHref}
+              className="flex h-11 items-center rounded-md bg-primary px-3 font-medium text-primary-foreground text-sm md:h-9"
+            >
+              Quick journal
+            </Link>
+          )}
+        </div>
         {q.pending.length === 0 ? (
           <p className="text-muted-foreground text-sm">Everything in scope is journaled.</p>
         ) : (

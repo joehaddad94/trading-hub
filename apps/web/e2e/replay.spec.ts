@@ -111,6 +111,7 @@ test.describe('replay (M16)', () => {
     await page.getByRole('button', { name: 'Exit replay' }).click();
 
     await page.getByRole('button', { name: 'Start replay here' }).click();
+    await expect(page.getByTestId('replay-pick-hint')).toHaveText(/Click a candle/); // U8
     const chart = page.getByTestId('kline-chart');
     const box = await chart.boundingBox();
     if (!box) throw new Error('no chart');
@@ -119,5 +120,13 @@ test.describe('replay (M16)', () => {
     await expect(cursor(page)).toBeVisible();
     const at = Number(await cursor(page).getAttribute('data-cursor'));
     expect((at / 60_000) % 5).toBe(4); // last minute of the clicked 5m bar
+    await expect(page.getByTestId('replay-pick-hint')).toBeHidden();
+
+    // U8: right-click › "Replay from here" starts at the bar under the pointer too.
+    await page.getByRole('button', { name: 'Exit replay' }).click();
+    await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2, { button: 'right' });
+    await page.getByRole('menuitem', { name: 'Replay from here' }).click();
+    await expect(cursor(page)).toBeVisible();
+    expect((Number(await cursor(page).getAttribute('data-cursor')) / 60_000) % 5).toBe(4);
   });
 });

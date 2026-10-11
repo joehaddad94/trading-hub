@@ -25,6 +25,8 @@ const ROWS: { key: RowKey; label: string; show: (p: TradingProfile) => string }[
   { key: 'sessions', label: 'Session mix', show: sessionMix },
 ];
 
+export const metadata = { title: 'Demo vs funded · Tracker' };
+
 /** Demo vs Funded (§8.3 screen 4): same metrics side by side per phase; biggest deltas highlighted. */
 export default async function ComparePage() {
   const c = await getPhaseComparison();

@@ -4,6 +4,8 @@ import { Label } from '@/components/ui/label';
 import { getAccountRestrictions, getNewsSettingsOrDefault } from '@/modules/news/server/news';
 import { saveAccountRestrictionAction, saveNewsRulesAction } from './actions';
 
+export const metadata = { title: 'Rules · News' };
+
 /** Restriction rules (news spec §5): the window around restricted events and which currencies count. */
 export default async function RulesPage() {
   const [s, accounts] = await Promise.all([getNewsSettingsOrDefault(), getAccountRestrictions()]);

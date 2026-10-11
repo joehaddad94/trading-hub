@@ -7,6 +7,8 @@ import { getCalendarDay, getCalendarMonth, readCalendarParams } from '@/modules/
 import { getPageScope } from '@/modules/tracker/server/scope';
 import { saveDailyNoteAction } from './actions';
 
+export const metadata = { title: 'Calendar · Tracker' };
+
 /** Trading calendar (tracker spec §8.2). */
 export default async function CalendarPage({ searchParams }: { searchParams: Promise<SearchParams> }) {
   const scope = await getPageScope(searchParams);

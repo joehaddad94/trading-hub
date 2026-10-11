@@ -8,6 +8,8 @@ import { ModuleHeader } from '@/shell/module-header';
 import { SyncBanner } from '@/shell/sync-banner';
 import { HealthForms, ReprocessForm, SyncNowForm, UploadForm } from './import-forms';
 
+export const metadata = { title: 'Imports · Settings' };
+
 export default async function ImportsPage() {
   await connection();
   const db = getDb();

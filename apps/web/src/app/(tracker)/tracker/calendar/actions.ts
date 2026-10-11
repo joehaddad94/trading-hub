@@ -36,6 +36,7 @@ export async function saveDailyNoteAction(
   try {
     await writeDailyNote(date, note);
     revalidatePath('/tracker/calendar');
+    revalidatePath('/tracker');
     return { ok: true, data: 'Note saved.' };
   } catch (error) {
     Sentry.captureException(error);

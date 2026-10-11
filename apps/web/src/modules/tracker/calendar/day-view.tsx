@@ -6,6 +6,7 @@ import Link from 'next/link';
 import type { ReactNode } from 'react';
 import type { ActionResult } from '@/lib/action-result';
 import { formatBeirut, formatMoney, formatPct } from '@/lib/format';
+import { formatPrice } from '@/lib/symbols';
 import { cn } from '@/lib/utils';
 import { AccountBadge } from '../components/account-badge';
 import { accountLabel } from '../scope-label';
@@ -202,8 +203,8 @@ function TradeRow({
     ['Lots', t.lots],
     ['Open → close', `${time(t.openedAt)} → ${time(t.closedAt)}`],
     ['Hold', formatHold(t.closedAt.getTime() - t.openedAt.getTime())],
-    ['Entry → exit', `${t.openPrice} → ${t.closePrice}`],
-    ['SL / TP (final)', `${t.slFinal ?? '—'} / ${t.tpFinal ?? '—'}`],
+    ['Entry → exit', `${formatPrice(t.openPrice)} → ${formatPrice(t.closePrice)}`],
+    ['SL / TP (final)', `${formatPrice(t.slFinal)} / ${formatPrice(t.tpFinal)}`],
     ['Firm RR', t.firmRr ?? '—'],
     ['Session', SESSION_LABELS[sessionOf(t.openedAt)]],
     ['Tags', t.tags.join(', ') || '—'],
@@ -258,14 +259,16 @@ function equityData(
   const accountIds = [...new Set(trades.map((t) => t.accountId))];
   const running = new Map<string, Decimal>();
   let combined = new Decimal(0);
+  const start = Math.min(...trades.map((t) => t.openedAt.getTime()));
   const points: EquityPoint[] = [
-    { time: 'Start', combined: 0, ...Object.fromEntries(accountIds.map((id) => [id, 0])) },
+    { t: start, trade: 'Start', combined: 0, ...Object.fromEntries(accountIds.map((id) => [id, 0])) },
   ];
   for (const t of trades) {
     combined = combined.plus(t.netProfit);
     running.set(t.accountId, (running.get(t.accountId) ?? new Decimal(0)).plus(t.netProfit));
     points.push({
-      time: time(t.closedAt).slice(0, 5),
+      t: t.closedAt.getTime(),
+      trade: `${t.symbol} ${t.side} ${new Decimal(t.netProfit).gte(0) ? '+' : ''}${money(t.netProfit)}`,
       combined: combined.toNumber(),
       ...Object.fromEntries(accountIds.map((id) => [id, running.get(id)?.toNumber() ?? 0])),
     });
