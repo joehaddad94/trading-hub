@@ -3,14 +3,14 @@
  * resumable (days with a good run are skipped), so just re-run it after an interruption.
  *
  *   DATABASE_URL_DIRECT=postgres://… pnpm tsx scripts/backfill-candles.ts [--from 2025-10-09] [--to 2026-10-08]
- *                                                                           [--only US30] [--force] [--pause 5]
+ *                                                                           [--only US30] [--force] [--pause 5] [--source free]
  *
- * With AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY set it reads Dukascopy's S3 archive (the free feed now
- * refuses bulk downloads); without them it tries the free feed.
+ * Reads Dukascopy's S3 archive with the AWS credentials from the environment or ~/.aws/credentials (the free
+ * feed now refuses bulk downloads). `--source free` tries the free feed instead.
  */
 import { createDb } from '@trading/db';
 import { backfillWindow, type MarketDataProvider } from '@trading/market-data';
-import { backfill, candleProvider } from '@trading/market-data/server';
+import { backfill, dukascopyProvider, dukascopyS3Provider } from '@trading/market-data/server';
 
 const url = process.env.DATABASE_URL_DIRECT;
 if (!url) throw new Error('DATABASE_URL_DIRECT is required');
@@ -26,7 +26,7 @@ const to = flag('to') ?? window.to;
 const only = flag('only');
 // Dukascopy rate-limits bulk downloads (429/202), so space out the per-day requests.
 const pauseMs = Number(flag('pause') ?? 0) * 1000;
-const source = candleProvider();
+const source = flag('source') === 'free' ? dukascopyProvider : dukascopyS3Provider;
 const provider: MarketDataProvider = {
   name: source.name,
   async fetchMinuteCandles(code, dayFrom, dayTo) {
