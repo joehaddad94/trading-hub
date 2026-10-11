@@ -64,6 +64,7 @@ Create a Next.js project at sentry.io. `SENTRY_DSN` and `NEXT_PUBLIC_SENTRY_DSN`
 | `DRIVE_PROCESSED_FOLDER_ID` | `1wxxAa-bP08g6TDBmPHCRPn4JM9qR1orc` |
 | `CRON_SECRET` | any long random string (`openssl rand -hex 32`) |
 | `SENTRY_DSN`, `NEXT_PUBLIC_SENTRY_DSN`, `SENTRY_AUTH_TOKEN` | step 4 |
+| `DUKASCOPY_S3_ACCESS_KEY_ID`, `DUKASCOPY_S3_SECRET_ACCESS_KEY` | read-only AWS key for Dukascopy's bucket (step 6.3) |
 
 3. Deploy. The free address is `https://<project>.vercel.app` (Q2). Put it back into Supabase Auth (step 1.4) if it changed.
 4. Crons come from `apps/web/vercel.json` (daily only, Hobby).
@@ -74,7 +75,7 @@ Order on later merges: the migration workflow and Vercel's deploy start together
 
 1. Sign in at `/login` with the magic link.
 2. Settings › Imports › **Sync now** imports whatever is in the Drive inbox (or wait for the 23:00 UTC cron).
-3. Candles: Dukascopy is reachable from your machine, not from Claude's container. Once, from the repo:
+3. Candles: since Oct 2026 Dukascopy's free datafeed refuses bulk downloads, so candles come from its **Requester Pays S3 bucket** (`cfg-public-proper-wallaby`, eu-west-1). Create an AWS IAM user with only `s3:GetObject` + `s3:ListBucket` on that bucket, put its key in Vercel as `DUKASCOPY_S3_ACCESS_KEY_ID` / `DUKASCOPY_S3_SECRET_ACCESS_KEY` and in `~/.aws/credentials` (`[default]`) on your machine; AWS bills the downloads (cents). Once, from the repo:
 
 ```sh
 DATABASE_URL_DIRECT='<direct URI>' pnpm db:backfill-candles

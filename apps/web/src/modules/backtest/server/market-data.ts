@@ -4,11 +4,12 @@ import { type CandleCondition, previousUtcDay } from '@trading/market-data';
 import {
   candleCoverage,
   checkCandleHealth,
-  dukascopyProvider,
   getCandleConditions,
   type IngestResult,
   ingestDay,
+  marketDataProvider,
 } from '@trading/market-data/server';
+import { env } from '@/lib/env';
 import { getDb } from '@/lib/server/db';
 
 /** `ok` is false when the job crashed or any instrument's fetch failed. */
@@ -23,7 +24,11 @@ export async function runCandleJob(now = new Date()): Promise<CandleJobRun> {
   const day = previousUtcDay(now);
   if (!db) return { ok: false, day, results: [], error: 'DATABASE_URL is not configured.' };
   try {
-    const results = await ingestDay(db, dukascopyProvider, day, { now });
+    const provider = marketDataProvider({
+      accessKeyId: env.DUKASCOPY_S3_ACCESS_KEY_ID,
+      secretAccessKey: env.DUKASCOPY_S3_SECRET_ACCESS_KEY,
+    });
+    const results = await ingestDay(db, provider, day, { now });
     for (const r of results.filter((x) => x.status !== 'ok')) {
       Sentry.captureMessage(`cron/candles ${r.code} ${day}: ${r.status}${r.error ? ` — ${r.error}` : ''}`, 'error');
     }
