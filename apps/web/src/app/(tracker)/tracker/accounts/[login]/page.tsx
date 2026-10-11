@@ -120,7 +120,11 @@ function OverviewTab({ a }: { a: Detail }) {
       <section className="rounded-lg border p-4 lg:col-span-2">
         <h3 className="mb-2 font-medium">Balance</h3>
         <BalanceCurve
-          points={a.equity.map((p) => ({ label: formatBeirut(p.at, 'd MMM HH:mm'), balance: Number(p.balance) }))}
+          points={a.equity.map((p, i) => ({
+            t: p.at.getTime(),
+            balance: Number(p.balance),
+            pnl: new Decimal(p.balance).minus(a.equity[i - 1]?.balance ?? a.startingBalance).toNumber(),
+          }))}
           start={Number(a.startingBalance)}
           floor={u?.maxLossFloor ? u.maxLossFloor.toNumber() : null}
         />

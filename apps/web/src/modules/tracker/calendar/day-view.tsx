@@ -258,14 +258,16 @@ function equityData(
   const accountIds = [...new Set(trades.map((t) => t.accountId))];
   const running = new Map<string, Decimal>();
   let combined = new Decimal(0);
+  const start = Math.min(...trades.map((t) => t.openedAt.getTime()));
   const points: EquityPoint[] = [
-    { time: 'Start', combined: 0, ...Object.fromEntries(accountIds.map((id) => [id, 0])) },
+    { t: start, trade: 'Start', combined: 0, ...Object.fromEntries(accountIds.map((id) => [id, 0])) },
   ];
   for (const t of trades) {
     combined = combined.plus(t.netProfit);
     running.set(t.accountId, (running.get(t.accountId) ?? new Decimal(0)).plus(t.netProfit));
     points.push({
-      time: time(t.closedAt).slice(0, 5),
+      t: t.closedAt.getTime(),
+      trade: `${t.symbol} ${t.side} ${new Decimal(t.netProfit).gte(0) ? '+' : ''}${money(t.netProfit)}`,
       combined: combined.toNumber(),
       ...Object.fromEntries(accountIds.map((id) => [id, running.get(id)?.toNumber() ?? 0])),
     });

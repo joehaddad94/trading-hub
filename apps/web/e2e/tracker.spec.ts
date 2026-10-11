@@ -19,7 +19,15 @@ test.describe('tracker screens (M8)', () => {
   test('overview shows headline stats, combined equity and the calendar', async ({ page }) => {
     await page.goto('/tracker?scope=account:7002880');
     await expect(page.getByTestId('scope-stats')).toContainText('35.29%');
-    await expect(page.getByTestId('equity-curve')).toBeVisible();
+    const curve = page.getByTestId('equity-curve');
+    await expect(curve).toBeVisible();
+    // U3: the curve has a date axis and a tooltip naming the trade's time and result.
+    await expect(
+      curve.locator('.recharts-cartesian-axis-tick-value', { hasText: /^\d{1,2} [A-Z][a-z]{2}$/ }).first(),
+    ).toBeVisible();
+    const box = await curve.boundingBox();
+    if (box) await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+    await expect(curve.locator('.recharts-tooltip-wrapper')).toContainText(/Equity.*Trade/s);
     await expect(page.getByTestId('calendar-grid')).toBeVisible();
     await noSideScroll(page);
   });

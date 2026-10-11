@@ -48,7 +48,12 @@ export async function getSessionDetail(id: string) {
       trades.map((t) => t.netProfit),
       session.startingBalance,
     ),
-    curve: curve.map((p, i) => ({ i: i + 1, at: p.at.getTime(), equity: p.equity.toNumber() })),
+    curve: curve.map((p, i) => ({
+      i: i + 1,
+      at: p.at.getTime(),
+      equity: p.equity.toNumber(),
+      pnl: p.equity.minus(curve[i - 1]?.equity ?? 0).toNumber(),
+    })),
     r: rDistribution(trades),
     ambiguous: trades.filter((t) => t.ambiguous).length,
     tags,

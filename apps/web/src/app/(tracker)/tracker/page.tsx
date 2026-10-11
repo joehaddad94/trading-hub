@@ -1,6 +1,5 @@
 import type { SearchParams } from 'nuqs/server';
 import { EquityCurve } from '@/components/equity-curve';
-import { formatBeirut } from '@/lib/format';
 import { TrackerCalendar } from '@/modules/tracker/calendar/tracker-calendar';
 import { OverviewStats } from '@/modules/tracker/components/overview-stats';
 import { ScopeNotice } from '@/modules/tracker/components/scope-notice';
@@ -20,8 +19,9 @@ export default async function OverviewPage({ searchParams }: { searchParams: Pro
   const labelOf = new Map(scope.accounts.map((a) => [a.id, accountLabel(a)]));
   const points = data.equity.map((p, i) => ({
     i,
-    label: formatBeirut(p.at, 'd MMM HH:mm'),
+    t: p.at.getTime(),
     equity: p.equity.toNumber(),
+    pnl: p.equity.minus(data.equity[i - 1]?.equity ?? 0).toNumber(),
     account: labelOf.get(p.accountId) ?? '',
   }));
   const boundaryIndex = new Map(data.equity.map((p, i) => [`${p.at.getTime()}|${p.accountId}`, i]));
