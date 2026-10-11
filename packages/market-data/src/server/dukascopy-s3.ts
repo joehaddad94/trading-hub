@@ -1,12 +1,12 @@
 /// <reference path="./lzma-purejs.d.ts" />
 import { GetObjectCommand, ListObjectsV2Command, NoSuchKey, S3Client } from '@aws-sdk/client-s3';
 import lzma from 'lzma-purejs';
+import { parseMinuteCandles } from '../bi5';
 import { daysBetween, formatUtcDay } from '../days';
 import type { MarketDataProvider } from '../provider';
-import { parseTicks, ticksToMinuteCandles } from '../ticks';
 import { dukascopyProvider } from './dukascopy';
 
-/** Dukascopy's Requester Pays archive (data-export wiki): one LZMA tick file per symbol per UTC day. */
+/** Dukascopy's Requester Pays archive: the old datafeed's layout, one LZMA 1m-candle file per symbol per UTC day. */
 export const DUKASCOPY_BUCKET = 'cfg-public-proper-wallaby';
 const REGION = 'eu-west-1';
 
@@ -16,10 +16,10 @@ const REGION = 'eu-west-1';
  */
 const PRICE_SCALE: Record<string, number> = { usa30idxusd: 1000, usatechidxusd: 1000 };
 
-/** `USA30IDXUSD/2026/00/05_ticks.bi5`: months are zero-based, as in the old datafeed. */
+/** `USA30IDXUSD/2026/00/05/BID_candles_min_1.bi5`: months are zero-based, as in the old datafeed. */
 export function dukascopyKey(providerCode: string, day: string): string {
   const [y, m, d] = day.split('-').map(Number) as [number, number, number];
-  return `${providerCode.toUpperCase()}/${y}/${String(m - 1).padStart(2, '0')}/${String(d).padStart(2, '0')}_ticks.bi5`;
+  return `${providerCode.toUpperCase()}/${y}/${String(m - 1).padStart(2, '0')}/${String(d).padStart(2, '0')}/BID_candles_min_1.bi5`;
 }
 
 let client: S3Client | null = null;
@@ -58,17 +58,17 @@ export function decodeDayFile(providerCode: string, day: string, file: Uint8Arra
   const scale = PRICE_SCALE[providerCode.toLowerCase()];
   if (!scale) throw new Error(`No price scale for ${providerCode}.`);
   const raw = file.byteLength === 0 ? new Uint8Array() : new Uint8Array(lzma.decompressFile(Buffer.from(file)));
-  return parseTicks(raw, Date.parse(`${day}T00:00:00Z`), scale);
+  return parseMinuteCandles(raw, Date.parse(`${day}T00:00:00Z`), scale);
 }
 
-/** Same 1m bid candles as the free feed gave, built from S3 tick files. */
+/** Same 1m bid candles as the free feed gave, read from the S3 archive. */
 export const dukascopyS3Provider: MarketDataProvider = {
   name: 'dukascopy-s3',
   async fetchMinuteCandles(providerCode: string, from: Date, to: Date) {
     const candles = [];
     for (const day of daysBetween(formatUtcDay(from), formatUtcDay(new Date(to.getTime() - 1)))) {
       const file = await fetchDayFile(providerCode, day);
-      if (file) candles.push(...ticksToMinuteCandles(decodeDayFile(providerCode, day, file)));
+      if (file) candles.push(...decodeDayFile(providerCode, day, file));
     }
     return candles.filter((c) => c.timestamp >= from.getTime() && c.timestamp < to.getTime());
   },

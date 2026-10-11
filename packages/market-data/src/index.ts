@@ -1,3 +1,4 @@
+export { parseMinuteCandles } from './bi5';
 export { type Candle, normaliseCandles, type RawCandle, toCandle } from './candles';
 export { backfillWindow, daysBetween, formatUtcDay, parseUtcDay, previousUtcDay, utcDayRange } from './days';
 export { findGaps, type Gap, MIN_GAP_MINUTES } from './gaps';
@@ -14,4 +15,3 @@ export {
 } from './health';
 export { expectedMinutes, goodFriday, isMarketOpen, isReducedDay, MARKET_TZ, reducedDays } from './hours';
 export type { MarketDataProvider } from './provider';
-export { parseTicks, type Tick, ticksToMinuteCandles } from './ticks';

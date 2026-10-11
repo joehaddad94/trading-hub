@@ -4,7 +4,6 @@
  *
  *   pnpm candles:probe [2026-01-05]
  */
-import { ticksToMinuteCandles } from '@trading/market-data';
 import { decodeDayFile, dukascopyKey, fetchDayFile, listDukascopySymbols } from '@trading/market-data/server';
 
 const day = process.argv[2] ?? '2026-01-05';
@@ -22,12 +21,11 @@ for (const code of codes) {
     ok = false;
     continue;
   }
-  const ticks = decodeDayFile(code, day, file);
-  const candles = ticksToMinuteCandles(ticks);
+  const candles = decodeDayFile(code, day, file);
   const first = candles[0];
   const last = candles.at(-1);
   console.warn(
-    `✓ ${code}: ${key} ${file.byteLength} bytes → ${ticks.length} ticks, ${candles.length} minutes; ` +
+    `✓ ${code}: ${key} ${file.byteLength} bytes → ${candles.length} minutes; ` +
       `first ${first ? `${new Date(first.timestamp).toISOString()} bid ${first.open}` : '—'}, ` +
       `last ${last ? `${new Date(last.timestamp).toISOString()} bid ${last.close}` : '—'}`,
   );
