@@ -18,6 +18,8 @@ import { quickJournalAction, tagRiskAction } from './actions';
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
+export const metadata = { title: 'Journal · Tracker' };
+
 /**
  * Journal: trades still to journal (screen 6 entry point), the risk queue (tag the % risked so R is real) and
  * daily notes over a P/L heat map (screen 10).

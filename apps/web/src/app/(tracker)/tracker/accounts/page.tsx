@@ -10,6 +10,8 @@ import { getJourneys } from '@/modules/tracker/server/accounts';
 
 const date = (d: Date | null) => (d ? formatBeirut(d, 'd MMM yyyy') : 'now');
 
+export const metadata = { title: 'Accounts · Tracker' };
+
 /** Accounts (§8.3 screen 2, §5.1): every account ever, grouped by journey P1 → P2 → Funded. */
 export default async function AccountsPage() {
   const journeys = await getJourneys();

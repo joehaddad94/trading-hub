@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import type { ActionResult } from '@/lib/action-result';
 import { formatBeirut, formatMoney } from '@/lib/format';
+import { formatPrice } from '@/lib/symbols';
 import { cn } from '@/lib/utils';
 import { type QuickJournalInput, stopSideError } from './schema';
 
@@ -82,7 +83,7 @@ export function QuickJournal({
 
   const slError = sl.trim() && /^\d+(\.\d+)?$/.test(sl.trim()) ? stopSideError(t.side, t.openPrice, sl.trim()) : null;
   const net = new Decimal(t.netProfit);
-  const entry = new Decimal(t.openPrice).toString();
+  const entry = formatPrice(t.openPrice);
 
   const submit = () => {
     setError(null);

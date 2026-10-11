@@ -11,6 +11,8 @@ import { getPageScope } from '@/modules/tracker/server/scope';
 import { SyncStatusLine } from '@/shell/sync-banner';
 import { saveDailyNoteAction } from './calendar/actions';
 
+export const metadata = { title: 'Overview · Tracker' };
+
 /** Tracker Overview (§8.3 screen 1): calendar, combined equity curve, headline stats, all scoped. */
 export default async function OverviewPage({ searchParams }: { searchParams: Promise<SearchParams> }) {
   const scope = await getPageScope(searchParams);

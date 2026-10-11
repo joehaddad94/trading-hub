@@ -33,6 +33,9 @@ test.describe('tracker screens (M8)', () => {
 
     // U5: a day opens in place on Overview, not on the Calendar page.
     await page.goto('/tracker?scope=account:7002880&month=2026-10');
+    await expect(page).toHaveTitle('Overview · Tracker'); // U11
+    // U12: red-folder days carry a corner flag.
+    await expect(page.getByTestId('day-2026-10-07')).toHaveAttribute('aria-label', /red-folder news/);
     await page.getByTestId('day-2026-10-01').click();
     await expect(page).toHaveURL(/\/tracker\?.*day=2026-10-01/);
     await expect(page.getByTestId('day-view')).toContainText('Thursday 1 October 2026');

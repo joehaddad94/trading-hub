@@ -24,6 +24,8 @@ const KIND_LABELS: Record<CashflowKind, string> = {
 const tone = (v: { gt(n: number): boolean; lt(n: number): boolean }) =>
   v.gt(0) ? 'text-profit' : v.lt(0) ? 'text-loss' : undefined;
 
+export const metadata = { title: 'Money · Tracker' };
+
 /** Money (§8.3 screen 9): fees, resets and payouts with the running net prop result. */
 export default async function MoneyPage({ searchParams }: { searchParams: Promise<SearchParams> }) {
   const scope = await getPageScope(searchParams);

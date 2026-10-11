@@ -20,6 +20,8 @@ import { newsHref } from '@/modules/news/links';
 import { loadNewsSearchParams } from '@/modules/news/search-params';
 import { getEventDetail, getNewsSettingsOrDefault, getWeek } from '@/modules/news/server/news';
 
+export const metadata = { title: 'Week · News' };
+
 /** News week view (news spec §2). */
 export default async function NewsPage({ searchParams }: { searchParams: Promise<SearchParams> }) {
   const params = await loadNewsSearchParams(searchParams);

@@ -9,6 +9,8 @@ import { getEventTitles, getNewsSettingsOrDefault, getOccurrences } from '@/modu
 
 const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v);
 
+export const metadata = { title: 'History · News' };
+
 /** Event history (news module nav): every event seen, searchable; one event's past forecast/previous. */
 export default async function HistoryPage({ searchParams }: { searchParams: Promise<SearchParams> }) {
   const raw = await searchParams;

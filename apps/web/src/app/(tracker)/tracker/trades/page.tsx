@@ -4,6 +4,7 @@ import Link from 'next/link';
 import type { SearchParams } from 'nuqs/server';
 import type { ReactNode } from 'react';
 import { formatMoney, formatPct } from '@/lib/format';
+import { symbolWithAlias } from '@/lib/symbols';
 import { formatR } from '@/modules/tracker/calendar/format';
 import { ScopeNotice } from '@/modules/tracker/components/scope-notice';
 import { TradeFilters } from '@/modules/tracker/components/trade-filters';
@@ -17,6 +18,8 @@ const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 const SORTABLE = ['closed', 'symbol', 'lots', 'net', 'r', 'hold'] as const;
 const FILTER_KEYS = ['account', 'symbol', 'side', 'session', 'weekday', 'tag', 'plan', 'news', 'from', 'to'] as const;
 type FilterKey = (typeof FILTER_KEYS)[number];
+
+export const metadata = { title: 'Trades · Tracker' };
 
 /** Trades (§8.3 screen 5): every trade in scope, filterable and sortable, with CSV export of the filtered view. */
 export default async function TradesPage({ searchParams }: { searchParams: Promise<SearchParams> }) {
@@ -85,7 +88,9 @@ export default async function TradesPage({ searchParams }: { searchParams: Promi
         </Select>
         <Select name="symbol" label="Symbol" value={params.symbol} className={select}>
           {data.options.symbols.map((s) => (
-            <option key={s}>{s}</option>
+            <option key={s} value={s}>
+              {symbolWithAlias(s)}
+            </option>
           ))}
         </Select>
         <Select name="side" label="Side" value={params.side} className={select}>

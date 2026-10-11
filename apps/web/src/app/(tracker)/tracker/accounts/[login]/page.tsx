@@ -20,6 +20,8 @@ const TABS = ['overview', 'calendar', 'trades', 'journal'] as const;
 type Tab = (typeof TABS)[number];
 const date = (d: Date | null) => (d ? formatBeirut(d, 'd MMM yyyy') : '—');
 
+export const metadata = { title: 'Account · Tracker' };
+
 /** Account detail (§8.3 screen 3): header card like FundedNext's, then Overview · Calendar · Trades · Journal. */
 export default async function AccountPage({
   params,

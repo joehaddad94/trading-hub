@@ -21,6 +21,8 @@ import {
 } from './actions';
 import { TagEditor } from './tag-editor';
 
+export const metadata = { title: 'Settings · Trading Hub' };
+
 /** Settings (§8.3 screen 12): day boundary, scratch threshold, symbol point values, default risk, journeys, tags. */
 export default async function SettingsPage() {
   await connection();

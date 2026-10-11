@@ -1,6 +1,7 @@
 import { type Group, serializeScope } from '@trading/core';
 import Link from 'next/link';
 import type { SearchParams } from 'nuqs/server';
+import { NetBars } from '@/modules/tracker/components/net-bars';
 import { RHistogram } from '@/modules/tracker/components/r-histogram';
 import { ScopeNotice } from '@/modules/tracker/components/scope-notice';
 import { StatsTable } from '@/modules/tracker/components/stats-table';
@@ -11,6 +12,8 @@ import { getPageScope } from '@/modules/tracker/server/scope';
 export const metadata = { title: 'Analytics · Tracker' };
 
 const rows = (groups: Group[]) => groups.map((g) => [g.label, g.stats] as [string, Group['stats']]);
+const bars = (groups: Group[]) =>
+  groups.map((g) => ({ label: g.label, net: g.stats.net.toNumber(), trades: g.stats.trades }));
 
 /** Analytics (§8.3 screen 7): R distribution, streaks, breakdowns, hold time and the news split. */
 export default async function AnalyticsPage({ searchParams }: { searchParams: Promise<SearchParams> }) {
@@ -51,6 +54,7 @@ export default async function AnalyticsPage({ searchParams }: { searchParams: Pr
                 <Stat label="Current run" value={runLabel(data.streaks.current)} />
               </dl>
               <h3 className="mt-2 font-medium">Hold time</h3>
+              <NetBars bars={bars(data.holdTime)} testId="hold-bars" />
               <StatsTable rows={rows(data.holdTime)} label="Held" />
             </section>
           </div>
@@ -62,8 +66,20 @@ export default async function AnalyticsPage({ searchParams }: { searchParams: Pr
             label="Session"
           />
           <div className="grid gap-4 lg:grid-cols-2">
-            <Breakdown title="By weekday (Beirut)" testId="by-weekday" groups={data.breakdowns.weekday} label="Day" />
-            <Breakdown title="By hour opened (Beirut)" testId="by-hour" groups={data.breakdowns.hour} label="Hour" />
+            <Breakdown
+              title="By weekday (Beirut)"
+              testId="by-weekday"
+              groups={data.breakdowns.weekday}
+              label="Day"
+              chart
+            />
+            <Breakdown
+              title="By hour opened (Beirut)"
+              testId="by-hour"
+              groups={data.breakdowns.hour}
+              label="Hour"
+              chart
+            />
           </div>
         </>
       )}
@@ -74,8 +90,8 @@ export default async function AnalyticsPage({ searchParams }: { searchParams: Pr
         ) : (
           <>
             <p className="text-muted-foreground text-xs">
-              Red folders in the counted currencies ({split.events} events in the trades&apos; date range). Fewer events
-              than expected means the news backfill hasn&apos;t run yet.
+              Red folders in the counted currencies ({split.events} {split.events === 1 ? 'event' : 'events'} in the
+              trades&apos; date range). Fewer events than expected means the news backfill hasn&apos;t run yet.
             </p>
             <StatsTable
               rows={[
@@ -118,15 +134,19 @@ function Breakdown({
   testId,
   groups,
   label,
+  chart = false,
 }: {
   title: string;
   testId: string;
   groups: Group[];
   label: string;
+  /** Also draw net P/L per group as bars. */
+  chart?: boolean;
 }) {
   return (
     <section className="flex flex-col gap-2 rounded-lg border p-4" data-testid={testId}>
       <h3 className="font-medium">{title}</h3>
+      {chart && <NetBars bars={bars(groups)} testId={`${testId}-bars`} />}
       <StatsTable rows={rows(groups)} label={label} />
     </section>
   );

@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { z } from 'zod';
 import { formatBeirut, formatMoney } from '@/lib/format';
+import { formatPrice } from '@/lib/symbols';
 import { cn } from '@/lib/utils';
 import { formatHold, formatR } from '@/modules/tracker/calendar/format';
 import { StatusBadge } from '@/modules/tracker/components/account-badge';
@@ -31,6 +32,8 @@ const RISK_SOURCES: Record<string, string> = {
 /** `51887.75000` → `51887.75` for form fields (numeric columns come back zero-padded). */
 const plain = (v: string | null | undefined) => (v ? new Decimal(v).toString() : '');
 
+export const metadata = { title: 'Trade · Tracker' };
+
 /** Trade detail + journal (§8.3 screen 6). Mobile-first: facts on top, the form below with a sticky save bar. */
 export default async function TradePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -46,8 +49,8 @@ export default async function TradePage({ params }: { params: Promise<{ id: stri
     ['Hold', formatHold(t.closedAt.getTime() - t.openedAt.getTime())],
     ['Session', SESSION_LABELS[sessionOf(t.openedAt)]],
     ['Lots', t.lots],
-    ['Entry → exit', `${t.openPrice} → ${t.closePrice}`],
-    ['SL / TP (final)', `${t.slFinal ?? '—'} / ${t.tpFinal ?? '—'}`],
+    ['Entry → exit', `${formatPrice(t.openPrice)} → ${formatPrice(t.closePrice)}`],
+    ['SL / TP (final)', `${formatPrice(t.slFinal)} / ${formatPrice(t.tpFinal)}`],
     ['Gross', formatMoney(t.profit)],
     ['Commission + swap', formatMoney(new Decimal(t.commission).plus(t.swap))],
     ['Risk', `${t.riskUsd ? formatMoney(t.riskUsd) : '—'} (${RISK_SOURCES[t.riskSource ?? ''] ?? '—'})`],

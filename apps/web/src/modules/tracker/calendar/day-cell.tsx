@@ -76,7 +76,7 @@ export function DayCell(props: DayCellProps) {
         href={href as Route}
         scroll={false}
         data-testid={`day-${date}`}
-        aria-label={`${date}${value ? `, ${value}${sub ? `, ${sub}` : ''}` : ', no trades'}`}
+        aria-label={`${date}${value ? `, ${value}${sub ? `, ${sub}` : ''}` : ', no trades'}${icons.news ? ', red-folder news' : ''}`}
         aria-current={selected ? 'date' : undefined}
         className={cn(
           'flex min-w-0 flex-col justify-between overflow-hidden rounded-md border p-1 text-left md:p-2',
@@ -118,7 +118,6 @@ export function DayCell(props: DayCellProps) {
             {day}
           </span>
           <span className="flex gap-px text-[9px] leading-none md:text-xs" aria-hidden>
-            {icons.news && <span title="Red-folder news">📰</span>}
             {icons.journaled && <span title="Journaled">📝</span>}
             {icons.warning && <span title="Close to a rule limit">⚠️</span>}
             {icons.status && <span title="Account status changed">🔄</span>}
@@ -150,6 +149,15 @@ export function DayCell(props: DayCellProps) {
           </div>
         )}
       </Link>
+      {/* Red-folder news day (audit U12): a corner flag, readable at a glance where the old icon wasn't. */}
+      {icons.news && (
+        <span
+          aria-hidden
+          title="Red-folder news"
+          data-testid="news-flag"
+          className="pointer-events-none absolute top-0 right-0 size-0 rounded-tr-md border-t-[14px] border-t-red-500 border-l-[14px] border-l-transparent md:border-t-[18px] md:border-l-[18px]"
+        />
+      )}
       {open && preview && (
         <div
           role="tooltip"

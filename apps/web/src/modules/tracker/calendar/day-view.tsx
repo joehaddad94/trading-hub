@@ -6,6 +6,7 @@ import Link from 'next/link';
 import type { ReactNode } from 'react';
 import type { ActionResult } from '@/lib/action-result';
 import { formatBeirut, formatMoney, formatPct } from '@/lib/format';
+import { formatPrice } from '@/lib/symbols';
 import { cn } from '@/lib/utils';
 import { AccountBadge } from '../components/account-badge';
 import { accountLabel } from '../scope-label';
@@ -202,8 +203,8 @@ function TradeRow({
     ['Lots', t.lots],
     ['Open → close', `${time(t.openedAt)} → ${time(t.closedAt)}`],
     ['Hold', formatHold(t.closedAt.getTime() - t.openedAt.getTime())],
-    ['Entry → exit', `${t.openPrice} → ${t.closePrice}`],
-    ['SL / TP (final)', `${t.slFinal ?? '—'} / ${t.tpFinal ?? '—'}`],
+    ['Entry → exit', `${formatPrice(t.openPrice)} → ${formatPrice(t.closePrice)}`],
+    ['SL / TP (final)', `${formatPrice(t.slFinal)} / ${formatPrice(t.tpFinal)}`],
     ['Firm RR', t.firmRr ?? '—'],
     ['Session', SESSION_LABELS[sessionOf(t.openedAt)]],
     ['Tags', t.tags.join(', ') || '—'],

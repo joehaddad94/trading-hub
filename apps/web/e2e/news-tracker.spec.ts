@@ -32,6 +32,9 @@ test.describe('news in the tracker (M13)', () => {
     await expect(split.getByRole('row', { name: /Red-folder days/ })).toContainText('5');
     await expect(split.getByRole('row', { name: /Other days/ })).toContainText('29');
     await expect(split).toContainText('USD FOMC Meeting Minutes');
+    // U13: net P/L bars next to the hour, weekday and hold-time tables.
+    await expect(page.getByTestId('by-hour-bars')).toBeVisible();
+    await expect(page.getByTestId('hold-bars')).toBeVisible();
   });
 
   test('restriction badges default off for the funded account with the add-on, and can be forced on', async ({
