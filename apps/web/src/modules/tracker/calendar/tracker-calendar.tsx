@@ -95,6 +95,7 @@ export function TrackerCalendar({
         cell={links.cell}
         accounts={accounts}
         selectedDay={selectedDay}
+        today={today}
         dayHref={(date) => calendarHref(links, { month: monthParam, day: date })}
       />
     </div>

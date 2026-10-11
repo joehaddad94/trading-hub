@@ -30,6 +30,13 @@ test.describe('tracker screens (M8)', () => {
     await expect(curve.locator('.recharts-tooltip-wrapper')).toContainText(/Equity.*Trade/s);
     await expect(page.getByTestId('calendar-grid')).toBeVisible();
     await noSideScroll(page);
+
+    // U5: a day opens in place on Overview, not on the Calendar page.
+    await page.goto('/tracker?scope=account:7002880&month=2026-10');
+    await page.getByTestId('day-2026-10-01').click();
+    await expect(page).toHaveURL(/\/tracker\?.*day=2026-10-01/);
+    await expect(page.getByTestId('day-view')).toContainText('Thursday 1 October 2026');
+    await expect(page.getByTestId('scope-stats')).toBeAttached();
   });
 
   test('accounts are grouped by journey, with detail tabs', async ({ page }) => {
