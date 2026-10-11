@@ -54,7 +54,7 @@ describe('findGaps', () => {
 
   it('flags a whole missing day', () => {
     const gaps = findGaps(from, to, []);
-    expect(gaps.map((g) => g.minutes)).toEqual([1260, 120]);
+    expect(gaps.map((g) => g.minutes)).toEqual([1215, 120]);
   });
 
   it('expects nothing on a Saturday', () => {

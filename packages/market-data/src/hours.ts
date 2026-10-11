@@ -1,15 +1,16 @@
 import { TZDate } from '@date-fns/tz';
 
 /**
- * Trading hours of the US index CFDs (US30, NAS100), which follow CME equity-index futures:
- * Sunday 18:00 ET → Friday 17:00 ET, with a daily break 17:00–18:00 ET. Evaluated in America/New_York so
+ * Trading hours of the US index CFDs (US30, NAS100) in Dukascopy's data: Sunday 18:00 ET → Friday 16:15 ET,
+ * with a daily break 16:15–18:00 ET (the CFDs stop at the cash-index close + 15 min, before CME's 17:00 halt;
+ * every weekday of the 2-year real backfill has exactly that 20:15–21:00 UTC hole). Evaluated in America/New_York so
  * DST moves with the market. Holidays are handled leniently (spec §1.3: don't alert on expected gaps):
  * on any US market holiday or early-close day, no minute of that ET date is "expected".
  */
 export const MARKET_TZ = 'America/New_York';
 
 const OPEN_MINUTE = 18 * 60;
-const CLOSE_MINUTE = 17 * 60;
+const CLOSE_MINUTE = 16 * 60 + 15;
 
 export function isMarketOpen(minute: Date): boolean {
   const et = new TZDate(minute.getTime(), MARKET_TZ);
