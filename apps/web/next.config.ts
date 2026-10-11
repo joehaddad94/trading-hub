@@ -16,7 +16,8 @@ const nextConfig: NextConfig = {
     '@trading/news',
     '@trading/tracker',
   ],
-  serverExternalPackages: ['@googleapis/drive', 'dukascopy-node'],
+  // lzma-purejs loads through amdefine, which breaks when bundled; Node requires it as-is.
+  serverExternalPackages: ['@googleapis/drive', 'dukascopy-node', 'lzma-purejs'],
 };
 
 export default nextConfig;

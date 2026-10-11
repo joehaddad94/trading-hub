@@ -15,7 +15,8 @@
     "boundaries": "depcruise apps packages --config packages/config/dependency-cruiser.cjs",
     "db:generate": "drizzle-kit generate --config packages/db/drizzle.config.ts",
     "db:reprocess": "tsx scripts/reprocess-imports.ts",
-    "db:backfill-candles": "tsx scripts/backfill-candles.ts"
+    "db:backfill-candles": "tsx scripts/backfill-candles.ts",
+    "candles:probe": "tsx scripts/probe-candles.ts"
   },
   "engines": {
     "node": ">=22"

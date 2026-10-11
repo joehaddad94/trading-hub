@@ -3,8 +3,8 @@ import * as Sentry from '@sentry/nextjs';
 import { type CandleCondition, previousUtcDay } from '@trading/market-data';
 import {
   candleCoverage,
+  candleProvider,
   checkCandleHealth,
-  dukascopyProvider,
   getCandleConditions,
   type IngestResult,
   ingestDay,
@@ -23,7 +23,7 @@ export async function runCandleJob(now = new Date()): Promise<CandleJobRun> {
   const day = previousUtcDay(now);
   if (!db) return { ok: false, day, results: [], error: 'DATABASE_URL is not configured.' };
   try {
-    const results = await ingestDay(db, dukascopyProvider, day, { now });
+    const results = await ingestDay(db, candleProvider(), day, { now });
     for (const r of results.filter((x) => x.status !== 'ok')) {
       Sentry.captureMessage(`cron/candles ${r.code} ${day}: ${r.status}${r.error ? ` — ${r.error}` : ''}`, 'error');
     }
