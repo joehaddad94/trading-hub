@@ -5,11 +5,13 @@ import { afterAll, describe, expect, it } from 'vitest';
 import {
   acquireImportLease,
   type Inbox,
+  InboxAccessError,
   importUploadedFile,
   processExportFile,
   ReprocessError,
   releaseImportLease,
   reprocessImport,
+  retryRejectedImports,
   runInboxImport,
   type Tx,
 } from '../src/server';
@@ -312,6 +314,115 @@ describe.skipIf(!url)('import pipeline', () => {
         sql`select last_check_at::text, last_file_at::text from sync_health`,
       );
       expect(health).toEqual({ last_check_at: '2026-10-10 23:05:00+00', last_file_at: '2026-10-09 21:00:00+00' });
+    });
+  });
+
+  it('reads a file that starts with a byte-order mark', async () => {
+    await inTx(async (tx) => {
+      const outcome = await processExportFile(
+        tx,
+        { driveFileId: 'bom', fileName: FIXTURE_NAME, content: `\uFEFF${fixtureText}` },
+        NOW,
+      );
+      expect(outcome.result).toBe('partial');
+    });
+  });
+
+  it('free-text rule values are read or ignored with a warning, never a failed import', async () => {
+    await inTx(async (tx) => {
+      const content = withFixture((f) => {
+        const funded = (f.accounts as { login: number; rules: unknown }[]).find((a) => a.login === 7002880);
+        if (funded)
+          funded.rules = {
+            applicable_rules: [
+              { condition: 'DLL', label: 'Daily Loss Limit', value: '5%' },
+              { condition: 'MLL', label: 'Max Loss Limit', value: 'n/a' },
+            ],
+          };
+        f.status = 'ok';
+      });
+      const outcome = await processExportFile(tx, { driveFileId: 'r1', fileName: FIXTURE_NAME, content }, NOW);
+      expect(outcome.result).toBe('ok');
+      expect(outcome.error).toMatch(/rule MLL value "n\/a" is not a number/);
+      const [rule] = await tx.execute<{ daily_loss_limit: string; max_loss_limit: string | null }>(sql`
+        select r.daily_loss_limit::text, r.max_loss_limit::text from rule_snapshots r
+        join accounts a on a.id = r.account_id where a.login = 7002880`);
+      expect(rule).toEqual({ daily_loss_limit: '5.00', max_loss_limit: null });
+    });
+  });
+
+  it('inbox run: a file Drive refuses does not block the files after it', async () => {
+    await inTx(async (tx) => {
+      const later = withFixture((f) => {
+        f.generated_at = '2026-10-10T21:20:00Z';
+      });
+      const inbox: Inbox = {
+        list: async () => [
+          { id: 'locked', name: 'fundednext_2026-10-09_2100Z.json', createdTime: null },
+          { id: 'fine', name: 'fundednext_2026-10-10_2120Z.json', createdTime: null },
+        ],
+        download: async (id) => {
+          if (id === 'locked') throw new InboxAccessError('Google Drive refused access (403): use Export');
+          return later;
+        },
+        markProcessed: async () => {},
+      };
+      const outcomes = await runInboxImport(tx, inbox, NOW);
+      expect(outcomes.map((o) => o.result)).toEqual(['failed', 'partial']);
+      expect(outcomes[0]?.driveError).toMatchObject({ access: true });
+      expect(outcomes[0]?.driveError?.message).toMatch(/Couldn't download fundednext_2026-10-09_2100Z.json/);
+    });
+  });
+
+  it('inbox run: a refused move keeps the import and reports it', async () => {
+    await inTx(async (tx) => {
+      const inbox: Inbox = {
+        list: async () => [{ id: 'd1', name: FIXTURE_NAME, createdTime: null }],
+        download: async () => fixtureText,
+        markProcessed: async () => {
+          throw new InboxAccessError('Google Drive refused access (403): insufficient permissions');
+        },
+      };
+      const [outcome] = await runInboxImport(tx, inbox, NOW);
+      expect(outcome?.result).toBe('partial');
+      expect(outcome?.driveError?.message).toMatch(/couldn't move it to processed/);
+      const [again] = await runInboxImport(tx, inbox, NOW);
+      expect(again?.result).toBe('already_imported');
+    });
+  });
+
+  it('inbox run: records the check time even when Drive refuses the listing', async () => {
+    await inTx(async (tx) => {
+      const inbox: Inbox = {
+        list: async () => {
+          throw new InboxAccessError('Google Drive refused access (403)');
+        },
+        download: async () => '',
+        markProcessed: async () => {},
+      };
+      await expect(runInboxImport(tx, inbox, NOW)).rejects.toThrow(InboxAccessError);
+      const [health] = await tx.execute<{ last_check_at: string }>(sql`select last_check_at::text from sync_health`);
+      expect(health?.last_check_at).toBe('2026-10-10 23:05:00+00');
+    });
+  });
+
+  it('retries recent rejected files, so a format fix applies without pressing Reprocess', async () => {
+    await inTx(async (tx) => {
+      const content = withFixture((f) => {
+        f.firm_server_time_offset = '+3';
+      });
+      await processExportFile(tx, { driveFileId: 'fmt', fileName: FIXTURE_NAME, content }, NOW);
+      await processExportFile(tx, { driveFileId: 'bad', fileName: 'x.json', content: '{nope' }, NOW);
+      expect(await retryRejectedImports(tx, NOW)).toEqual([]);
+
+      // Stand-in for "the importer now accepts it": the stored copy becomes valid.
+      await tx.execute(sql`
+        update raw_imports set payload = jsonb_set(payload, '{firm_server_time_offset}', '"+03:00"')
+        where drive_file_id = 'fmt'`);
+      const retried = await retryRejectedImports(tx, NOW);
+      expect(retried.map((o) => [o.driveFileId, o.result])).toEqual([['fmt', 'partial']]);
+      // Older than the retry window: left for the Reprocess button.
+      expect(await retryRejectedImports(tx, new Date(NOW.getTime() + 15 * 24 * 3600_000))).toEqual([]);
     });
   });
 

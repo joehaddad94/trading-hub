@@ -17,6 +17,7 @@ import {
   recordRunError,
   releaseImportLease,
   reprocessImport,
+  retryRejectedImports,
   runInboxImport,
 } from '@trading/importer/server';
 import { env } from '@/lib/env';
@@ -49,8 +50,14 @@ export async function importFromInbox(now = new Date()): Promise<ImportRun> {
     return { ok: false, error: (error as Error).message };
   }
   try {
-    const outcomes = await runInboxImport(db, inbox, now);
-    await clearRunError(db);
+    const outcomes = [...(await runInboxImport(db, inbox, now)), ...(await retryRejectedImports(db, now))];
+    const refused = outcomes.flatMap((o) => (o.driveError ? [o.driveError] : []));
+    if (refused.length > 0) {
+      const kind = refused.some((e) => e.access) ? 'drive_access' : 'import_failed';
+      await recordRunError(db, kind, refused.map((e) => e.message).join('\n'), now);
+    } else {
+      await clearRunError(db);
+    }
     return { ok: true, outcomes };
   } catch (error) {
     Sentry.captureException(error);
@@ -69,7 +76,12 @@ export async function importFromInbox(now = new Date()): Promise<ImportRun> {
 export async function reprocessStoredImport(rawImportId: string, now = new Date()): Promise<ImportRun> {
   const db = getDb();
   if (!db) return { ok: false, error: 'DATABASE_URL is not configured.' };
-  if (!(await acquireImportLease(db, now))) return { ok: true, outcomes: [], busy: true };
+  try {
+    if (!(await acquireImportLease(db, now))) return { ok: true, outcomes: [], busy: true };
+  } catch (error) {
+    Sentry.captureException(error);
+    return { ok: false, error: (error as Error).message };
+  }
   try {
     return { ok: true, outcomes: [await reprocessImport(db, rawImportId, now)] };
   } catch (error) {

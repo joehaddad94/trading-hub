@@ -111,7 +111,7 @@ export function planImport(file: ExportFile): ImportPlan {
   const rejectedAccounts: ImportPlan['rejectedAccounts'] = [];
 
   const accounts = file.accounts.map((account) => {
-    const planned = planAccount(account, offset);
+    const planned = planAccount(account, offset, warnings);
     if (planned.checksum.checked && !planned.checksum.match) {
       rejectedAccounts.push({
         login: planned.login,
@@ -172,7 +172,7 @@ function planNews(news: NonNullable<ExportFile['news']>, warnings: string[]): Pl
   return { range: news.range ? newsRange(news.range) : null, events: [...byId.values()] };
 }
 
-function planAccount(account: ExportAccount, offset: string): PlannedAccount {
+function planAccount(account: ExportAccount, offset: string, warnings: string[]): PlannedAccount {
   const { phase, isDemo } = phaseFromPlanType(account.plan?.type);
   const { status, reason } = mapAccountStatus({
     bucket: account.bucket,
@@ -210,7 +210,7 @@ function planAccount(account: ExportAccount, offset: string): PlannedAccount {
     }),
     balance: new Decimal(account.balance).toFixed(),
     equity: account.equity === null || account.equity === undefined ? null : new Decimal(account.equity).toFixed(),
-    rules: planRules(account),
+    rules: planRules(account, warnings),
     cycles: account.cycles.map((c) => ({
       externalId: c.external_id,
       reason: c.reason ?? null,
@@ -240,12 +240,19 @@ function checkAccount(account: ExportAccount, trades: PlannedTrade[]): ChecksumR
   };
 }
 
-function planRules(account: ExportAccount): PlannedAccount['rules'] {
+function planRules(account: ExportAccount, warnings: string[]): PlannedAccount['rules'] {
   const rules = account.rules?.applicable_rules;
   if (!rules || rules.length === 0) return null;
   const value = (match: (condition: string, label: string) => boolean) => {
     const rule = rules.find((r) => match(r.condition, r.label ?? ''));
-    return rule?.value === null || rule?.value === undefined ? null : new Decimal(rule.value).toFixed();
+    if (rule?.value === null || rule?.value === undefined) return null;
+    // Free-text limits ("5%", "") must not sink the whole file; the raw rules are stored either way.
+    const text = String(rule.value).trim().replace(/%$/, '');
+    if (!/^-?\d+(\.\d+)?$/.test(text)) {
+      warnings.push(`Account ${account.login}: rule ${rule.condition} value "${rule.value}" is not a number; ignored`);
+      return null;
+    }
+    return new Decimal(text).toFixed();
   };
   return {
     dailyLossLimit: value((c) => c === 'DLL'),

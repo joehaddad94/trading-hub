@@ -15,6 +15,36 @@ import { applyNews, type NewsSummary } from './news';
 import { refreshTradeRisk } from './risk';
 import { learnSymbolSpecs } from './symbols';
 
+const TRADE_CHUNK = 500;
+const TRADE_UPDATE_COLUMNS = [
+  'cycleId',
+  'symbol',
+  'side',
+  'lots',
+  'volume',
+  'openPrice',
+  'closePrice',
+  'openedAt',
+  'closedAt',
+  'slFinal',
+  'tpFinal',
+  'profit',
+  'commission',
+  'swap',
+  'firmRrRaw',
+  'firmRr',
+  'isNews',
+  'reasonCode',
+  'raw',
+] as const;
+
+/** `set` for a multi-row upsert: every listed column takes the incoming row's value. */
+function excluded(columns: readonly string[]) {
+  return Object.fromEntries(
+    columns.map((c) => [c, sql.raw(`excluded.${c.replace(/[A-Z]/g, (m) => `_${m.toLowerCase()}`)}`)]),
+  );
+}
+
 export type Tx = Parameters<Parameters<Database['transaction']>[0]>[0];
 type Db = Database | Tx;
 
@@ -87,8 +117,12 @@ export async function applyImportPlan(db: Db, plan: ImportPlan): Promise<WriteSu
         summary.cycles += 1;
       }
 
-      for (const t of account.trades) {
-        const values = {
+      // One statement per chunk, not per trade: the DB is a long round trip away from the function.
+      for (let i = 0; i < account.trades.length; i += TRADE_CHUNK) {
+        const rows = account.trades.slice(i, i + TRADE_CHUNK).map((t) => ({
+          accountId: id,
+          source: 'live' as const,
+          ticket: t.ticket,
           cycleId: cycleIds.get(t.cycleExternalId) ?? null,
           symbol: t.symbol,
           side: t.side,
@@ -108,12 +142,12 @@ export async function applyImportPlan(db: Db, plan: ImportPlan): Promise<WriteSu
           isNews: t.isNews,
           reasonCode: t.reasonCode,
           raw: t.raw,
-        };
+        }));
         await tx
           .insert(trades)
-          .values({ accountId: id, source: 'live', ticket: t.ticket, ...values })
-          .onConflictDoUpdate({ target: [trades.accountId, trades.ticket], set: values });
-        summary.trades += 1;
+          .values(rows)
+          .onConflictDoUpdate({ target: [trades.accountId, trades.ticket], set: excluded(TRADE_UPDATE_COLUMNS) });
+        summary.trades += rows.length;
       }
 
       await tx

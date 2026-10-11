@@ -54,6 +54,22 @@ describe('evaluateSyncHealth', () => {
     expect(kinds(input({ now: new Date('2026-10-14T23:30:00Z') }))).toEqual(['stale']);
   });
 
+  it('a file that arrived on time but was rejected is reported as rejected, not also as missing', () => {
+    const rejected = { ...LATEST, importResult: 'rejected' as const, importError: 'Export file failed validation' };
+    const old = new Date('2026-10-07T21:20:00Z');
+    expect(kinds(input({ lastFileAt: old, latestImport: rejected }))).toEqual(['rejected']);
+    // An old rejected file doesn't hide that nothing has arrived since.
+    const stale = { ...rejected, generatedAt: old, createdAt: old };
+    expect(kinds(input({ lastFileAt: old, latestImport: stale }))).toEqual(['stale', 'rejected']);
+  });
+
+  it('the rejected banner names the first reason, not only that validation failed', () => {
+    const importError =
+      'Export file failed validation — import rejected.\n✖ Invalid string: must match pattern\n  → at accounts[0].cycles[0].created_at';
+    const [c] = evaluateSyncHealth(input({ latestImport: { ...LATEST, importResult: 'rejected', importError } }));
+    expect(c?.message).toBe('Export file failed validation — import rejected. ✖ Invalid string: must match pattern');
+  });
+
   it('stale when nothing was ever imported', () => {
     expect(kinds(input({ lastFileAt: null, latestImport: null }))).toEqual(['stale']);
   });
