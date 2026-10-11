@@ -97,4 +97,20 @@ test.describe('tracker screens (M8)', () => {
     await expect(page.getByRole('form', { name: 'Days and scratches' }).getByRole('status')).toHaveText('Saved.');
     await noSideScroll(page);
   });
+
+  test('settings link the funded account to its P2, joining one journey', async ({ page }) => {
+    await page.goto('/settings');
+    const form = page.getByRole('form', { name: '7002880 previous phase' });
+    await form.getByLabel('7002880 · Funded came from').selectOption({ label: '3028722 · P2' });
+    await form.getByRole('button', { name: 'Save' }).click();
+    await expect(form.getByRole('status')).toHaveText('Linked.');
+    await page.goto('/tracker/accounts');
+    await expect(page.getByTestId('journey')).toHaveCount(1);
+    // Unlink so the other tests see two journeys.
+    await page.goto('/settings');
+    await form.getByLabel('7002880 · Funded came from').selectOption('');
+    await form.getByRole('button', { name: 'Save' }).click();
+    await expect(form.getByRole('status')).toHaveText('Unlinked.');
+    await noSideScroll(page);
+  });
 });

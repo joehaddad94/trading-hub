@@ -5,7 +5,7 @@ import { importUploadedFile, sendTestAlert } from '@trading/importer/server';
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import { getDb } from '@/lib/server/db';
-import { importFromInbox, runHealthCheck } from '@/lib/server/imports';
+import { importFromInbox, reprocessStoredImport, runHealthCheck } from '@/lib/server/imports';
 
 export type { ActionResult } from '@/lib/action-result';
 
@@ -72,4 +72,24 @@ export async function sendTestAlertAction(_prev: ActionResult<string> | null): P
   await sendTestAlert(db, new Date());
   revalidatePath('/settings/imports');
   return { ok: true, data: 'Test alert sent to the in-app channel.' };
+}
+
+/** Re-runs one stored file (rejected, failed or partial) through the current importer. */
+export async function reprocessAction(
+  _prev: ActionResult<string> | null,
+  form: FormData,
+): Promise<ActionResult<string>> {
+  const parsed = z.uuid().safeParse(form.get('id'));
+  if (!parsed.success) return { ok: false, error: 'Unknown import.' };
+  const run = await reprocessStoredImport(parsed.data);
+  revalidatePath('/settings/imports');
+  revalidatePath('/', 'layout');
+  if (!run.ok) return { ok: false, error: run.error };
+  if (run.busy) return { ok: true, data: 'An import is already running. Try again in a minute.' };
+  const [outcome] = run.outcomes;
+  if (!outcome) return { ok: false, error: 'Nothing was reprocessed.' };
+  if (outcome.result === 'failed' || outcome.result === 'rejected') {
+    return { ok: false, error: outcome.error ?? `Still ${outcome.result}.` };
+  }
+  return { ok: true, data: describe(outcome.result, outcome.error) };
 }

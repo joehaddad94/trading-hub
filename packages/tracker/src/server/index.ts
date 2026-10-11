@@ -7,6 +7,7 @@ export {
   listAccounts,
   type PhaseComparison,
   phaseComparison,
+  setPreviousPhase,
   type TimelineEntry,
 } from './accounts';
 export { type AnalyticsData, type AnalyticsOptions, analytics, liveVsBacktestReport } from './analytics';

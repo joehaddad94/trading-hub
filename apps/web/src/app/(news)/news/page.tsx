@@ -1,4 +1,13 @@
-import { groupWeek, mondayOf, NEWS_DAYS, nextEvent, parseWeek, shiftWeek, tradingDay } from '@trading/core';
+import {
+  currentNewsWeek,
+  groupWeek,
+  mondayOf,
+  NEWS_DAYS,
+  nextEvent,
+  parseWeek,
+  shiftWeek,
+  tradingDay,
+} from '@trading/core';
 import { DEFAULT_FILTERS, parseNewsFilters } from '@trading/news';
 import Link from 'next/link';
 import type { SearchParams } from 'nuqs/server';
@@ -24,7 +33,8 @@ export default async function NewsPage({ searchParams }: { searchParams: Promise
   const detail = eventId ? await getEventDetail(eventId, now) : null;
   const days = groupWeek(week, data.events);
   const next = nextEvent(data.events, now);
-  const thisWeek = mondayOf(tradingDay(now, NEWS_DAYS));
+  const thisWeek = currentNewsWeek(now);
+  const weekend = thisWeek !== mondayOf(tradingDay(now, NEWS_DAYS));
   const nav = (label: string, target: string, aria?: string) => (
     <Link
       href={newsHref('/news', filters, { week: target === thisWeek ? null : target }, true)}
@@ -41,7 +51,7 @@ export default async function NewsPage({ searchParams }: { searchParams: Promise
         <h2 className="font-semibold text-xl">Week of {formatBeirut(new Date(`${week}T12:00:00Z`), 'd MMM yyyy')}</h2>
         <div className="flex flex-wrap items-center gap-2">
           {nav('‹', shiftWeek(week, -1), 'Previous week')}
-          {nav('This week', thisWeek)}
+          {nav(weekend ? 'Coming week' : 'This week', thisWeek)}
           {nav('Next week', shiftWeek(thisWeek, 1))}
           {nav('›', shiftWeek(week, 1), 'Next week ›')}
           <form method="get" className="flex items-center gap-1" aria-label="Go to date">

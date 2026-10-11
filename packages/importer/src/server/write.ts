@@ -1,5 +1,5 @@
 import type { Database } from '@trading/db';
-import { and, eq, isNull, lt, notInArray, sql } from '@trading/db/orm';
+import { and, eq, gt, isNull, lt, notInArray, sql } from '@trading/db/orm';
 import {
   accountStatusHistory,
   accounts,
@@ -190,7 +190,7 @@ async function upsertAccount(
   seenAt: Date,
 ): Promise<{ id: string; statusChanged: boolean }> {
   const [existing] = await tx
-    .select({ id: accounts.id, status: accounts.status, lastSeenAt: accounts.lastSeenAt })
+    .select({ id: accounts.id, status: accounts.status, lastSeenAt: accounts.lastSeenAt, closedAt: accounts.closedAt })
     .from(accounts)
     .where(and(eq(accounts.firmId, firmId), eq(accounts.externalId, a.externalId)));
 
@@ -206,6 +206,9 @@ async function upsertAccount(
     statusReason: a.statusReason,
   };
 
+  // A closed account's real status date (never later than the file that reports it), else the import date.
+  const since = a.statusSince && a.statusSince < seenAt ? a.statusSince : seenAt;
+
   if (!existing) {
     const [row] = await tx
       .insert(accounts)
@@ -213,10 +216,10 @@ async function upsertAccount(
         firmId,
         externalId: a.externalId,
         ...fields,
-        statusChangedAt: seenAt,
+        statusChangedAt: a.status === 'active' ? seenAt : since,
         firstSeenAt: seenAt,
         lastSeenAt: seenAt,
-        closedAt: a.status === 'active' ? null : seenAt,
+        closedAt: a.status === 'active' ? null : since,
       })
       .returning({ id: accounts.id });
     if (!row) throw new Error(`Account ${a.login} insert returned nothing`);
@@ -226,7 +229,7 @@ async function upsertAccount(
         accountId: row.id,
         status: a.status,
         statusReason: a.statusReason,
-        changedAt: seenAt,
+        changedAt: a.status === 'active' ? seenAt : since,
         source: 'detected_on_import',
       })
       .onConflictDoNothing();
@@ -242,9 +245,27 @@ async function upsertAccount(
     .set({
       ...fields,
       lastSeenAt: seenAt,
-      ...(statusChanged ? { statusChangedAt: seenAt, closedAt: a.status === 'active' ? null : seenAt } : {}),
+      ...(statusChanged
+        ? { statusChangedAt: a.status === 'active' ? seenAt : since, closedAt: a.status === 'active' ? null : since }
+        : {}),
     })
     .where(eq(accounts.id, existing.id));
+
+  // Accounts imported before statusSince existed were dated by the import; move them back to the real date.
+  if (!statusChanged && a.status !== 'active' && existing.closedAt && since < existing.closedAt) {
+    await tx.update(accounts).set({ closedAt: since, statusChangedAt: since }).where(eq(accounts.id, existing.id));
+    await tx
+      .update(accountStatusHistory)
+      .set({ changedAt: since })
+      .where(
+        and(
+          eq(accountStatusHistory.accountId, existing.id),
+          eq(accountStatusHistory.source, 'detected_on_import'),
+          eq(accountStatusHistory.status, a.status),
+          gt(accountStatusHistory.changedAt, since),
+        ),
+      );
+  }
 
   if (statusChanged) {
     await tx
@@ -253,7 +274,7 @@ async function upsertAccount(
         accountId: existing.id,
         status: a.status,
         statusReason: a.statusReason,
-        changedAt: seenAt,
+        changedAt: a.status === 'active' ? seenAt : since,
         source: 'detected_on_import',
       })
       .onConflictDoNothing();

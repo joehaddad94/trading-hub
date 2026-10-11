@@ -18,10 +18,20 @@ export function mondayOf(date: string): string {
   return shift(date, -((day + 6) % 7));
 }
 
-/** `week` URL param → its Monday; anything invalid falls back to the current week. */
+/**
+ * The week the News screen opens on: this week Monday to Friday, and from Saturday (Beirut) the coming week,
+ * because the week that just ended has nothing left to trade.
+ */
+export function currentNewsWeek(now: Date): string {
+  const today = tradingDay(now, NEWS_DAYS);
+  const day = new Date(`${today}T12:00:00Z`).getUTCDay();
+  return day === 6 || day === 0 ? mondayOf(shift(today, 2)) : mondayOf(today);
+}
+
+/** `week` URL param → its Monday; anything invalid falls back to the current news week. */
 export function parseWeek(value: string | null | undefined, now: Date): string {
   if (value && DATE.test(value) && !Number.isNaN(Date.parse(value))) return mondayOf(value);
-  return mondayOf(tradingDay(now, NEWS_DAYS));
+  return currentNewsWeek(now);
 }
 
 export const shiftWeek = (monday: string, weeks: number) => shift(monday, weeks * 7);

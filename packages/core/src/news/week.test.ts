@@ -3,6 +3,7 @@ import {
   activeRestrictions,
   type CalendarEvent,
   countdown,
+  currentNewsWeek,
   groupWeek,
   mondayOf,
   nextEvent,
@@ -29,10 +30,19 @@ describe('weeks', () => {
     expect(mondayOf('2026-10-05')).toBe('2026-10-05');
     expect(mondayOf('2026-10-11')).toBe('2026-10-05');
     expect(parseWeek('2026-10-08', new Date())).toBe('2026-10-05');
-    // Friday 23:30 UTC is already Saturday in Beirut; still the same week.
-    expect(parseWeek('nonsense', new Date('2026-10-09T23:30:00Z'))).toBe('2026-10-05');
+    // Friday 20:30 UTC is 23:30 Friday in Beirut: still this week.
+    expect(parseWeek('nonsense', new Date('2026-10-09T20:30:00Z'))).toBe('2026-10-05');
+    // Friday 23:30 UTC is already Saturday in Beirut: the coming week.
+    expect(parseWeek('nonsense', new Date('2026-10-09T23:30:00Z'))).toBe('2026-10-12');
     expect(parseWeek(null, new Date('2026-10-11T21:30:00Z'))).toBe('2026-10-12');
     expect(shiftWeek('2026-10-05', -1)).toBe('2026-09-28');
+  });
+
+  it('opens on the coming week from Saturday, Beirut time', () => {
+    expect(currentNewsWeek(new Date('2026-10-05T06:00:00Z'))).toBe('2026-10-05'); // Monday
+    expect(currentNewsWeek(new Date('2026-10-09T15:00:00Z'))).toBe('2026-10-05'); // Friday
+    expect(currentNewsWeek(new Date('2026-10-10T10:00:00Z'))).toBe('2026-10-12'); // Saturday
+    expect(currentNewsWeek(new Date('2026-10-11T20:00:00Z'))).toBe('2026-10-12'); // Sunday 23:00 Beirut
   });
 
   it('covers Monday to Monday in Beirut time across the DST change', () => {

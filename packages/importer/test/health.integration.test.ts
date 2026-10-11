@@ -58,14 +58,26 @@ describe.skipIf(!url)('sync health', () => {
     });
   });
 
-  it('a partial file raises file_status; alerts once per 12 h; recovers when a good file arrives', async () => {
+  it('a known partial file is an amber warning with no alert', async () => {
     await inTx(async (tx) => {
       await processExportFile(tx, { driveFileId: 'f1', fileName: 'a.json', content: fixtureText }, NOW);
       const { channel, sent } = recordingChannel();
+      const first = await checkSyncHealth(tx, NOW, [channel]);
+      expect(first.conditions.map((c) => [c.kind, c.severity])).toEqual([['file_status', 'warning']]);
+      expect(first.conditions[0]?.message).toMatch(/^Latest export is partial: Phase 0 test export/);
+      expect(sent).toEqual([]);
+    });
+  });
+
+  it('a partial file that may have lost trades alerts once per 12 h; recovers when a good file arrives', async () => {
+    await inTx(async (tx) => {
+      const bad = JSON.parse(fixtureText) as Record<string, unknown>;
+      bad.errors = [{ step: 'get_trading_history', account_id: 7002880, message: 'timeout' }];
+      await processExportFile(tx, { driveFileId: 'f1', fileName: 'a.json', content: JSON.stringify(bad) }, NOW);
+      const { channel, sent } = recordingChannel();
 
       const first = await checkSyncHealth(tx, NOW, [channel]);
-      expect(first.conditions.map((c) => c.kind)).toEqual(['file_status']);
-      expect(first.conditions[0]?.message).toMatch(/^Latest export is partial: Phase 0 test export/);
+      expect(first.conditions.map((c) => [c.kind, c.severity])).toEqual([['file_status', 'error']]);
       expect(sent).toEqual(['file_status']);
 
       expect((await checkSyncHealth(tx, hours(1), [channel])).notified).toEqual([]);

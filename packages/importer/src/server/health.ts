@@ -98,7 +98,9 @@ export async function checkSyncHealth(
     .where(eq(syncHealth.id, true));
   const notified: string[] = [];
 
-  for (const condition of conditions) {
+  // Warnings (a known partial export) show in the app but don't alert or count as unhealthy.
+  const problems = conditions.filter((c) => c.severity === 'error');
+  for (const condition of problems) {
     const [last] = await db
       .select({ sentAt: alertsLog.sentAt })
       .from(alertsLog)
@@ -111,7 +113,7 @@ export async function checkSyncHealth(
     notified.push(condition.kind);
   }
 
-  const recovered = conditions.length === 0 && Boolean(health?.unhealthySince);
+  const recovered = problems.length === 0 && Boolean(health?.unhealthySince);
   if (recovered) {
     for (const channel of channels) {
       await notify(db, channel, { kind: 'recovered', message: 'Sync recovered: a good import arrived.' }, now);
@@ -121,8 +123,8 @@ export async function checkSyncHealth(
   await db
     .update(syncHealth)
     .set({
-      unhealthySince: conditions.length === 0 ? null : (health?.unhealthySince ?? now),
-      activeConditions: conditions.map((c) => c.kind),
+      unhealthySince: problems.length === 0 ? null : (health?.unhealthySince ?? now),
+      activeConditions: problems.map((c) => c.kind),
       ...(notified.length > 0 ? { lastAlertAt: now } : {}),
     })
     .where(eq(syncHealth.id, true));

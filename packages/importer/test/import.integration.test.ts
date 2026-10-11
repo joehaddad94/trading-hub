@@ -7,7 +7,9 @@ import {
   type Inbox,
   importUploadedFile,
   processExportFile,
+  ReprocessError,
   releaseImportLease,
+  reprocessImport,
   runInboxImport,
   type Tx,
 } from '../src/server';
@@ -130,6 +132,42 @@ describe.skipIf(!url)('import pipeline', () => {
     });
   });
 
+  it('dates a closed account by when it really passed, not by the import, and fixes old import dates', async () => {
+    await inTx(async (tx) => {
+      await processExportFile(tx, { driveFileId: 'f1', fileName: FIXTURE_NAME, content: fixtureText }, NOW);
+      const closed = () =>
+        tx.execute<{ login: string; closed_at: string | null; history: string | null }>(sql`
+          select a.login::text, a.closed_at::text,
+            (select max(h.changed_at)::text from account_status_history h
+              where h.account_id = a.id and h.source = 'detected_on_import') as history
+          from accounts a where a.login in (3027687, 3028722) order by a.login`);
+      const [p2Last] = await tx.execute<{ at: string }>(sql`
+        select max(t.closed_at)::text as at from trades t join accounts a on a.id = t.account_id where a.login = 3028722`);
+      const expected = [
+        // P1: the firm's status history says Migrated at 14:08:41Z.
+        { login: '3027687', closed_at: '2026-09-16 14:08:41+00', history: '2026-09-16 14:08:41+00' },
+        // P2: no firm history, so its last trade.
+        { login: '3028722', closed_at: p2Last?.at ?? null, history: p2Last?.at ?? null },
+      ];
+      expect(await closed()).toEqual(expected);
+
+      // Rows written by the old importer carried the import date; the next file moves them back.
+      await tx.execute(sql`update accounts set closed_at = ${NOW.toISOString()}, status_changed_at = ${NOW.toISOString()}
+        where login in (3027687, 3028722)`);
+      await tx.execute(sql`update account_status_history set changed_at = ${NOW.toISOString()} where source = 'detected_on_import'
+        and account_id in (select id from accounts where login in (3027687, 3028722))`);
+      const next = withFixture((f) => {
+        f.generated_at = '2026-10-10T21:20:00Z';
+      });
+      await processExportFile(
+        tx,
+        { driveFileId: 'f2', fileName: 'fundednext_2026-10-10_2120Z.json', content: next },
+        NOW,
+      );
+      expect(await closed()).toEqual(expected);
+    });
+  });
+
   it('rejects only the account whose trades do not add up', async () => {
     await inTx(async (tx) => {
       const content = withFixture((f) => {
@@ -167,6 +205,32 @@ describe.skipIf(!url)('import pipeline', () => {
         { drive_file_id: 'bad', import_result: 'rejected', schema_version: null },
         { drive_file_id: 'v2', import_result: 'rejected', schema_version: 2 },
       ]);
+    });
+  });
+
+  it('reprocesses a stored file that was rejected, but not an unparseable or a clean one', async () => {
+    await inTx(async (tx) => {
+      await processExportFile(tx, { driveFileId: 'bad', fileName: 'x.json', content: '{nope' }, NOW);
+      const v2 = withFixture((f) => {
+        f.schema_version = 2;
+      });
+      await processExportFile(tx, { driveFileId: 'v2', fileName: FIXTURE_NAME, content: v2 }, NOW);
+      const idOf = async (driveId: string) => {
+        const [r] = await tx.execute<{ id: string }>(sql`select id from raw_imports where drive_file_id = ${driveId}`);
+        return r?.id ?? '';
+      };
+      // Stand-in for "the importer now accepts it": the stored copy becomes valid.
+      await tx.execute(
+        sql`update raw_imports set payload = jsonb_set(payload, '{schema_version}', '1') where drive_file_id = 'v2'`,
+      );
+      const again = await reprocessImport(tx, await idOf('v2'), NOW);
+      expect(again.result).toBe('partial');
+      expect((await counts(tx)).trades).toBe(99);
+
+      await expect(reprocessImport(tx, await idOf('bad'), NOW)).rejects.toThrow(ReprocessError);
+      await tx.execute(sql`update raw_imports set import_result = 'ok' where drive_file_id = 'v2'`);
+      await expect(reprocessImport(tx, await idOf('v2'), NOW)).rejects.toThrow(/already imported/);
+      await expect(reprocessImport(tx, '00000000-0000-4000-8000-000000000000', NOW)).rejects.toThrow(/not found/);
     });
   });
 

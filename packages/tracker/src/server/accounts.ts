@@ -316,3 +316,38 @@ export async function phaseComparison(
     deltas: biggestDeltas(demoProfile, fundedProfile),
   };
 }
+
+/**
+ * Links an account to the one it came from (P2 → P1, Funded → P2) when the export doesn't say, so the journey
+ * groups and compares as one chain. Null unlinks. Refuses a link that would make a loop or cross firms.
+ */
+export async function setPreviousPhase(
+  db: Executor,
+  accountId: string,
+  parentId: string | null,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const [account] = await db
+    .select({ id: accounts.id, firmId: accounts.firmId })
+    .from(accounts)
+    .where(and(eq(accounts.id, accountId), eq(accounts.isBacktest, false)));
+  if (!account) return { ok: false, error: 'Account not found.' };
+  if (parentId !== null) {
+    if (parentId === accountId) return { ok: false, error: 'An account cannot follow itself.' };
+    const [parent] = await db
+      .select({ firmId: accounts.firmId })
+      .from(accounts)
+      .where(and(eq(accounts.id, parentId), eq(accounts.isBacktest, false)));
+    if (!parent) return { ok: false, error: 'Previous account not found.' };
+    if (parent.firmId !== account.firmId) return { ok: false, error: 'Both accounts must be at the same firm.' };
+    const [loop] = await db.execute<{ hit: boolean }>(sql`
+      with recursive down as (
+        select id from accounts where parent_account_id = ${accountId}
+        union
+        select a.id from accounts a join down d on a.parent_account_id = d.id
+      )
+      select exists (select 1 from down where id = ${parentId}) as hit`);
+    if (loop?.hit) return { ok: false, error: 'That account already comes after this one.' };
+  }
+  await db.update(accounts).set({ parentAccountId: parentId }).where(eq(accounts.id, accountId));
+  return { ok: true };
+}

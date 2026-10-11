@@ -111,6 +111,35 @@ export async function runInboxImport(db: Db, inbox: Inbox, now: Date): Promise<F
   return outcomes;
 }
 
+export class ReprocessError extends Error {}
+
+/**
+ * Settings › Imports "Reprocess" (tracker spec §8.3 #11): re-runs the stored copy of a file through today's
+ * importer, e.g. after a fix that accepts a format it once rejected. Only files that didn't import cleanly.
+ */
+export async function reprocessImport(db: Db, rawImportId: string, now: Date): Promise<FileOutcome> {
+  const [row] = await db
+    .select({
+      driveFileId: rawImports.driveFileId,
+      fileName: rawImports.fileName,
+      payload: rawImports.payload,
+      result: rawImports.importResult,
+    })
+    .from(rawImports)
+    .where(eq(rawImports.id, rawImportId));
+  if (!row) throw new ReprocessError('Import not found.');
+  if (row.result === 'ok') throw new ReprocessError('This file already imported cleanly.');
+  const payload = row.payload as Record<string, unknown> | null;
+  if (!payload || 'unparseable' in payload) {
+    throw new ReprocessError('This file was not valid JSON, so there is nothing to reprocess. Upload a new export.');
+  }
+  return processExportFile(
+    db,
+    { driveFileId: row.driveFileId, fileName: row.fileName, content: JSON.stringify(payload) },
+    now,
+  );
+}
+
 /** Longer than any run (the cron allows 60 s), so a run that crashed frees the lease on its own. */
 const IMPORT_LEASE_MS = 5 * 60_000;
 
