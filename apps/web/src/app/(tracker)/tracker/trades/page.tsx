@@ -3,10 +3,10 @@ import type { Route } from 'next';
 import Link from 'next/link';
 import type { SearchParams } from 'nuqs/server';
 import type { ReactNode } from 'react';
-import { Button } from '@/components/ui/button';
 import { formatMoney, formatPct } from '@/lib/format';
 import { formatR } from '@/modules/tracker/calendar/format';
 import { ScopeNotice } from '@/modules/tracker/components/scope-notice';
+import { TradeFilters } from '@/modules/tracker/components/trade-filters';
 import { TradesTable } from '@/modules/tracker/components/trades-table';
 import { accountLabel } from '@/modules/tracker/scope-label';
 import { getPageScope } from '@/modules/tracker/server/scope';
@@ -15,6 +15,8 @@ import { parseTradeParams, type TradeParams, tradeQuery } from '@/modules/tracke
 
 const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 const SORTABLE = ['closed', 'symbol', 'lots', 'net', 'r', 'hold'] as const;
+const FILTER_KEYS = ['account', 'symbol', 'side', 'session', 'weekday', 'tag', 'plan', 'news', 'from', 'to'] as const;
+type FilterKey = (typeof FILTER_KEYS)[number];
 
 /** Trades (§8.3 screen 5): every trade in scope, filterable and sortable, with CSV export of the filtered view. */
 export default async function TradesPage({ searchParams }: { searchParams: Promise<SearchParams> }) {
@@ -37,6 +39,28 @@ export default async function TradesPage({ searchParams }: { searchParams: Promi
   );
   const csvQuery = tradeQuery(scopeParam, { ...params, page: 1 });
   const select = 'h-11 rounded-md border bg-background px-2 text-sm md:h-9';
+  const cleared = Object.fromEntries(FILTER_KEYS.map((k) => [k, null])) as Partial<TradeParams>;
+  const clearHref = href({ ...cleared, page: 1 });
+  const chipLabel: Record<FilterKey, (v: string) => string> = {
+    account: (v) => {
+      const a = scope.accounts.find((x) => String(x.login) === v);
+      return a ? accountLabel(a) : v;
+    },
+    symbol: (v) => v,
+    side: (v) => (v === 'buy' ? 'Buy' : 'Sell'),
+    session: (v) => SESSION_LABELS[v as SessionName] ?? v,
+    weekday: (v) => WEEKDAYS[Number(v) - 1] ?? v,
+    tag: (v) => `#${v}`,
+    plan: (v) => ({ yes: 'Followed plan', no: 'Broke plan', unanswered: 'Plan not answered' })[v] ?? v,
+    news: (v) => (v === 'yes' ? 'News trades' : 'No news'),
+    from: (v) => `From ${v}`,
+    to: (v) => `To ${v}`,
+  };
+  const chips = FILTER_KEYS.flatMap((key) => {
+    const v = params[key];
+    if (v === null || v === undefined || v === '') return [];
+    return [{ key, label: chipLabel[key](String(v)), href: href({ [key]: null, page: 1 }) }];
+  });
 
   return (
     <div className="flex flex-col gap-4 p-4 md:p-6">
@@ -51,8 +75,7 @@ export default async function TradesPage({ searchParams }: { searchParams: Promi
         </a>
       </div>
       <ScopeNotice scope={scope} />
-      <form method="get" className="grid grid-cols-2 gap-2 md:grid-cols-4 xl:grid-cols-6" aria-label="Filter trades">
-        {scopeParam !== 'all' && <input type="hidden" name="scope" value={scopeParam} />}
+      <TradeFilters fieldsKey={csvQuery} chips={chips} clearHref={clearHref}>
         <Select name="account" label="Account" value={params.account} className={select}>
           {scope.accounts.map((a) => (
             <option key={a.id} value={a.login}>
@@ -110,32 +133,7 @@ export default async function TradesPage({ searchParams }: { searchParams: Promi
           To
           <input type="date" name="to" defaultValue={params.to ?? ''} className={select} />
         </label>
-        {params.sort !== 'closed' && <input type="hidden" name="sort" value={params.sort} />}
-        {params.dir !== 'desc' && <input type="hidden" name="dir" value={params.dir} />}
-        <div className="col-span-2 flex items-end gap-2">
-          <Button type="submit">Apply</Button>
-          <Link
-            href={
-              href({
-                account: null,
-                symbol: null,
-                side: null,
-                session: null,
-                weekday: null,
-                tag: null,
-                plan: null,
-                news: null,
-                from: null,
-                to: null,
-                page: 1,
-              }) as Route
-            }
-            className="flex h-11 items-center px-2 text-sm underline-offset-4 hover:underline md:h-9"
-          >
-            Clear
-          </Link>
-        </div>
-      </form>
+      </TradeFilters>
       <p className="text-sm" data-testid="trades-summary">
         {data.total} trades · {formatMoney(data.stats.net)} · {formatPct(data.stats.winRate)} win rate · PF{' '}
         {data.stats.profitFactor?.toFixed(2) ?? '—'} · {formatR(data.stats.expectancyR)} expectancy
