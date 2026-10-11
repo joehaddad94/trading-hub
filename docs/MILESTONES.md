@@ -133,6 +133,10 @@ A milestone marked **⛔ Blocked** needs an answer from Joe (see "Open questions
 **Scope:** Supabase cloud project, `supabase db push` on merge, Vercel env vars, Google service account shared on `trading-tracker/`, Sentry project; set `private.app_config.allowed_email` to Joe's email in the cloud DB; served on the free `*.vercel.app` address (Q2).
 **Done when:** the daily cron imports the real inbox in production and the hub shows today's sync status.
 
+## R1 · Redesign  *(design spec, agreed 11 Oct 2026)*
+**Scope:** `docs/specs/design-spec.md`: Fog mid-tone theme with glass cards, cyan accent, mint/rose P&L, Geist fonts, icon rail and phone tab bar, new hub, TradingView-style backtest chart, outline icons, skeletons, lively motion.
+**Done when:** every screen uses the design tokens and shell, and the local gate is green. ✓ PR #10.
+
 ## M23 · GitHub Actions pipeline  *(post-v1, arch §9)*
 **Scope:** turn `ci.yml` back on for PRs and pushes to main (lint, typecheck, tests, boundaries, build, Playwright against local Supabase); keep `migrate.yml` running migrations before deploy.
 **Done when:** a PR shows green checks from Actions and the local gate is no longer the only gate.

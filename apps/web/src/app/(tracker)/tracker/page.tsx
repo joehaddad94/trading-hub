@@ -48,12 +48,12 @@ export default async function OverviewPage({ searchParams }: { searchParams: Pro
       </div>
       <ScopeNotice scope={scope} />
       <OverviewStats data={data} scope={scope} />
-      <section className="rounded-lg border p-4">
+      <section className="glass rounded-xl p-4">
         <h3 className="mb-2 font-medium">Combined equity</h3>
         <EquityCurve points={points} boundaries={boundaries} />
       </section>
       <div className="flex flex-col gap-4 lg:grid lg:grid-cols-[minmax(0,1fr)_26rem] lg:items-start">
-        <section className="min-w-0 rounded-lg border p-2 md:p-4">
+        <section className="min-w-0 glass rounded-xl p-2 md:p-4">
           <TrackerCalendar
             data={month}
             accounts={scope.accounts}

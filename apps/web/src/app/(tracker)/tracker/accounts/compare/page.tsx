@@ -49,7 +49,7 @@ export default async function ComparePage() {
           <p className="text-muted-foreground text-sm">
             Highlighted rows differ most between demo and funded. R uses estimated risk until trades are journaled.
           </p>
-          <div className="overflow-x-auto rounded-lg border">
+          <div className="overflow-x-auto glass rounded-xl">
             <table className="w-full min-w-[36rem] text-sm" data-testid="compare-table">
               <thead>
                 <tr className="border-b text-left">

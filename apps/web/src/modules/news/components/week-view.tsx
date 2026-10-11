@@ -2,6 +2,7 @@ import { NEWS_DAYS, type NewsDay, tradingDay } from '@trading/core';
 import type { NewsFilters } from '@trading/news';
 import type { NewsEvent } from '@trading/news/server';
 import Link from 'next/link';
+import { Glyph } from '@/components/glyph';
 import { formatBeirut } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { newsHref } from '../links';
@@ -29,7 +30,7 @@ export function WeekView({
         <section
           key={day.date}
           aria-label={formatBeirut(new Date(`${day.date}T12:00:00Z`), 'EEEE d MMMM')}
-          className={cn('rounded-lg border', day.date === today && 'border-primary')}
+          className={cn('glass rounded-xl', day.date === today && 'ring-1 ring-primary/70')}
           data-testid={day.date === today ? 'news-today' : undefined}
         >
           <h3 className="flex items-center justify-between border-b px-3 py-2 font-medium text-sm">
@@ -80,7 +81,7 @@ export function WeekView({
                             <span className="hidden num md:block">{e.forecast ?? ''}</span>
                             <span className="hidden num md:block">{e.previous ?? ''}</span>
                             <span title={e.isRestricted ? (e.restrictionLabel ?? 'Restricted') : undefined}>
-                              {e.isRestricted ? '🔒' : ''}
+                              {e.isRestricted && <Glyph kind="restricted" />}
                             </span>
                           </Link>
                         </li>

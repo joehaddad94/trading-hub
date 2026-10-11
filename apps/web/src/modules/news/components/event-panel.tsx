@@ -3,6 +3,7 @@ import type { EventDetail } from '@trading/news/server';
 import Decimal from 'decimal.js';
 import type { Route } from 'next';
 import Link from 'next/link';
+import { Glyph } from '@/components/glyph';
 import { formatBeirut, formatMoney } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { newsHref } from '../links';
@@ -24,7 +25,7 @@ export function EventPanel({
   return (
     <aside
       aria-label="Event details"
-      className="flex flex-col gap-3 rounded-lg border bg-card p-4 text-sm"
+      className="flex flex-col gap-3 glass rounded-xl p-4 text-sm"
       data-testid="event-panel"
     >
       <div className="flex items-start justify-between gap-2">
@@ -34,7 +35,12 @@ export function EventPanel({
           </h3>
           <p className="text-muted-foreground">
             {formatBeirut(e.eventAt, 'EEE d MMM yyyy, HH:mm')} Beirut
-            {e.isRestricted ? ` · 🔒 ${e.restrictionLabel ?? 'Restricted'}` : ''}
+            {e.isRestricted && (
+              <>
+                {' · '}
+                <Glyph kind="restricted" /> {e.restrictionLabel ?? 'Restricted'}
+              </>
+            )}
           </p>
         </div>
         <Link

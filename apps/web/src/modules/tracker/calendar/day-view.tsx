@@ -4,6 +4,7 @@ import Decimal from 'decimal.js';
 import type { Route } from 'next';
 import Link from 'next/link';
 import type { ReactNode } from 'react';
+import { Glyph } from '@/components/glyph';
 import type { ActionResult } from '@/lib/action-result';
 import { formatBeirut, formatMoney, formatPct } from '@/lib/format';
 import { formatPrice } from '@/lib/symbols';
@@ -99,7 +100,7 @@ export function DayView({ detail, accounts, closeHref, saveNote }: Props) {
                     className={cn('rounded-md border p-2 text-sm', usage.warning && 'border-warning')}
                   >
                     <p className="mb-1 font-medium">
-                      {a ? accountLabel(a) : '—'} {usage.warning && <span title="Close to a rule limit">⚠️</span>}
+                      {a ? accountLabel(a) : '—'} {usage.warning && <Glyph kind="warning" />}
                     </p>
                     <dl className="grid grid-cols-2 gap-x-3 gap-y-1">
                       <dt className="text-muted-foreground">Start / end balance</dt>
@@ -156,7 +157,7 @@ export function DayView({ detail, accounts, closeHref, saveNote }: Props) {
                 />
                 <span className="font-medium">{e.currency}</span>
                 <span className="min-w-0 truncate">{e.title}</span>
-                {e.isRestricted && <span title="Restricted">🔒</span>}
+                {e.isRestricted && <Glyph kind="restricted" />}
               </li>
             ))}
           </ul>
@@ -226,7 +227,7 @@ function TradeRow({
         </span>
       </div>
       <p className="mb-1 font-medium">
-        {t.symbol} <span className="capitalize">{t.side}</span> {t.isNews && <span title="News trade">📰</span>}
+        {t.symbol} <span className="capitalize">{t.side}</span> {t.isNews && <Glyph kind="news" />}
         {t.riskSource === 'estimated' && (
           <span className="ml-2 text-warning text-xs" title="Add the initial stop loss when journaling">
             risk missing

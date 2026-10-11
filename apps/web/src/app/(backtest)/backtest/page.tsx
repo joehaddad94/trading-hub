@@ -30,7 +30,7 @@ export default async function SessionsPage() {
             {data.sessions.length === 0 ? (
               <p className="text-muted-foreground text-sm">No sessions yet. Create one below or open the chart.</p>
             ) : (
-              <ul className="flex flex-col divide-y rounded-lg border" aria-label="Backtest sessions">
+              <ul className="flex flex-col divide-y glass rounded-xl" aria-label="Backtest sessions">
                 {data.sessions.map((s) => (
                   <li key={s.id} data-testid="session-row">
                     <Link
@@ -69,7 +69,7 @@ export default async function SessionsPage() {
                 ))}
               </ul>
             )}
-            <section className="rounded-lg border p-4">
+            <section className="glass rounded-xl p-4">
               <h3 className="mb-3 font-medium">New session</h3>
               <SessionForm
                 action={createSessionAction}

@@ -37,7 +37,7 @@ export default async function AnalyticsPage({ searchParams }: { searchParams: Pr
       ) : (
         <>
           <div className="grid gap-4 lg:grid-cols-2">
-            <section className="flex flex-col gap-2 rounded-lg border p-4" aria-label="R distribution">
+            <section className="flex flex-col gap-2 glass rounded-xl p-4" aria-label="R distribution">
               <h3 className="font-medium">R distribution</h3>
               <RHistogram bins={data.r.bins.map(({ label, count, from }) => ({ label, count, from }))} />
               {data.r.unknown > 0 && (
@@ -46,7 +46,7 @@ export default async function AnalyticsPage({ searchParams }: { searchParams: Pr
                 </p>
               )}
             </section>
-            <section className="flex flex-col gap-3 rounded-lg border p-4" data-testid="streaks">
+            <section className="flex flex-col gap-3 glass rounded-xl p-4" data-testid="streaks">
               <h3 className="font-medium">Streaks</h3>
               <dl className="grid grid-cols-3 gap-3 text-sm">
                 <Stat label="Longest win run" value={String(data.streaks.longestWin)} />
@@ -83,7 +83,7 @@ export default async function AnalyticsPage({ searchParams }: { searchParams: Pr
           </div>
         </>
       )}
-      <section className="flex flex-col gap-3 rounded-lg border p-4" data-testid="news-split">
+      <section className="flex flex-col gap-3 glass rounded-xl p-4" data-testid="news-split">
         <h3 className="font-medium">News vs other days</h3>
         {!split ? (
           <p className="text-muted-foreground text-sm">No trades in scope.</p>
@@ -144,7 +144,7 @@ function Breakdown({
   chart?: boolean;
 }) {
   return (
-    <section className="flex flex-col gap-2 rounded-lg border p-4" data-testid={testId}>
+    <section className="flex flex-col gap-2 glass rounded-xl p-4" data-testid={testId}>
       <h3 className="font-medium">{title}</h3>
       {chart && <NetBars bars={bars(groups)} testId={`${testId}-bars`} />}
       <StatsTable rows={rows(groups)} label={label} />

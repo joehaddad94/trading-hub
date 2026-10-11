@@ -3,6 +3,7 @@ import Decimal from 'decimal.js';
 import type { Route } from 'next';
 import Link from 'next/link';
 import type { SearchParams } from 'nuqs/server';
+import { Glyph } from '@/components/glyph';
 import { formatBeirut, formatMoney } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { calendarHref } from '@/modules/tracker/calendar/tracker-calendar';
@@ -259,7 +260,7 @@ async function Notes({
               >
                 <span className="flex justify-between">
                   <span>{d.day}</span>
-                  {note && <span title="Daily note">🗒</span>}
+                  {note && <Glyph kind="note" />}
                 </span>
                 {net && <span className="hidden truncate num md:block">{formatMoney(net)}</span>}
               </Link>

@@ -42,7 +42,7 @@ export default async function LiveVsBacktestPage({ searchParams }: { searchParam
           {report.rows.map((row) => (
             <section
               key={row.symbol}
-              className="flex flex-col gap-2 rounded-lg border p-4"
+              className="flex flex-col gap-2 glass rounded-xl p-4"
               data-testid="lvb-symbol"
               aria-label={row.symbol}
             >

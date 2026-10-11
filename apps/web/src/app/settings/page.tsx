@@ -38,7 +38,7 @@ export default async function SettingsPage() {
         </Link>
       </div>
 
-      <section className="rounded-lg border p-4">
+      <section className="glass rounded-xl p-4">
         <h3 className="mb-3 font-medium">Days and scratches</h3>
         <ActionForm action={saveGeneralSettings} submit="Save" label="Days and scratches">
           <fieldset className="flex flex-col gap-2">
@@ -65,7 +65,7 @@ export default async function SettingsPage() {
         </ActionForm>
       </section>
 
-      <section className="rounded-lg border p-4" aria-labelledby="symbols">
+      <section className="glass rounded-xl p-4" aria-labelledby="symbols">
         <h3 id="symbols" className="mb-1 font-medium">
           Symbol point values
         </h3>
@@ -110,7 +110,7 @@ export default async function SettingsPage() {
         )}
       </section>
 
-      <section className="rounded-lg border p-4" aria-labelledby="risk">
+      <section className="glass rounded-xl p-4" aria-labelledby="risk">
         <h3 id="risk" className="mb-1 font-medium">
           Default risk per trade
         </h3>
@@ -143,7 +143,7 @@ export default async function SettingsPage() {
         </ul>
       </section>
 
-      <section className="rounded-lg border p-4" aria-labelledby="journeys">
+      <section className="glass rounded-xl p-4" aria-labelledby="journeys">
         <h3 id="journeys" className="mb-1 font-medium">
           Account journeys
         </h3>
@@ -185,7 +185,7 @@ export default async function SettingsPage() {
         </ul>
       </section>
 
-      <section className="rounded-lg border p-4" aria-labelledby="tags">
+      <section className="glass rounded-xl p-4" aria-labelledby="tags">
         <h3 id="tags" className="mb-1 font-medium">
           Journal tags
         </h3>

@@ -42,7 +42,7 @@ export default async function AccountPage({
 
   return (
     <div className="flex flex-col gap-4 p-4 md:p-6">
-      <section className="rounded-lg border p-4" data-testid="account-header">
+      <section className="glass rounded-xl p-4" data-testid="account-header">
         <p className="text-muted-foreground text-sm">
           {PHASE_LABELS[a.phase] ?? a.phase} · {size} · {a.firm}
           {a.isDemo ? ' · demo' : ' · real'}
@@ -119,7 +119,7 @@ function OverviewTab({ a }: { a: Detail }) {
   ];
   return (
     <div className="grid gap-4 lg:grid-cols-2">
-      <section className="rounded-lg border p-4 lg:col-span-2">
+      <section className="glass rounded-xl p-4 lg:col-span-2">
         <h3 className="mb-2 font-medium">Balance</h3>
         <BalanceCurve
           points={a.equity.map((p, i) => ({
@@ -131,7 +131,7 @@ function OverviewTab({ a }: { a: Detail }) {
           floor={u?.maxLossFloor ? u.maxLossFloor.toNumber() : null}
         />
       </section>
-      <section className="rounded-lg border p-4">
+      <section className="glass rounded-xl p-4">
         <h3 className="mb-2 font-medium">Stats</h3>
         <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
           {stats.map(([label, value]) => (
@@ -142,7 +142,7 @@ function OverviewTab({ a }: { a: Detail }) {
           ))}
         </dl>
       </section>
-      <section className="rounded-lg border p-4" data-testid="rule-limits">
+      <section className="glass rounded-xl p-4" data-testid="rule-limits">
         <h3 className="mb-2 font-medium">
           Rule limits
           {a.rules && (
@@ -185,7 +185,7 @@ function OverviewTab({ a }: { a: Detail }) {
           </>
         )}
       </section>
-      <section className="rounded-lg border p-4 lg:col-span-2">
+      <section className="glass rounded-xl p-4 lg:col-span-2">
         <h3 className="mb-2 font-medium">Lifecycle</h3>
         <ol className="flex flex-col gap-2 border-l pl-4 text-sm" data-testid="lifecycle">
           {a.timeline.map((e) => (

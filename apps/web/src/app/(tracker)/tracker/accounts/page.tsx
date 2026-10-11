@@ -39,7 +39,7 @@ export default async function AccountsPage() {
                 <li key={a.id}>
                   <Link
                     href={`/tracker/accounts/${a.login}` as Route}
-                    className="flex flex-col gap-2 rounded-lg border p-3 hover:bg-accent/40"
+                    className="flex flex-col gap-2 glass rounded-xl p-3 hover:bg-accent/40"
                     data-testid={`account-${a.login}`}
                   >
                     <div className="flex flex-wrap items-center justify-between gap-2">

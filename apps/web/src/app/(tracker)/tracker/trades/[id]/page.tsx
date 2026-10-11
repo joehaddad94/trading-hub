@@ -87,7 +87,7 @@ export default async function TradePage({ params }: { params: Promise<{ id: stri
       {news && <TradeNewsSection news={news} />}
 
       <dl
-        className="grid grid-cols-2 gap-x-4 gap-y-1 rounded-lg border p-3 text-sm md:grid-cols-4"
+        className="grid grid-cols-2 gap-x-4 gap-y-1 glass rounded-xl p-3 text-sm md:grid-cols-4"
         data-testid="trade-facts"
       >
         {facts.map(([label, value]) => (

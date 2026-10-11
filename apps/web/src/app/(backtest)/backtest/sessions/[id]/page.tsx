@@ -64,20 +64,20 @@ export default async function SessionPage({ params }: { params: Promise<{ id: st
         )}
         <dl className="grid grid-cols-2 gap-3 md:grid-cols-4" data-testid="session-stats">
           {tiles.map(([label, value]) => (
-            <div key={label} className="rounded-lg border p-3">
+            <div key={label} className="glass rounded-xl p-3">
               <dt className="text-muted-foreground text-xs">{label}</dt>
               <dd className="font-semibold text-lg num">{value}</dd>
             </div>
           ))}
         </dl>
-        <section className="rounded-lg border p-4">
+        <section className="glass rounded-xl p-4">
           <h3 className="mb-2 font-medium">Equity</h3>
           <EquityCurve
             points={data.curve.map((p) => ({ i: p.i, t: p.at, equity: p.equity, pnl: p.pnl, account: '' }))}
             boundaries={[]}
           />
         </section>
-        <section className="flex flex-col gap-2 rounded-lg border p-4">
+        <section className="flex flex-col gap-2 glass rounded-xl p-4">
           <h3 className="font-medium">Trades</h3>
           {trades.length === 0 ? (
             <p className="text-muted-foreground text-sm">No closed trades yet.</p>
@@ -117,7 +117,7 @@ export default async function SessionPage({ params }: { params: Promise<{ id: st
             </div>
           )}
         </section>
-        <section className="rounded-lg border p-4">
+        <section className="glass rounded-xl p-4">
           <h3 className="mb-3 font-medium">Settings</h3>
           <SessionForm
             action={updateSessionAction}

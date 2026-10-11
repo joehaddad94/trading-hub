@@ -4,6 +4,7 @@ import type { ScopeAccount } from '@trading/tracker/server';
 import Decimal from 'decimal.js';
 import type { Route } from 'next';
 import Link from 'next/link';
+import { Glyph } from '@/components/glyph';
 import { formatBeirut, formatMoney } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { formatHold, formatR } from '../calendar/format';
@@ -43,7 +44,7 @@ export function TradesTable({
   if (rows.length === 0) return <p className="text-muted-foreground text-sm">No trades match.</p>;
   return (
     <>
-      <div className="hidden overflow-x-auto rounded-lg border md:block">
+      <div className="hidden overflow-x-auto glass rounded-xl md:block">
         <table className="w-full text-sm" data-testid="trades-table">
           <thead>
             <tr className="border-b text-left text-muted-foreground">
@@ -109,11 +110,7 @@ export function TradesTable({
           const a = byId.get(t.accountId);
           const net = new Decimal(t.netProfit);
           return (
-            <li
-              key={t.id}
-              className="relative rounded-lg border p-3 text-sm active:bg-muted/50"
-              data-testid="trade-row"
-            >
+            <li key={t.id} className="relative glass rounded-xl p-3 text-sm active:bg-muted/50" data-testid="trade-row">
               <div className="flex items-center justify-between gap-2">
                 <Link href={`/tracker/trades/${t.id}` as Route} className={cn('font-medium', ROW_LINK)}>
                   {t.symbol} <span className="capitalize">{t.side}</span> · {t.lots}
@@ -155,9 +152,9 @@ function EstBadge() {
 function Flags({ trade: t }: { trade: ListTrade }) {
   return (
     <span className="flex flex-wrap items-center gap-1">
-      {t.isNews && <span title="News trade">📰</span>}
+      {t.isNews && <Glyph kind="news" />}
       {t.journaled ? (
-        <span title="Journaled">📝</span>
+        <Glyph kind="journaled" />
       ) : (
         <span
           className="inline-block h-2 w-2 rounded-full bg-warning"

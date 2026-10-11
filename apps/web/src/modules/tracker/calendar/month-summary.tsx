@@ -22,7 +22,7 @@ export function MonthSummary({ summary, statusEvents }: { summary: Summary; stat
     ['Days following plan', formatPct(summary.planFollowedRate)],
   ];
   return (
-    <section aria-labelledby="month-summary" className="rounded-lg border p-4" data-testid="month-summary">
+    <section aria-labelledby="month-summary" className="glass rounded-xl p-4" data-testid="month-summary">
       <h3 id="month-summary" className="mb-3 font-medium">
         Month summary
       </h3>

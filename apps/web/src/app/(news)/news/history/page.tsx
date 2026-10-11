@@ -1,6 +1,7 @@
 import { DEFAULT_FILTERS, parseNewsFilters } from '@trading/news';
 import Link from 'next/link';
 import type { SearchParams } from 'nuqs/server';
+import { Glyph } from '@/components/glyph';
 import { formatBeirut } from '@/lib/format';
 import { Folder } from '@/modules/news/components/folder';
 import { NewsFilterBar } from '@/modules/news/components/news-filters';
@@ -77,7 +78,7 @@ export default async function HistoryPage({ searchParams }: { searchParams: Prom
           ))}
         </ul>
         {title && (
-          <section aria-label={`${currency} ${title}`} className="rounded-lg border p-3" data-testid="occurrences">
+          <section aria-label={`${currency} ${title}`} className="glass rounded-xl p-3" data-testid="occurrences">
             <h3 className="mb-2 font-medium">
               {currency} · {title}
             </h3>
@@ -98,7 +99,7 @@ export default async function HistoryPage({ searchParams }: { searchParams: Prom
                     <td className="py-1 num">{formatBeirut(o.eventAt, 'd MMM yyyy HH:mm')}</td>
                     <td className="py-1">{o.forecast ?? '—'}</td>
                     <td className="py-1">{o.previous ?? '—'}</td>
-                    <td className="py-1">{o.isRestricted ? '🔒' : ''}</td>
+                    <td className="py-1">{o.isRestricted && <Glyph kind="restricted" />}</td>
                   </tr>
                 ))}
               </tbody>

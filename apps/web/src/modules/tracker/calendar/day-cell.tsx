@@ -3,6 +3,7 @@
 import type { Route } from 'next';
 import Link from 'next/link';
 import { useRef, useState } from 'react';
+import { Glyph } from '@/components/glyph';
 import { cn } from '@/lib/utils';
 
 export type DayCellPreview = {
@@ -118,9 +119,9 @@ export function DayCell(props: DayCellProps) {
             {day}
           </span>
           <span className="flex gap-px text-[9px] leading-none md:text-xs" aria-hidden>
-            {icons.journaled && <span title="Journaled">📝</span>}
-            {icons.warning && <span title="Close to a rule limit">⚠️</span>}
-            {icons.status && <span title="Account status changed">🔄</span>}
+            {icons.journaled && <Glyph kind="journaled" />}
+            {icons.warning && <Glyph kind="warning" />}
+            {icons.status && <Glyph kind="status" />}
           </span>
         </div>
         {value && (

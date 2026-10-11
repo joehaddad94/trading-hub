@@ -62,7 +62,7 @@ export function QuickJournal({
 
   if (!t) {
     return (
-      <section className="flex flex-col items-start gap-3 rounded-lg border p-4" data-testid="quick-journal-done">
+      <section className="flex flex-col items-start gap-3 glass rounded-xl p-4" data-testid="quick-journal-done">
         <p className="font-medium">
           {saved > 0 ? `${saved} journaled.` : 'Nothing left in this batch.'}{' '}
           {total - saved > 0 ? `${total - saved} still to journal.` : 'Everything in scope is journaled.'}
@@ -101,7 +101,7 @@ export function QuickJournal({
 
   return (
     <section
-      className="flex flex-col gap-4 rounded-lg border p-4 md:max-w-md"
+      className="flex flex-col gap-4 glass rounded-xl p-4 md:max-w-md"
       aria-label="Quick journal"
       data-testid="quick-journal"
       onTouchStart={(e) => {

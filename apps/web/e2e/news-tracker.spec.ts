@@ -14,7 +14,7 @@ test.describe('news in the tracker (M13)', () => {
   test('calendar marks the red-folder day and the day view lists its news', async ({ page }) => {
     await page.goto('/tracker/calendar?month=2026-10&day=2026-10-07');
     await expect(page.getByTestId('day-news')).toContainText('FOMC Meeting Minutes');
-    await expect(page.getByTestId('day-news')).toContainText('🔒');
+    await expect(page.getByTestId('day-news').getByRole('img', { name: 'Restricted' }).first()).toBeVisible();
   });
 
   test('trade detail shows news around the trade', async ({ page }) => {
