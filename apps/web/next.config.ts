@@ -16,7 +16,7 @@ const nextConfig: NextConfig = {
     '@trading/news',
     '@trading/tracker',
   ],
-  serverExternalPackages: ['@googleapis/drive', 'dukascopy-node'],
+  serverExternalPackages: ['@googleapis/drive', 'dukascopy-node', 'lzma'],
 };
 
 export default nextConfig;
