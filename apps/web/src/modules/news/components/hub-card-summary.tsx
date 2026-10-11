@@ -14,7 +14,7 @@ export function NewsHubCardSummary({ summary, now }: { summary: NewsHubSummary |
   return (
     <div className="flex flex-col gap-3" data-testid="news-hub-summary">
       {summary.activeRestrictions.length > 0 && (
-        <p className="rounded-md bg-amber-500/15 px-2 py-1 text-amber-500" role="alert">
+        <p className="rounded-md bg-warning/15 px-2 py-1 text-warning" role="alert">
           ⚠️ Restriction window: {summary.activeRestrictions.map((e) => `${e.currency} ${e.title}`).join(', ')}
         </p>
       )}
@@ -26,7 +26,7 @@ export function NewsHubCardSummary({ summary, now }: { summary: NewsHubSummary |
           <ul className="flex flex-col gap-1 text-foreground">
             {summary.today.map((e) => (
               <li key={e.id} className="flex items-center gap-2">
-                <span className="tabular-nums">{formatBeirut(e.eventAt, 'HH:mm')}</span>
+                <span className="num">{formatBeirut(e.eventAt, 'HH:mm')}</span>
                 <Folder impact={e.impact} />
                 <span className="truncate">
                   {e.currency} {e.title}
@@ -48,7 +48,7 @@ export function NewsHubCardSummary({ summary, now }: { summary: NewsHubSummary |
           <div key={d.date} className="flex flex-col items-center gap-1">
             <div className="flex h-8 w-full items-end justify-center">
               <div
-                className={cn('w-4 rounded-sm', d.red ? 'bg-red-500' : 'bg-muted')}
+                className={cn('w-4 rounded-sm', d.red ? 'bg-loss' : 'bg-muted')}
                 style={{ height: `${Math.max(12, (d.red / max) * 100)}%` }}
                 title={`${d.red} red folders`}
               />

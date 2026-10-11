@@ -15,7 +15,7 @@ export function TradeNewsSection({ news }: { news: TradeNews }) {
       <h3 className="flex flex-wrap items-center gap-2 font-medium">
         News around this trade
         {news.inRestrictionWindow && (
-          <span className="rounded bg-amber-500/20 px-1.5 text-amber-500 text-xs" data-testid="restriction-badge">
+          <span className="rounded bg-warning/20 px-1.5 text-warning text-xs" data-testid="restriction-badge">
             ⚠️ Inside a restriction window ({news.window.minutesBefore}/{news.window.minutesAfter} min)
           </span>
         )}
@@ -26,7 +26,7 @@ export function TradeNewsSection({ news }: { news: TradeNews }) {
         <ul className="flex flex-col gap-1">
           {news.events.map((e) => (
             <li key={e.id} className="flex flex-wrap items-center gap-2">
-              <span className="tabular-nums">{formatBeirut(e.eventAt, 'HH:mm')}</span>
+              <span className="num">{formatBeirut(e.eventAt, 'HH:mm')}</span>
               <span className="inline-block h-2.5 w-2.5 rounded-sm" style={{ background: IMPACT_COLOURS[e.impact] }} />
               <span className="font-medium">{e.currency}</span>
               <span>{e.title}</span>

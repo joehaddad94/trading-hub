@@ -284,7 +284,7 @@ export function ChartWorkspace({
               aria-keyshortcuts={t === 15 ? 'F' : String(t)}
               onClick={() => void setTfParam(String(t))}
               className={cn(
-                'h-9 min-w-11 rounded-md px-2 tabular-nums',
+                'h-9 min-w-11 rounded-md px-2 num',
                 t === tf ? 'bg-accent text-accent-foreground' : 'text-muted-foreground hover:bg-accent/60',
               )}
             >

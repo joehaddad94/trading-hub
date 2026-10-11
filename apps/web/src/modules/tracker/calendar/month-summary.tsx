@@ -30,7 +30,7 @@ export function MonthSummary({ summary, statusEvents }: { summary: Summary; stat
         {items.map(([label, value]) => (
           <div key={label}>
             <dt className="text-muted-foreground">{label}</dt>
-            <dd className="font-medium tabular-nums">{value}</dd>
+            <dd className="font-medium num">{value}</dd>
           </div>
         ))}
       </dl>

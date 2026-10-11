@@ -65,14 +65,14 @@ export default async function ComparePage() {
                 {ROWS.map((row) => (
                   <tr
                     key={row.key}
-                    className={cn('border-b last:border-0', top.has(row.key) && 'bg-amber-500/10')}
+                    className={cn('border-b last:border-0', top.has(row.key) && 'bg-warning/10')}
                     data-highlight={top.has(row.key) || undefined}
                   >
                     <th scope="row" className="p-2 text-left font-normal text-muted-foreground">
                       {row.label}
                     </th>
                     {columns.map((col) => (
-                      <td key={col.label} className="p-2 tabular-nums">
+                      <td key={col.label} className="p-2 num">
                         {row.show(col.profile)}
                       </td>
                     ))}

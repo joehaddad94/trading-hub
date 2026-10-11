@@ -95,7 +95,7 @@ export default async function HistoryPage({ searchParams }: { searchParams: Prom
               <tbody>
                 {shown.map((o) => (
                   <tr key={o.id} className="border-t">
-                    <td className="py-1 tabular-nums">{formatBeirut(o.eventAt, 'd MMM yyyy HH:mm')}</td>
+                    <td className="py-1 num">{formatBeirut(o.eventAt, 'd MMM yyyy HH:mm')}</td>
                     <td className="py-1">{o.forecast ?? '—'}</td>
                     <td className="py-1">{o.previous ?? '—'}</td>
                     <td className="py-1">{o.isRestricted ? '🔒' : ''}</td>

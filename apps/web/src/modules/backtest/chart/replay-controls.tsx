@@ -63,7 +63,7 @@ export function ReplayControls({
       role="toolbar"
       aria-label="Replay"
     >
-      <span className="mr-1 font-medium tabular-nums" data-testid="replay-cursor" data-cursor={replay.cursor}>
+      <span className="mr-1 font-medium num" data-testid="replay-cursor" data-cursor={replay.cursor}>
         {formatCursor(replay.cursor, timezone)}
       </span>
       <button

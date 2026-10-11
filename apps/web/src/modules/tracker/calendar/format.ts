@@ -44,4 +44,4 @@ export function formatHold(ms: number | null): string {
 }
 
 /** Colour per account (dots and chart lines), stable by position in the scope. */
-export const ACCOUNT_COLOURS = ['#60a5fa', '#f59e0b', '#a78bfa', '#2dd4bf', '#f472b6', '#a3e635'];
+export const ACCOUNT_COLOURS = ['#4fd1e0', '#f5c26b', '#b4a2ff', '#f49ac1', '#a3e635', '#ff9f6b'];

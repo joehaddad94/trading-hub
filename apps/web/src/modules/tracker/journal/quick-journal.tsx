@@ -132,11 +132,9 @@ export function QuickJournal({
           <span className="block truncate text-muted-foreground text-xs">
             {t.account} · {formatBeirut(t.closedAt, 'EEE d MMM HH:mm')}
           </span>
-          <span className="block text-muted-foreground text-xs tabular-nums">Entry {entry}</span>
+          <span className="block text-muted-foreground text-xs num">Entry {entry}</span>
         </Link>
-        <span
-          className={cn('font-semibold text-lg tabular-nums', net.gt(0) && 'text-profit', net.lt(0) && 'text-loss')}
-        >
+        <span className={cn('font-semibold text-lg num', net.gt(0) && 'text-profit', net.lt(0) && 'text-loss')}>
           {formatMoney(t.netProfit)}
         </span>
       </div>

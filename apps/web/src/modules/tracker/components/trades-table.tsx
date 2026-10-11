@@ -65,14 +65,14 @@ export function TradesTable({
               const net = new Decimal(t.netProfit);
               return (
                 <tr key={t.id} className="relative border-b last:border-0 hover:bg-muted/50" data-testid="trade-row">
-                  <td className="p-2 tabular-nums">{formatBeirut(t.closedAt, 'd MMM yy HH:mm')}</td>
+                  <td className="p-2 num">{formatBeirut(t.closedAt, 'd MMM yy HH:mm')}</td>
                   <td className="p-2">
                     {a ? (
                       <Link
                         href={`/tracker/accounts/${a.login}` as Route}
                         className="relative z-10 inline-flex items-center gap-1 hover:underline"
                       >
-                        <span className="tabular-nums">{accountLabel(a)}</span>
+                        <span className="num">{accountLabel(a)}</span>
                         <StatusBadge status={a.status} />
                       </Link>
                     ) : (
@@ -85,17 +85,13 @@ export function TradesTable({
                     </Link>
                   </td>
                   <td className="p-2 capitalize">{t.side}</td>
-                  <td className="p-2 text-right tabular-nums">{t.lots}</td>
+                  <td className="p-2 text-right num">{t.lots}</td>
                   <td className="p-2">{SESSION_LABELS[sessionOf(t.openedAt)]}</td>
-                  <td className="p-2 text-right tabular-nums">
-                    {formatHold(t.closedAt.getTime() - t.openedAt.getTime())}
-                  </td>
-                  <td
-                    className={cn('p-2 text-right tabular-nums', net.gt(0) && 'text-profit', net.lt(0) && 'text-loss')}
-                  >
+                  <td className="p-2 text-right num">{formatHold(t.closedAt.getTime() - t.openedAt.getTime())}</td>
+                  <td className={cn('p-2 text-right num', net.gt(0) && 'text-profit', net.lt(0) && 'text-loss')}>
                     {formatMoney(t.netProfit)}
                   </td>
-                  <td className="p-2 text-right tabular-nums">
+                  <td className="p-2 text-right num">
                     {formatR(rMultiple(t.netProfit, t.riskUsd))}
                     {t.riskSource === 'estimated' && <EstBadge />}
                   </td>
@@ -122,9 +118,7 @@ export function TradesTable({
                 <Link href={`/tracker/trades/${t.id}` as Route} className={cn('font-medium', ROW_LINK)}>
                   {t.symbol} <span className="capitalize">{t.side}</span> · {t.lots}
                 </Link>
-                <span
-                  className={cn('font-semibold tabular-nums', net.gt(0) && 'text-profit', net.lt(0) && 'text-loss')}
-                >
+                <span className={cn('font-semibold num', net.gt(0) && 'text-profit', net.lt(0) && 'text-loss')}>
                   {formatMoney(t.netProfit)}
                 </span>
               </div>
@@ -133,7 +127,7 @@ export function TradesTable({
                   {a ? accountLabel(a) : '—'} · {formatBeirut(t.closedAt, 'd MMM HH:mm')} ·{' '}
                   {SESSION_LABELS[sessionOf(t.openedAt)]}
                 </span>
-                <span className="inline-flex items-center gap-2 tabular-nums">
+                <span className="inline-flex items-center gap-2 num">
                   <Flags trade={t} />
                   <span>
                     {formatR(rMultiple(t.netProfit, t.riskUsd))}
@@ -166,7 +160,7 @@ function Flags({ trade: t }: { trade: ListTrade }) {
         <span title="Journaled">📝</span>
       ) : (
         <span
-          className="inline-block h-2 w-2 rounded-full bg-amber-400"
+          className="inline-block h-2 w-2 rounded-full bg-warning"
           title="Not journaled"
           data-testid="needs-journal"
         >

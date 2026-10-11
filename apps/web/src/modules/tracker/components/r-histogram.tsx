@@ -14,12 +14,17 @@ export function RHistogram({ bins }: { bins: HistogramBin[] }) {
           <YAxis width={32} allowDecimals={false} tick={{ fontSize: 11 }} stroke="currentColor" opacity={0.5} />
           <Tooltip
             cursor={{ fillOpacity: 0.05 }}
-            contentStyle={{ background: 'var(--popover)', border: '1px solid var(--border)', fontSize: 12 }}
+            contentStyle={{
+              background: 'var(--popover)',
+              border: '1px solid var(--border)',
+              borderRadius: 8,
+              fontSize: 12,
+            }}
             formatter={(v) => [v, 'Trades']}
           />
-          <Bar dataKey="count" isAnimationActive={false}>
+          <Bar dataKey="count" radius={[3, 3, 0, 0]} isAnimationActive={false}>
             {bins.map((b) => (
-              <Cell key={b.label} fill={b.from !== null && b.from >= 0 ? '#22c55e' : '#ef4444'} />
+              <Cell key={b.label} fill={b.from !== null && b.from >= 0 ? 'var(--profit)' : 'var(--loss)'} />
             ))}
           </Bar>
         </BarChart>

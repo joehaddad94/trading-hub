@@ -68,7 +68,7 @@ export function IndicatorMenu({
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
                 }}
-                className="h-9 w-20 rounded-md border bg-background px-2 text-right tabular-nums"
+                className="h-9 w-20 rounded-md border bg-background px-2 text-right num"
               />
             </label>
           ))}

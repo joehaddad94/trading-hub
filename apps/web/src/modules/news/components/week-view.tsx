@@ -56,10 +56,10 @@ export function WeekView({
                             className={cn(
                               'grid grid-cols-[3.25rem_2.75rem_1.25rem_1fr_auto] items-start gap-x-2 px-3 py-2 text-sm hover:bg-accent md:grid-cols-[4rem_3rem_1.25rem_1fr_6rem_6rem_1.5rem]',
                               past && 'text-muted-foreground',
-                              isNext && 'bg-amber-500/10',
+                              isNext && 'bg-warning/10',
                             )}
                           >
-                            <span className="tabular-nums">
+                            <span className="num">
                               {i === 0 ? (e.impact === 'holiday' ? 'All day' : formatBeirut(e.eventAt, 'HH:mm')) : ''}
                             </span>
                             <span className="font-medium">{e.currency}</span>
@@ -67,7 +67,7 @@ export function WeekView({
                             <span className="min-w-0">
                               <span className="block">{e.title}</span>
                               {isNext && (
-                                <span className="block text-amber-500 text-xs">
+                                <span className="block text-warning text-xs">
                                   Next · <Countdown to={e.eventAt.toISOString()} now={now.toISOString()} />
                                 </span>
                               )}
@@ -77,8 +77,8 @@ export function WeekView({
                                 </span>
                               )}
                             </span>
-                            <span className="hidden tabular-nums md:block">{e.forecast ?? ''}</span>
-                            <span className="hidden tabular-nums md:block">{e.previous ?? ''}</span>
+                            <span className="hidden num md:block">{e.forecast ?? ''}</span>
+                            <span className="hidden num md:block">{e.previous ?? ''}</span>
                             <span title={e.isRestricted ? (e.restrictionLabel ?? 'Restricted') : undefined}>
                               {e.isRestricted ? '🔒' : ''}
                             </span>

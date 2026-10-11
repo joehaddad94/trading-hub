@@ -49,12 +49,17 @@ test.describe('signed in', () => {
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(
       page.viewportSize()?.width ?? 0,
     );
+    // Module pages are tabs under the header on every viewport; Money is the last one.
     const nav = page.getByRole('navigation', { name: 'Module' });
     await expect(nav.getByRole('link', { name: 'Calendar' })).toBeVisible();
+    await expect(nav.getByRole('link', { name: 'Money' })).toBeAttached();
+    // App-level navigation: icon rail on desktop, bottom tab bar on phone.
+    const modules = page.getByRole('navigation', { name: 'Modules' });
+    await expect(modules.getByRole('link', { name: 'News' })).toBeVisible();
     if (isMobile) {
-      await nav.getByText('More').click();
-      await expect(nav.getByRole('link', { name: 'Money' })).toBeVisible();
-    } else await expect(page.getByRole('navigation', { name: 'Other modules' })).toBeVisible();
+      await modules.getByText('More').click();
+      await expect(modules.getByRole('link', { name: 'Backtest' })).toBeVisible();
+    }
   });
 
   test('uploading the fixture imports it, and a re-upload changes nothing', async ({ page }) => {

@@ -12,11 +12,23 @@ export function NetCurve({ points }: { points: { label: string; net: number }[] 
           <XAxis dataKey="label" tick={{ fontSize: 11 }} stroke="currentColor" opacity={0.5} />
           <YAxis width={64} tick={{ fontSize: 11 }} stroke="currentColor" opacity={0.5} />
           <Tooltip
-            contentStyle={{ background: 'var(--popover)', border: '1px solid var(--border)', fontSize: 12 }}
+            contentStyle={{
+              background: 'var(--popover)',
+              border: '1px solid var(--border)',
+              borderRadius: 8,
+              fontSize: 12,
+            }}
             formatter={(v) => [typeof v === 'number' ? `$${v.toFixed(2)}` : v, 'Net']}
           />
           <ReferenceLine y={0} stroke="currentColor" strokeOpacity={0.3} strokeDasharray="4 4" />
-          <Line type="stepAfter" dataKey="net" stroke="#60a5fa" strokeWidth={2} dot isAnimationActive={false} />
+          <Line
+            type="stepAfter"
+            dataKey="net"
+            stroke="var(--primary)"
+            strokeWidth={2}
+            dot={{ r: 3, fill: 'var(--primary)' }}
+            isAnimationActive={false}
+          />
         </LineChart>
       </ResponsiveContainer>
     </div>

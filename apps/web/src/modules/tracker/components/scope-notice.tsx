@@ -9,7 +9,7 @@ export function ScopeNotice({ scope }: { scope: ResolvedScope }) {
   const what = scope.mixedDemoAndReal ? 'demo and real accounts' : 'account sizes';
   return (
     <p
-      className="w-fit rounded-full border border-amber-500/40 bg-amber-500/10 px-2.5 py-0.5 text-xs"
+      className="w-fit rounded-full border border-warning/40 bg-warning/10 px-2.5 py-0.5 text-xs"
       data-testid="scope-notice"
       title={`This scope mixes ${what}, so R is the fairer unit.`}
     >

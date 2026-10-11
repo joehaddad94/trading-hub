@@ -85,7 +85,7 @@ export function EventPanel({
                               {t.login} · {t.symbol} {t.side} · opened {Math.abs(mins)} min{' '}
                               {mins < 0 ? 'before' : 'after'}
                             </span>
-                            <span className={cn('tabular-nums', net.gt(0) && 'text-profit', net.lt(0) && 'text-loss')}>
+                            <span className={cn('num', net.gt(0) && 'text-profit', net.lt(0) && 'text-loss')}>
                               {formatMoney(t.netProfit)}
                             </span>
                           </Link>

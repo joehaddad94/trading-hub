@@ -49,7 +49,7 @@ export default async function SessionsPage() {
                       <div className="flex items-center gap-3">
                         <span
                           className={cn(
-                            'font-semibold tabular-nums',
+                            'font-semibold num',
                             s.net.startsWith('-') ? 'text-loss' : s.net !== '0.00' && 'text-profit',
                           )}
                         >

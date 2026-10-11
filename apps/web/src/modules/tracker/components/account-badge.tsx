@@ -3,13 +3,13 @@ import { accountLabel } from '../scope-label';
 
 /** §5.1 badge colours. */
 const STATUS_STYLES: Record<string, string> = {
-  active: 'bg-sky-500/15 text-sky-400',
+  active: 'bg-primary/15 text-primary',
   passed: 'bg-profit/15 text-profit',
   breached: 'bg-loss/15 text-loss',
   merged: 'bg-muted text-muted-foreground',
-  paused: 'bg-amber-500/15 text-amber-400',
+  paused: 'bg-warning/15 text-warning',
   closed_other: 'bg-muted text-muted-foreground',
-  missing: 'border border-amber-500 text-amber-400',
+  missing: 'border border-warning text-warning',
 };
 
 export function StatusBadge({ status }: { status: string }) {
@@ -36,7 +36,7 @@ export function AccountBadge({
   return (
     <span className="inline-flex items-center gap-1.5 text-sm">
       {colour && <span className="size-2 rounded-full" style={{ backgroundColor: colour }} aria-hidden />}
-      <span className="tabular-nums">{accountLabel(account)}</span>
+      <span className="num">{accountLabel(account)}</span>
       <StatusBadge status={account.status} />
     </span>
   );

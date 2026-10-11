@@ -22,14 +22,12 @@ export function StatsTable({ rows, label = 'Group' }: { rows: [string, TradeStat
               <th scope="row" className="p-2 text-left font-normal">
                 {name}
               </th>
-              <td className="p-2 text-right tabular-nums">{s.trades}</td>
-              <td
-                className={cn('p-2 text-right tabular-nums', s.net.gt(0) && 'text-profit', s.net.lt(0) && 'text-loss')}
-              >
+              <td className="p-2 text-right num">{s.trades}</td>
+              <td className={cn('p-2 text-right num', s.net.gt(0) && 'text-profit', s.net.lt(0) && 'text-loss')}>
                 {formatMoney(s.net)}
               </td>
-              <td className="p-2 text-right tabular-nums">{formatPct(s.winRate)}</td>
-              <td className="p-2 text-right tabular-nums">{formatR(s.expectancyR)}</td>
+              <td className="p-2 text-right num">{formatPct(s.winRate)}</td>
+              <td className="p-2 text-right num">{formatR(s.expectancyR)}</td>
             </tr>
           ))}
         </tbody>

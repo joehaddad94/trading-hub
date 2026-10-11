@@ -68,7 +68,7 @@ export default async function TradePage({ params }: { params: Promise<{ id: stri
             {t.symbol} <span className="capitalize">{t.side}</span> · {t.lots}
           </h2>
           <p
-            className={cn('font-semibold text-lg tabular-nums', net.gt(0) && 'text-profit', net.lt(0) && 'text-loss')}
+            className={cn('font-semibold text-lg num', net.gt(0) && 'text-profit', net.lt(0) && 'text-loss')}
             data-testid="trade-net"
           >
             {formatMoney(t.netProfit)} · {formatR(r)}
@@ -93,12 +93,12 @@ export default async function TradePage({ params }: { params: Promise<{ id: stri
         {facts.map(([label, value]) => (
           <div key={label} className="flex min-w-0 flex-col">
             <dt className="text-muted-foreground text-xs">{label}</dt>
-            <dd className="truncate tabular-nums">{value}</dd>
+            <dd className="truncate num">{value}</dd>
           </div>
         ))}
       </dl>
       {t.riskSource === 'estimated' && (
-        <p className="text-amber-400 text-sm">
+        <p className="text-warning text-sm">
           Risk is estimated. Add the initial stop loss below to get a real R for this trade.
         </p>
       )}

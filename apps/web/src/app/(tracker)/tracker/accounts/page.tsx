@@ -43,7 +43,7 @@ export default async function AccountsPage() {
                     data-testid={`account-${a.login}`}
                   >
                     <div className="flex flex-wrap items-center justify-between gap-2">
-                      <span className="font-medium tabular-nums">
+                      <span className="font-medium num">
                         {a.login} · {PHASE_LABELS[a.phase] ?? a.phase}
                       </span>
                       <StatusBadge status={a.status} />
@@ -56,19 +56,13 @@ export default async function AccountsPage() {
                         {date(a.startedAt)} → {date(a.endedAt)}
                       </dd>
                       <dt className="text-muted-foreground">Final balance</dt>
-                      <dd className="tabular-nums">{a.finalBalance ? formatMoney(a.finalBalance) : '—'}</dd>
+                      <dd className="num">{a.finalBalance ? formatMoney(a.finalBalance) : '—'}</dd>
                       <dt className="text-muted-foreground">Net P/L</dt>
-                      <dd
-                        className={cn(
-                          'tabular-nums',
-                          a.stats.net.gt(0) && 'text-profit',
-                          a.stats.net.lt(0) && 'text-loss',
-                        )}
-                      >
+                      <dd className={cn('num', a.stats.net.gt(0) && 'text-profit', a.stats.net.lt(0) && 'text-loss')}>
                         {formatMoney(a.stats.net)}
                       </dd>
                       <dt className="text-muted-foreground">Trades · win rate</dt>
-                      <dd className="tabular-nums">
+                      <dd className="num">
                         {a.stats.trades} · {formatPct(a.stats.winRate)}
                       </dd>
                     </dl>

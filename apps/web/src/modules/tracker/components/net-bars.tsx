@@ -37,9 +37,9 @@ export function NetBars({ bars, testId }: { bars: NetBar[]; testId: string }) {
               );
             }}
           />
-          <Bar dataKey="net" isAnimationActive={false}>
+          <Bar dataKey="net" radius={[3, 3, 3, 3]} isAnimationActive={false}>
             {bars.map((b) => (
-              <Cell key={b.label} fill={b.net >= 0 ? '#22c55e' : '#ef4444'} />
+              <Cell key={b.label} fill={b.net >= 0 ? 'var(--profit)' : 'var(--loss)'} />
             ))}
           </Bar>
         </BarChart>

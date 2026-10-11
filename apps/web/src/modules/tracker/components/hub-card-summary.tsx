@@ -23,25 +23,19 @@ export function TrackerHubCardSummary({
     <dl className="grid grid-cols-2 gap-x-3 gap-y-2" data-testid="tracker-hub-summary">
       <div className="col-span-2">
         <dt>{summary.monthLabel}</dt>
-        <dd
-          className={cn(
-            'font-semibold text-lg tabular-nums',
-            net.gt(0) && 'text-emerald-500',
-            net.lt(0) && 'text-red-500',
-          )}
-        >
+        <dd className={cn('font-semibold text-lg num', net.gt(0) && 'text-profit', net.lt(0) && 'text-loss')}>
           {formatMoney(net)}
         </dd>
       </div>
       <div>
         <dt>Green days</dt>
-        <dd className="text-foreground tabular-nums">
+        <dd className="text-foreground num">
           {summary.greenDays} / {summary.tradingDays}
         </dd>
       </div>
       <div>
         <dt>To journal</dt>
-        <dd className="text-foreground tabular-nums">
+        <dd className="text-foreground num">
           {summary.awaitingJournal > 0 ? (
             <Link
               href="/tracker/journal?view=quick"
@@ -57,7 +51,7 @@ export function TrackerHubCardSummary({
       </div>
       <div className="col-span-2">
         <dt>Active account</dt>
-        <dd className="text-foreground tabular-nums">
+        <dd className="text-foreground num">
           {first ? `${accountLabel(first)} · ${first.balance ? formatMoney(first.balance) : 'no balance yet'}` : 'None'}
           {rest.length > 0 && <span className="text-muted-foreground"> +{rest.length} more</span>}
         </dd>
@@ -70,12 +64,12 @@ export function TrackerHubCardSummary({
 function MaxLossRoom({ room, limit }: HubMaxLoss) {
   const left = Decimal.max(0, Decimal.min(1, new Decimal(room).div(limit)));
   const pct = left.times(100).toFixed(0);
-  const tone = left.lte(0.2) ? 'bg-red-500' : left.lte(0.5) ? 'bg-amber-500' : 'bg-emerald-500';
+  const tone = left.lte(0.2) ? 'bg-red-500' : left.lte(0.5) ? 'bg-warning' : 'bg-emerald-500';
   return (
     <div className="col-span-2" data-testid="hub-max-loss">
       <dt className="flex justify-between">
         <span>Room to max loss</span>
-        <span className="text-foreground tabular-nums">
+        <span className="text-foreground num">
           {formatMoney(room)} <span className="text-muted-foreground">of {formatMoney(limit)}</span>
         </span>
       </dt>

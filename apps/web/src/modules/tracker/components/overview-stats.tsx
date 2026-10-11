@@ -28,7 +28,7 @@ export function OverviewStats({ data, scope }: { data: OverviewData; scope: Reso
           {items.map(([label, value, tone]) => (
             <div key={label}>
               <dt className="text-muted-foreground">{label}</dt>
-              <dd className={cn('font-medium tabular-nums', tone)}>{value}</dd>
+              <dd className={cn('font-medium num', tone)}>{value}</dd>
             </div>
           ))}
         </dl>

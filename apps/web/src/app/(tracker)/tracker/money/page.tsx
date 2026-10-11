@@ -58,7 +58,7 @@ export default async function MoneyPage({ searchParams }: { searchParams: Promis
         ).map(([label, value, cls]) => (
           <div key={label} className="rounded-lg border p-3">
             <dt className="text-muted-foreground text-xs">{label}</dt>
-            <dd className={cn('font-semibold text-lg tabular-nums', cls)}>{formatMoney(value)}</dd>
+            <dd className={cn('font-semibold text-lg num', cls)}>{formatMoney(value)}</dd>
           </div>
         ))}
       </dl>
@@ -107,10 +107,10 @@ export default async function MoneyPage({ searchParams }: { searchParams: Promis
                   </div>
                   <div className="flex items-center gap-3">
                     <div className="text-right">
-                      <p className={cn('font-semibold tabular-nums', tone(new Decimal(r.amountUsd)))}>
+                      <p className={cn('font-semibold num', tone(new Decimal(r.amountUsd)))}>
                         {formatMoney(r.amountUsd)}
                       </p>
-                      {net && <p className="text-muted-foreground text-xs tabular-nums">net {formatMoney(net)}</p>}
+                      {net && <p className="text-muted-foreground text-xs num">net {formatMoney(net)}</p>}
                     </div>
                     {r.manual && (
                       <ActionForm

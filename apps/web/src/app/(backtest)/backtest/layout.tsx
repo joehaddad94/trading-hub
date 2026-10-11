@@ -1,18 +1,15 @@
 import type { ReactNode } from 'react';
 import { CandleBanner } from '@/modules/backtest/components/candle-banner';
-import { ImportOnOpen } from '@/shell/import-on-open';
-import { ModuleHeader } from '@/shell/module-header';
-import { SyncBanner } from '@/shell/sync-banner';
+import { AppShell } from '@/shell/app-shell';
+import { getModule } from '@/shell/modules';
 
-/** Full-screen lab layout: no module sidebar (tracker spec §8.0). */
+/** Full-screen lab layout (tracker spec §8.0): the chart fills the screen on desktop. */
 export default function BacktestLayout({ children }: { children: ReactNode }) {
+  const mod = getModule('backtest');
   return (
-    <div className="flex min-h-dvh flex-col md:h-dvh">
-      <ImportOnOpen />
-      <ModuleHeader moduleId="backtest" />
-      <SyncBanner />
+    <AppShell title={mod.name} nav={mod.nav} rootHref={mod.href} fill>
       <CandleBanner />
-      <main className="flex flex-1 flex-col md:overflow-hidden">{children}</main>
-    </div>
+      <main className="flex min-h-0 flex-1 flex-col md:overflow-hidden">{children}</main>
+    </AppShell>
   );
 }

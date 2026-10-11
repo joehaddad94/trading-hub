@@ -28,14 +28,14 @@ export function StatusStrip({
       role="alert"
       className={cn(
         'border-b px-4 text-sm',
-        tone === 'error' ? 'border-loss/40 bg-loss/10' : 'border-amber-500/40 bg-amber-500/10',
+        tone === 'error' ? 'border-loss/40 bg-loss/10' : 'border-warning/40 bg-warning/10',
       )}
     >
       <details className="group mx-auto max-w-5xl">
         <summary className="flex cursor-pointer list-none items-center gap-2 py-1.5 [&::-webkit-details-marker]:hidden">
           <span
             aria-hidden
-            className={cn('h-2 w-2 shrink-0 rounded-full', tone === 'error' ? 'bg-loss' : 'bg-amber-500')}
+            className={cn('h-2 w-2 shrink-0 rounded-full', tone === 'error' ? 'bg-loss' : 'bg-warning')}
           />
           <span className={cn('shrink-0 font-medium', tone === 'error' && 'text-loss')}>{title}</span>
           <span className="min-w-0 flex-1 truncate text-muted-foreground group-open:invisible">{first.message}</span>

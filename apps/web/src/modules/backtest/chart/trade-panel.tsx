@@ -87,13 +87,13 @@ function OrderRow({ order: o, trading, timezone }: { order: OrderView; trading: 
       <span className={cn('w-12 font-medium', o.side === 'long' ? 'text-profit' : 'text-loss')}>
         {o.side === 'long' ? 'Long' : 'Short'}
       </span>
-      <span className="tabular-nums">
+      <span className="num">
         {o.instrument} {o.lots}
       </span>
       <span className="text-muted-foreground">
         {o.status === 'pending' ? `${o.type} @ ${num(o.entry)}` : `@ ${num(o.fillPrice)}`}
       </span>
-      <span className="text-muted-foreground tabular-nums">
+      <span className="text-muted-foreground num">
         SL {num(o.sl)} · TP {num(o.tp)}
       </span>
       {o.status === 'closed' ? (
@@ -102,7 +102,7 @@ function OrderRow({ order: o, trading, timezone }: { order: OrderView; trading: 
             {REASON[o.exitReason ?? ''] ?? ''} {when(o.closedAt, timezone)}
             {o.ambiguous && ' · ambiguous bar'}
           </span>
-          <span className={cn('tabular-nums font-medium', pnl !== null && pnl < 0 ? 'text-loss' : 'text-profit')}>
+          <span className={cn('num font-medium', pnl !== null && pnl < 0 ? 'text-loss' : 'text-profit')}>
             {o.net} {o.r !== null && `(${o.r}R)`}
           </span>
           <button
@@ -155,7 +155,7 @@ function OrderRow({ order: o, trading, timezone }: { order: OrderView; trading: 
               value={sl}
               onChange={(e) => setSl(e.target.value)}
               inputMode="decimal"
-              className="h-8 w-28 rounded-md border bg-background px-2 tabular-nums"
+              className="h-8 w-28 rounded-md border bg-background px-2 num"
             />
           </label>
           <label className="flex items-center gap-1">
@@ -164,7 +164,7 @@ function OrderRow({ order: o, trading, timezone }: { order: OrderView; trading: 
               value={tp}
               onChange={(e) => setTp(e.target.value)}
               inputMode="decimal"
-              className="h-8 w-28 rounded-md border bg-background px-2 tabular-nums"
+              className="h-8 w-28 rounded-md border bg-background px-2 num"
             />
           </label>
           <button type="submit" className="h-8 rounded-md bg-accent px-3">
