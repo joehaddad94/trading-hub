@@ -128,6 +128,8 @@ export type QueueTrade = {
   side: 'buy' | 'sell';
   closedAt: Date;
   netProfit: string;
+  lots: string;
+  openPrice: string;
   riskSource: (typeof trades.$inferSelect)['riskSource'];
 };
 
@@ -141,6 +143,8 @@ export async function journalQueue(db: Executor, scope: ResolvedScope, limit = 5
     side: trades.side,
     closedAt: trades.closedAt,
     netProfit: trades.netProfit,
+    lots: trades.lots,
+    openPrice: trades.openPrice,
     riskSource: trades.riskSource,
   };
   const where = (journaled: boolean) =>

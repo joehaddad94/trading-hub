@@ -41,6 +41,16 @@ export const journalSchema = z.object({
 });
 
 export type JournalFormInput = z.input<typeof journalSchema>;
+
+/** Quick journal card (audit U6): the three fields that matter most, one trade at a time. */
+export const quickJournalSchema = journalSchema.pick({
+  tradeId: true,
+  followedPlan: true,
+  setupTagId: true,
+  initialSl: true,
+});
+
+export type QuickJournalInput = z.input<typeof quickJournalSchema>;
 export type JournalFormValues = z.output<typeof journalSchema>;
 
 /** Rejects an initial stop on the wrong side of entry (above a buy / below a sell). */

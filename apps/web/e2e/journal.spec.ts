@@ -135,4 +135,22 @@ test.describe('journal (M9)', () => {
       .click();
     await expect(page.getByRole('form', { name: `Tag ${name}` })).toHaveCount(0);
   });
+
+  test('quick journal: one card per trade, Save & next and Skip (U6)', async ({ page }) => {
+    await page.goto(`/tracker/journal?scope=${SCOPE}`);
+    const before = Number((await page.getByTestId('journal-pending-count').textContent())?.match(/^(\d+)/)?.[1]);
+    await page.getByRole('link', { name: 'Quick journal' }).click();
+    await expect(page.getByTestId('quick-journal-progress')).toHaveText(/^1 of \d+/);
+    const save = page.getByRole('button', { name: 'Save & next' });
+    await expect(save).toBeDisabled();
+    await page.getByRole('button', { name: 'No', exact: true }).click();
+    await save.click();
+    await expect(page.getByTestId('quick-journal-progress')).toHaveText(/^2 of \d+/);
+    await expect(page.getByTestId('quick-journal')).toContainText('1 saved');
+    await page.getByRole('button', { name: 'Skip' }).click();
+    await expect(page.getByTestId('quick-journal-progress')).toHaveText(/^3 of \d+/);
+
+    await page.goto(`/tracker/journal?scope=${SCOPE}`);
+    await expect(page.getByTestId('journal-pending-count')).toContainText(`${before - 1} trade`);
+  });
 });

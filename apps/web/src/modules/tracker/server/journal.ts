@@ -72,6 +72,31 @@ export async function writeTradeJournal(tradeId: string, input: JournalInput) {
   });
 }
 
+/**
+ * Quick journal (audit U6): plan yes/no, setup and an optional initial SL for a trade that has no entry yet.
+ * Refuses a trade that was journaled meanwhile, so it never blanks a fuller entry.
+ */
+export async function writeQuickJournal(
+  tradeId: string,
+  quick: Pick<JournalInput, 'followedPlan' | 'setupTagId' | 'initialSl'>,
+) {
+  const db = requireDb();
+  const detail = await tradeJournal(db, tradeId);
+  if (!detail) throw new JournalError('Trade not found.');
+  if (detail.entry) throw new JournalError('This trade is already journaled; open it to edit.');
+  await writeTradeJournal(tradeId, {
+    ...quick,
+    plannedRr: null,
+    plannedRiskUsd: null,
+    emotionBefore: null,
+    emotionAfter: null,
+    mistakes: [],
+    contextTagIds: [],
+    notes: null,
+    rating: null,
+  });
+}
+
 /** Risk tagged from the queue as % of the starting balance; null clears it. Then re-resolves R. */
 export async function writeTradeRisk(tradeId: string, pct: string | null) {
   const db = requireDb();
