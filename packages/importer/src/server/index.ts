@@ -23,6 +23,7 @@ export {
   ReprocessError,
   releaseImportLease,
   reprocessImport,
+  retryRejectedImports,
   runInboxImport,
 } from './run';
 export { learnSymbolSpecs } from './symbols';

@@ -55,7 +55,8 @@ export async function readSyncHealthInput(db: Db, now: Date): Promise<SyncHealth
       importError: rawImports.importError,
     })
     .from(rawImports)
-    .orderBy(sql`${rawImports.generatedAt} desc nulls last`, desc(rawImports.createdAt))
+    // A file too broken to carry generated_at is dated by its arrival, so its rejection still shows.
+    .orderBy(sql`coalesce(${rawImports.generatedAt}, ${rawImports.createdAt}) desc`, desc(rawImports.createdAt))
     .limit(1);
   const missing = await db
     .select({ login: accounts.login, since: accounts.statusChangedAt })
