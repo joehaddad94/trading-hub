@@ -1,7 +1,20 @@
 'use client';
 
 import type { DrawingStyle } from '@trading/backtest';
-import { Eye, EyeOff, Lock, LockOpen, MousePointer2, Trash2 } from 'lucide-react';
+import {
+  Eye,
+  EyeOff,
+  Lock,
+  LockOpen,
+  type LucideIcon,
+  Minus,
+  MousePointer2,
+  Ruler,
+  Slash,
+  Trash2,
+  TrendingDown,
+  TrendingUp,
+} from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { TOOLS } from './tools/registry';
 import type { useDrawings } from './use-drawings';
@@ -10,9 +23,17 @@ type Drawings = ReturnType<typeof useDrawings>;
 
 const COLOURS = ['#60a5fa', '#f87171', '#4ade80', '#facc15', '#a78bfa', '#f9fafb'];
 const SHORT: Record<string, string> = { horizontal: 'H', trend: 'T', long: 'L', short: 'S', measure: 'M' };
+/** TradingView-style tool icons. */
+const ICONS: Record<string, LucideIcon> = {
+  horizontal: Minus,
+  trend: Slash,
+  long: TrendingUp,
+  short: TrendingDown,
+  measure: Ruler,
+};
 
 const tile =
-  'flex size-10 shrink-0 items-center justify-center rounded-md text-sm text-muted-foreground hover:bg-accent/60 aria-pressed:bg-accent aria-pressed:text-accent-foreground';
+  'flex size-10 shrink-0 items-center justify-center rounded-md text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-foreground aria-pressed:bg-primary/15 aria-pressed:text-primary';
 
 /** Left toolbar on desktop, a bottom row on phones (spec §4). */
 export function DrawingToolbar({ drawings }: { drawings: Drawings }) {
@@ -21,7 +42,7 @@ export function DrawingToolbar({ drawings }: { drawings: Drawings }) {
       role="toolbar"
       aria-label="Drawing tools"
       aria-orientation="vertical"
-      className="flex shrink-0 gap-1 overflow-x-auto border-t p-1 md:flex-col md:overflow-x-hidden md:overflow-y-auto md:border-t-0 md:border-r"
+      className="flex shrink-0 gap-1 overflow-x-auto border-t p-1 md:w-12 md:flex-col md:items-center md:overflow-x-hidden md:overflow-y-auto md:border-t-0 md:border-r"
     >
       <button
         type="button"
@@ -43,9 +64,7 @@ export function DrawingToolbar({ drawings }: { drawings: Drawings }) {
           title={`${t.label} (Alt+${SHORT[t.id]})`}
           onClick={() => drawings.start(t.id)}
         >
-          <span aria-hidden className="font-semibold">
-            {SHORT[t.id]}
-          </span>
+          <ToolIcon id={t.id} />
           <span className="sr-only">{t.label}</span>
         </button>
       ))}
@@ -72,6 +91,17 @@ export function DrawingToolbar({ drawings }: { drawings: Drawings }) {
         <span className="sr-only">Delete all drawings</span>
       </button>
     </div>
+  );
+}
+
+function ToolIcon({ id }: { id: string }) {
+  const Icon = ICONS[id];
+  return Icon ? (
+    <Icon className="size-[18px]" aria-hidden strokeWidth={1.8} />
+  ) : (
+    <span aria-hidden className="font-semibold">
+      {SHORT[id]}
+    </span>
   );
 }
 

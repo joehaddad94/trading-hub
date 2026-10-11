@@ -1,7 +1,7 @@
 'use client';
 
 import { INDICATORS } from '@trading/indicators';
-import { Settings2 } from 'lucide-react';
+import { ChartSpline, Settings2 } from 'lucide-react';
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
 import { INDICATOR_COLOURS, type IndicatorPrefs } from './indicators';
@@ -20,6 +20,10 @@ export function IndicatorMenu({
   return (
     <fieldset className="relative flex items-center gap-1">
       <legend className="sr-only">Indicators</legend>
+      <span className="flex items-center gap-1 px-1 text-muted-foreground" title="Indicators">
+        <ChartSpline className="size-4" aria-hidden />
+        <span className="hidden lg:inline">Indicators</span>
+      </span>
       {INDICATORS.map((d) => {
         const p = prefs[d.id];
         return (

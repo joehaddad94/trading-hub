@@ -69,6 +69,25 @@
   --radius-xl: calc(var(--radius) + 4px);
 }
 
+/* Backtest Lab workspace: TradingView's dark chart palette (design spec). Re-points the shared tokens. */
+@utility tv-dark {
+  --background: #131722;
+  --foreground: #d1d4dc;
+  --card: #1e222d;
+  --popover: #1e222d;
+  --popover-foreground: #d1d4dc;
+  --muted: #2a2e39;
+  --muted-foreground: #868993;
+  --accent: #2a2e39;
+  --accent-foreground: #ffffff;
+  --border: #2a2e39;
+  --input: #363a45;
+  --profit: #089981;
+  --loss: #f23645;
+  background-color: #131722;
+  color: #d1d4dc;
+}
+
 /* Every number: Geist Mono with tabular figures. */
 @utility num {
   font-family: var(--font-mono);
