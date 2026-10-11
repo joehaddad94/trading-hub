@@ -17,8 +17,10 @@
     "@trading/core": "workspace:*",
     "@trading/db": "workspace:*",
     "@trading/importer": "workspace:*",
+    "aws4fetch": "1.0.20",
     "decimal.js": "^10.6.0",
-    "dukascopy-node": "1.50.0"
+    "dukascopy-node": "1.50.0",
+    "lzma": "2.3.2"
   },
   "devDependencies": {
     "@trading/config": "workspace:*"
