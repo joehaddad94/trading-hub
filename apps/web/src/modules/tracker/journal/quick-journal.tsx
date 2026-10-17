@@ -62,7 +62,7 @@ export function QuickJournal({
 
   if (!t) {
     return (
-      <section className="flex flex-col items-start gap-3 rounded-lg border p-4" data-testid="quick-journal-done">
+      <section className="flex flex-col items-start gap-3 glass rounded-xl p-4" data-testid="quick-journal-done">
         <p className="font-medium">
           {saved > 0 ? `${saved} journaled.` : 'Nothing left in this batch.'}{' '}
           {total - saved > 0 ? `${total - saved} still to journal.` : 'Everything in scope is journaled.'}
@@ -101,7 +101,7 @@ export function QuickJournal({
 
   return (
     <section
-      className="flex flex-col gap-4 rounded-lg border p-4 md:max-w-md"
+      className="flex flex-col gap-4 glass rounded-xl p-4 md:max-w-md"
       aria-label="Quick journal"
       data-testid="quick-journal"
       onTouchStart={(e) => {
@@ -132,11 +132,9 @@ export function QuickJournal({
           <span className="block truncate text-muted-foreground text-xs">
             {t.account} · {formatBeirut(t.closedAt, 'EEE d MMM HH:mm')}
           </span>
-          <span className="block text-muted-foreground text-xs tabular-nums">Entry {entry}</span>
+          <span className="block text-muted-foreground text-xs num">Entry {entry}</span>
         </Link>
-        <span
-          className={cn('font-semibold text-lg tabular-nums', net.gt(0) && 'text-profit', net.lt(0) && 'text-loss')}
-        >
+        <span className={cn('font-semibold text-lg num', net.gt(0) && 'text-profit', net.lt(0) && 'text-loss')}>
           {formatMoney(t.netProfit)}
         </span>
       </div>

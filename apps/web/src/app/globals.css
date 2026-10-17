@@ -3,32 +3,44 @@
 
 @custom-variant dark (&:is(.dark *));
 
-/* Dark theme only (tech-architecture.md §1). shadcn/ui tokens. */
+/* One theme: the "Fog" mid-tone with frosted glass cards (docs/specs/design-spec.md). shadcn/ui token names. */
 :root {
   --radius: 0.625rem;
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
-  --profit: oklch(0.723 0.219 149.579);
-  --loss: oklch(0.704 0.191 22.216);
+  --background: #3b4250;
+  --foreground: #f6f8fb;
+  --card: rgb(22 27 36 / 0.3);
+  --card-foreground: #f6f8fb;
+  --popover: #363d4a;
+  --popover-foreground: #f6f8fb;
+  --primary: #4fd1e0;
+  --primary-foreground: #062a2f;
+  --secondary: rgb(255 255 255 / 0.08);
+  --secondary-foreground: #f6f8fb;
+  --muted: rgb(255 255 255 / 0.06);
+  --muted-foreground: #c3cad6;
+  --accent: rgb(255 255 255 / 0.09);
+  --accent-foreground: #f6f8fb;
+  --destructive: #ff8da1;
+  --border: rgb(255 255 255 / 0.11);
+  --input: rgb(255 255 255 / 0.16);
+  --ring: #4fd1e0;
+  --profit: #3ecf8e;
+  --loss: #ff8da1;
+  --warning: #f5c26b;
+  --chrome: rgb(26 31 40 / 0.55);
+  /* Account colours for multi-account charts: never mint or rose, so they can't read as profit/loss. */
+  --chart-1: #4fd1e0;
+  --chart-2: #f5c26b;
+  --chart-3: #b4a2ff;
+  --chart-4: #f49ac1;
+  --chart-5: #a3e635;
+  --chart-6: #ff9f6b;
+  color-scheme: dark;
 }
 
 @theme inline {
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, "SFMono-Regular", monospace;
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
@@ -49,17 +61,119 @@
   --color-ring: var(--ring);
   --color-profit: var(--profit);
   --color-loss: var(--loss);
+  --color-warning: var(--warning);
+  --color-chrome: var(--chrome);
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
 }
 
+/* Backtest Lab workspace: TradingView's dark chart palette (design spec). Re-points the shared tokens. */
+@utility tv-dark {
+  --background: #131722;
+  --foreground: #d1d4dc;
+  --card: #1e222d;
+  --popover: #1e222d;
+  --popover-foreground: #d1d4dc;
+  --muted: #2a2e39;
+  --muted-foreground: #868993;
+  --accent: #2a2e39;
+  --accent-foreground: #ffffff;
+  --border: #2a2e39;
+  --input: #363a45;
+  --profit: #089981;
+  --loss: #f23645;
+  background-color: #131722;
+  color: #d1d4dc;
+}
+
+/* Every number: Geist Mono with tabular figures. */
+@utility num {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Frosted glass surface (cards, bars). */
+@utility glass {
+  background-color: var(--card);
+  border: 1px solid var(--border);
+  backdrop-filter: blur(14px) saturate(1.15);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.06),
+    0 10px 30px -12px rgb(0 0 0 / 0.35);
+}
+
+/* Lively motion (design spec): cards rise in with a short stagger. Tables and inputs never animate. */
+@utility rise {
+  animation: rise 0.5s cubic-bezier(0.2, 1.2, 0.4, 1) both;
+  animation-delay: calc(var(--i, 0) * 60ms);
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes green-glow {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgb(62 207 142 / 0);
+  }
+  50% {
+    box-shadow: 0 0 40px -6px rgb(62 207 142 / 0.45);
+  }
+}
+
+@utility green-day {
+  animation: green-glow 3.2s ease-in-out 0.4s 2;
+}
+
+@keyframes shimmer {
+  from {
+    background-position: 200% 0;
+  }
+  to {
+    background-position: -200% 0;
+  }
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;
   }
+  html {
+    background-color: var(--background);
+  }
   body {
-    @apply bg-background text-foreground antialiased;
+    @apply bg-background font-sans text-foreground antialiased;
+    background-image:
+      radial-gradient(900px 600px at 0% -10%, rgb(79 209 224 / 0.16), transparent 60%),
+      radial-gradient(800px 600px at 100% 110%, rgb(180 162 255 / 0.1), transparent 60%);
+    background-attachment: fixed;
+  }
+  ::selection {
+    background: rgb(79 209 224 / 0.35);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    /* biome-ignore lint/complexity/noImportantStyles: reduced motion must beat every animation */
+    animation-duration: 0.01ms !important;
+    /* biome-ignore lint/complexity/noImportantStyles: reduced motion must beat every animation */
+    animation-iteration-count: 1 !important;
+    /* biome-ignore lint/complexity/noImportantStyles: reduced motion must beat every animation */
+    animation-delay: 0ms !important;
+    /* biome-ignore lint/complexity/noImportantStyles: reduced motion must beat every animation */
+    transition-duration: 0.01ms !important;
   }
 }

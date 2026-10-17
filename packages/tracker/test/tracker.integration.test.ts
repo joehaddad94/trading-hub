@@ -108,6 +108,22 @@ describe.skipIf(!url)('trackerHubSummary', () => {
       expect(s.activeAccounts.map((a) => a.login)).toEqual([7002880]);
       expect(s.activeAccounts[0]?.balance).toBe('23655.29');
       expect(s.hasData).toBe(true);
+
+      // NOW is Sunday 11 Oct 02:05 Beirut: no trades today; the week runs from Monday 5 Oct.
+      const [week] = await tx.execute<{ net: string; n: number; wins: number }>(sql`
+        select coalesce(sum(net_profit), 0)::text as net, count(*)::int as n,
+               count(*) filter (where net_profit > 0)::int as wins
+        from trades
+        where source = 'live' and (closed_at at time zone 'Asia/Beirut')::date >= date '2026-10-05'
+      `);
+      expect(s.today).toEqual({ net: '0.00', trades: 0 });
+      expect(s.week.net).toBe(Number(week?.net).toFixed(2));
+      expect(s.week.trades).toBe(week?.n);
+      expect(s.monthCurve[0]).toBe('0.00');
+      expect(s.monthCurve.at(-1)).toBe(s.monthNet);
+      expect(s.recent).toHaveLength(5);
+      const times = s.recent.map((t) => t.closedAt.getTime());
+      expect(times).toEqual([...times].sort((a, b) => b - a));
     });
   });
 

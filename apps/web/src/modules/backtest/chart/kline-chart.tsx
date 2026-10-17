@@ -108,7 +108,7 @@ export function KLineChart(props: ChartProps) {
   const [lastBar, setLastBar] = useState<Bar | null>(null);
 
   // The chart is created once; prop changes are applied by the effects below.
-  // biome-ignore lint/correctness/useExhaustiveDependencies: timezone is applied by its own effect.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: timezone and styles are applied by their own effects.
   useEffect(() => {
     let disposed = false;
     let lib: Klinecharts | null = null;
@@ -139,7 +139,10 @@ export function KLineChart(props: ChartProps) {
       for (const t of INDICATOR_TEMPLATES) if (!k.getSupportedIndicators().includes(t.name)) k.registerIndicator(t);
       const overlays = k.getSupportedOverlays();
       for (const tool of TOOLS) if (!overlays.includes(tool.overlay.name)) k.registerOverlay(tool.overlay);
-      const chart = k.init(node, { styles: chartStyles, timezone });
+      const chart = k.init(node, {
+        styles: chartStyles({ label: `${instrument.code} · ${tf}m`, digits: instrument.priceDigits }),
+        timezone,
+      });
       if (!chart) return;
       chartRef.current = chart;
       chart.subscribeAction('onCrosshairChange', (data) => {
@@ -257,6 +260,13 @@ export function KLineChart(props: ChartProps) {
   useEffect(() => {
     if (ready) chartRef.current?.setTimezone(timezone);
   }, [ready, timezone]);
+
+  useEffect(() => {
+    if (ready)
+      chartRef.current?.setStyles(
+        chartStyles({ label: `${instrument.code} · ${tf}m`, digits: instrument.priceDigits }),
+      );
+  }, [ready, instrument.code, instrument.priceDigits, tf]);
 
   useEffect(() => {
     const chart = chartRef.current;

@@ -135,14 +135,14 @@ function Week({
             <span className="text-muted-foreground">No trades</span>
           ) : (
             <>
-              <span className={cn('font-semibold tabular-nums', tone)}>
+              <span className={cn('font-semibold num', tone)}>
                 {cell === 'pct' ? cellValue(summary, 'pct', total) : formatMoneyShort(summary.net)}
               </span>
-              <span className="text-muted-foreground tabular-nums">{formatR(summary.netR)}</span>
-              <span className="text-muted-foreground tabular-nums">
+              <span className="text-muted-foreground num">{formatR(summary.netR)}</span>
+              <span className="text-muted-foreground num">
                 {pluralTrades(summary.trades)} · {formatPct(summary.winRate)}
               </span>
-              <span className="text-muted-foreground tabular-nums">
+              <span className="text-muted-foreground num">
                 {summary.greenDays} green · {summary.redDays} red
               </span>
             </>

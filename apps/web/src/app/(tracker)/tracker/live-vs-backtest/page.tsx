@@ -42,7 +42,7 @@ export default async function LiveVsBacktestPage({ searchParams }: { searchParam
           {report.rows.map((row) => (
             <section
               key={row.symbol}
-              className="flex flex-col gap-2 rounded-lg border p-4"
+              className="flex flex-col gap-2 glass rounded-xl p-4"
               data-testid="lvb-symbol"
               aria-label={row.symbol}
             >
@@ -51,7 +51,7 @@ export default async function LiveVsBacktestPage({ searchParams }: { searchParam
                 {row.expectancyGapR && (
                   <span
                     className={cn(
-                      'text-xs tabular-nums',
+                      'text-xs num',
                       row.expectancyGapR.abs().gte(0.25) ? 'text-loss' : 'text-muted-foreground',
                     )}
                     data-testid="expectancy-gap"
@@ -75,8 +75,8 @@ export default async function LiveVsBacktestPage({ searchParams }: { searchParam
                       <th scope="row" className="p-2 text-left font-normal">
                         {m.label}
                       </th>
-                      <td className="p-2 text-right tabular-nums">{row.live ? m.value(row.live) : '—'}</td>
-                      <td className="p-2 text-right tabular-nums">{row.backtest ? m.value(row.backtest) : '—'}</td>
+                      <td className="p-2 text-right num">{row.live ? m.value(row.live) : '—'}</td>
+                      <td className="p-2 text-right num">{row.backtest ? m.value(row.backtest) : '—'}</td>
                     </tr>
                   ))}
                 </tbody>

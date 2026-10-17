@@ -14,7 +14,7 @@ export function Countdown({ to, now }: { to: string; now: string }) {
   }, []);
   const text = countdown(target, current);
   return (
-    <span className="tabular-nums" data-testid="countdown">
+    <span className="num" data-testid="countdown">
       {text ?? 'now'}
     </span>
   );

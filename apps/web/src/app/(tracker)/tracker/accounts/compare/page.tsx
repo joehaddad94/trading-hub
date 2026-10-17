@@ -49,7 +49,7 @@ export default async function ComparePage() {
           <p className="text-muted-foreground text-sm">
             Highlighted rows differ most between demo and funded. R uses estimated risk until trades are journaled.
           </p>
-          <div className="overflow-x-auto rounded-lg border">
+          <div className="overflow-x-auto glass rounded-xl">
             <table className="w-full min-w-[36rem] text-sm" data-testid="compare-table">
               <thead>
                 <tr className="border-b text-left">
@@ -65,14 +65,14 @@ export default async function ComparePage() {
                 {ROWS.map((row) => (
                   <tr
                     key={row.key}
-                    className={cn('border-b last:border-0', top.has(row.key) && 'bg-amber-500/10')}
+                    className={cn('border-b last:border-0', top.has(row.key) && 'bg-warning/10')}
                     data-highlight={top.has(row.key) || undefined}
                   >
                     <th scope="row" className="p-2 text-left font-normal text-muted-foreground">
                       {row.label}
                     </th>
                     {columns.map((col) => (
-                      <td key={col.label} className="p-2 tabular-nums">
+                      <td key={col.label} className="p-2 num">
                         {row.show(col.profile)}
                       </td>
                     ))}

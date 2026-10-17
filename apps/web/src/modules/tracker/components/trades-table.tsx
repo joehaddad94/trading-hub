@@ -4,6 +4,7 @@ import type { ScopeAccount } from '@trading/tracker/server';
 import Decimal from 'decimal.js';
 import type { Route } from 'next';
 import Link from 'next/link';
+import { Glyph } from '@/components/glyph';
 import { formatBeirut, formatMoney } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { formatHold, formatR } from '../calendar/format';
@@ -43,7 +44,7 @@ export function TradesTable({
   if (rows.length === 0) return <p className="text-muted-foreground text-sm">No trades match.</p>;
   return (
     <>
-      <div className="hidden overflow-x-auto rounded-lg border md:block">
+      <div className="hidden overflow-x-auto glass rounded-xl md:block">
         <table className="w-full text-sm" data-testid="trades-table">
           <thead>
             <tr className="border-b text-left text-muted-foreground">
@@ -65,14 +66,14 @@ export function TradesTable({
               const net = new Decimal(t.netProfit);
               return (
                 <tr key={t.id} className="relative border-b last:border-0 hover:bg-muted/50" data-testid="trade-row">
-                  <td className="p-2 tabular-nums">{formatBeirut(t.closedAt, 'd MMM yy HH:mm')}</td>
+                  <td className="p-2 num">{formatBeirut(t.closedAt, 'd MMM yy HH:mm')}</td>
                   <td className="p-2">
                     {a ? (
                       <Link
                         href={`/tracker/accounts/${a.login}` as Route}
                         className="relative z-10 inline-flex items-center gap-1 hover:underline"
                       >
-                        <span className="tabular-nums">{accountLabel(a)}</span>
+                        <span className="num">{accountLabel(a)}</span>
                         <StatusBadge status={a.status} />
                       </Link>
                     ) : (
@@ -85,17 +86,13 @@ export function TradesTable({
                     </Link>
                   </td>
                   <td className="p-2 capitalize">{t.side}</td>
-                  <td className="p-2 text-right tabular-nums">{t.lots}</td>
+                  <td className="p-2 text-right num">{t.lots}</td>
                   <td className="p-2">{SESSION_LABELS[sessionOf(t.openedAt)]}</td>
-                  <td className="p-2 text-right tabular-nums">
-                    {formatHold(t.closedAt.getTime() - t.openedAt.getTime())}
-                  </td>
-                  <td
-                    className={cn('p-2 text-right tabular-nums', net.gt(0) && 'text-profit', net.lt(0) && 'text-loss')}
-                  >
+                  <td className="p-2 text-right num">{formatHold(t.closedAt.getTime() - t.openedAt.getTime())}</td>
+                  <td className={cn('p-2 text-right num', net.gt(0) && 'text-profit', net.lt(0) && 'text-loss')}>
                     {formatMoney(t.netProfit)}
                   </td>
-                  <td className="p-2 text-right tabular-nums">
+                  <td className="p-2 text-right num">
                     {formatR(rMultiple(t.netProfit, t.riskUsd))}
                     {t.riskSource === 'estimated' && <EstBadge />}
                   </td>
@@ -113,18 +110,12 @@ export function TradesTable({
           const a = byId.get(t.accountId);
           const net = new Decimal(t.netProfit);
           return (
-            <li
-              key={t.id}
-              className="relative rounded-lg border p-3 text-sm active:bg-muted/50"
-              data-testid="trade-row"
-            >
+            <li key={t.id} className="relative glass rounded-xl p-3 text-sm active:bg-muted/50" data-testid="trade-row">
               <div className="flex items-center justify-between gap-2">
                 <Link href={`/tracker/trades/${t.id}` as Route} className={cn('font-medium', ROW_LINK)}>
                   {t.symbol} <span className="capitalize">{t.side}</span> · {t.lots}
                 </Link>
-                <span
-                  className={cn('font-semibold tabular-nums', net.gt(0) && 'text-profit', net.lt(0) && 'text-loss')}
-                >
+                <span className={cn('font-semibold num', net.gt(0) && 'text-profit', net.lt(0) && 'text-loss')}>
                   {formatMoney(t.netProfit)}
                 </span>
               </div>
@@ -133,7 +124,7 @@ export function TradesTable({
                   {a ? accountLabel(a) : '—'} · {formatBeirut(t.closedAt, 'd MMM HH:mm')} ·{' '}
                   {SESSION_LABELS[sessionOf(t.openedAt)]}
                 </span>
-                <span className="inline-flex items-center gap-2 tabular-nums">
+                <span className="inline-flex items-center gap-2 num">
                   <Flags trade={t} />
                   <span>
                     {formatR(rMultiple(t.netProfit, t.riskUsd))}
@@ -161,12 +152,12 @@ function EstBadge() {
 function Flags({ trade: t }: { trade: ListTrade }) {
   return (
     <span className="flex flex-wrap items-center gap-1">
-      {t.isNews && <span title="News trade">📰</span>}
+      {t.isNews && <Glyph kind="news" />}
       {t.journaled ? (
-        <span title="Journaled">📝</span>
+        <Glyph kind="journaled" />
       ) : (
         <span
-          className="inline-block h-2 w-2 rounded-full bg-amber-400"
+          className="inline-block h-2 w-2 rounded-full bg-warning"
           title="Not journaled"
           data-testid="needs-journal"
         >

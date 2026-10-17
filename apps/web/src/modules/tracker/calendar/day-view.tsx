@@ -4,6 +4,7 @@ import Decimal from 'decimal.js';
 import type { Route } from 'next';
 import Link from 'next/link';
 import type { ReactNode } from 'react';
+import { Glyph } from '@/components/glyph';
 import type { ActionResult } from '@/lib/action-result';
 import { formatBeirut, formatMoney, formatPct } from '@/lib/format';
 import { formatPrice } from '@/lib/symbols';
@@ -75,7 +76,7 @@ export function DayView({ detail, accounts, closeHref, saveNote }: Props) {
             {summary.map(([label, value]) => (
               <div key={label}>
                 <dt className="text-muted-foreground">{label}</dt>
-                <dd className="font-medium tabular-nums">{value}</dd>
+                <dd className="font-medium num">{value}</dd>
               </div>
             ))}
           </dl>
@@ -96,25 +97,25 @@ export function DayView({ detail, accounts, closeHref, saveNote }: Props) {
                 return (
                   <li
                     key={accountId}
-                    className={cn('rounded-md border p-2 text-sm', usage.warning && 'border-amber-500')}
+                    className={cn('rounded-md border p-2 text-sm', usage.warning && 'border-warning')}
                   >
                     <p className="mb-1 font-medium">
-                      {a ? accountLabel(a) : '—'} {usage.warning && <span title="Close to a rule limit">⚠️</span>}
+                      {a ? accountLabel(a) : '—'} {usage.warning && <Glyph kind="warning" />}
                     </p>
                     <dl className="grid grid-cols-2 gap-x-3 gap-y-1">
                       <dt className="text-muted-foreground">Start / end balance</dt>
-                      <dd className="tabular-nums">
+                      <dd className="num">
                         {formatMoney(usage.startBalance)} / {formatMoney(usage.endBalance)}
                       </dd>
                       <dt className="text-muted-foreground">Daily loss used</dt>
-                      <dd className="tabular-nums">
+                      <dd className="num">
                         {formatMoney(usage.dailyLossUsed)}
                         {usage.dailyLossLimit
                           ? ` of ${formatMoney(usage.dailyLossLimit)} (${formatPct(usage.dailyLossUsedShare)})`
                           : ' · no limit on file'}
                       </dd>
                       <dt className="text-muted-foreground">To max-loss limit</dt>
-                      <dd className="tabular-nums">
+                      <dd className="num">
                         {usage.distanceToMaxLoss ? formatMoney(usage.distanceToMaxLoss) : 'no limit on file'}
                       </dd>
                     </dl>
@@ -148,7 +149,7 @@ export function DayView({ detail, accounts, closeHref, saveNote }: Props) {
           <ul className="flex flex-col gap-1 text-sm" data-testid="day-news">
             {events.map((e) => (
               <li key={e.id} className="flex items-center gap-2">
-                <span className="tabular-nums">{e.impact === 'holiday' ? 'All day' : time(e.eventAt)}</span>
+                <span className="num">{e.impact === 'holiday' ? 'All day' : time(e.eventAt)}</span>
                 <span
                   className="inline-block h-2.5 w-2.5 shrink-0 rounded-sm"
                   style={{ background: IMPACT_COLOURS[e.impact] }}
@@ -156,7 +157,7 @@ export function DayView({ detail, accounts, closeHref, saveNote }: Props) {
                 />
                 <span className="font-medium">{e.currency}</span>
                 <span className="min-w-0 truncate">{e.title}</span>
-                {e.isRestricted && <span title="Restricted">🔒</span>}
+                {e.isRestricted && <Glyph kind="restricted" />}
               </li>
             ))}
           </ul>
@@ -215,7 +216,7 @@ function TradeRow({
     <li className="rounded-md border p-2 text-sm">
       <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
         {account ? <AccountBadge account={account} colour={account.colour} /> : <span>—</span>}
-        <span className={cn('font-semibold tabular-nums', net.gt(0) && 'text-profit', net.lt(0) && 'text-loss')}>
+        <span className={cn('font-semibold num', net.gt(0) && 'text-profit', net.lt(0) && 'text-loss')}>
           {formatMoney(t.netProfit)}
           {pct ? ` · ${pct}%` : ''} · {formatR(r)}
           {t.riskSource === 'estimated' && (
@@ -226,9 +227,9 @@ function TradeRow({
         </span>
       </div>
       <p className="mb-1 font-medium">
-        {t.symbol} <span className="capitalize">{t.side}</span> {t.isNews && <span title="News trade">📰</span>}
+        {t.symbol} <span className="capitalize">{t.side}</span> {t.isNews && <Glyph kind="news" />}
         {t.riskSource === 'estimated' && (
-          <span className="ml-2 text-amber-400 text-xs" title="Add the initial stop loss when journaling">
+          <span className="ml-2 text-warning text-xs" title="Add the initial stop loss when journaling">
             risk missing
           </span>
         )}
@@ -237,7 +238,7 @@ function TradeRow({
         {facts.map(([label, value]) => (
           <div key={label} className="contents">
             <dt className="text-muted-foreground">{label}</dt>
-            <dd className="tabular-nums">{value}</dd>
+            <dd className="num">{value}</dd>
           </div>
         ))}
       </dl>
@@ -274,7 +275,7 @@ function equityData(
     });
   }
   const series: EquitySeries[] = [
-    { key: 'combined', label: 'Combined', colour: '#e5e5e5' },
+    { key: 'combined', label: 'Combined', colour: '#f6f8fb' },
     ...(accountIds.length > 1
       ? accountIds.map((id) => {
           const a = byId.get(id);

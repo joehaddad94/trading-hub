@@ -42,13 +42,13 @@ export default async function AccountPage({
 
   return (
     <div className="flex flex-col gap-4 p-4 md:p-6">
-      <section className="rounded-lg border p-4" data-testid="account-header">
+      <section className="glass rounded-xl p-4" data-testid="account-header">
         <p className="text-muted-foreground text-sm">
           {PHASE_LABELS[a.phase] ?? a.phase} · {size} · {a.firm}
           {a.isDemo ? ' · demo' : ' · real'}
         </p>
         <div className="mt-1 flex flex-wrap items-center gap-2">
-          <h2 className="font-semibold text-2xl tabular-nums">{a.login}</h2>
+          <h2 className="font-semibold text-2xl num">{a.login}</h2>
           <StatusBadge status={a.status} />
           {a.platform && <span className="text-muted-foreground text-sm capitalize">{a.platform}</span>}
         </div>
@@ -63,17 +63,17 @@ export default async function AccountPage({
           </div>
           <div>
             <dt className="text-muted-foreground">Balance</dt>
-            <dd className="tabular-nums">{a.finalBalance ? formatMoney(a.finalBalance) : '—'}</dd>
+            <dd className="num">{a.finalBalance ? formatMoney(a.finalBalance) : '—'}</dd>
           </div>
           <div>
             <dt className="text-muted-foreground">Net P/L</dt>
-            <dd className={cn('tabular-nums', a.stats.net.gt(0) && 'text-profit', a.stats.net.lt(0) && 'text-loss')}>
+            <dd className={cn('num', a.stats.net.gt(0) && 'text-profit', a.stats.net.lt(0) && 'text-loss')}>
               {formatMoney(a.stats.net)}
             </dd>
           </div>
           <div>
             <dt className="text-muted-foreground">Trades · win rate</dt>
-            <dd className="tabular-nums">
+            <dd className="num">
               {a.stats.trades} · {formatPct(a.stats.winRate)}
             </dd>
           </div>
@@ -119,7 +119,7 @@ function OverviewTab({ a }: { a: Detail }) {
   ];
   return (
     <div className="grid gap-4 lg:grid-cols-2">
-      <section className="rounded-lg border p-4 lg:col-span-2">
+      <section className="glass rounded-xl p-4 lg:col-span-2">
         <h3 className="mb-2 font-medium">Balance</h3>
         <BalanceCurve
           points={a.equity.map((p, i) => ({
@@ -131,18 +131,18 @@ function OverviewTab({ a }: { a: Detail }) {
           floor={u?.maxLossFloor ? u.maxLossFloor.toNumber() : null}
         />
       </section>
-      <section className="rounded-lg border p-4">
+      <section className="glass rounded-xl p-4">
         <h3 className="mb-2 font-medium">Stats</h3>
         <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
           {stats.map(([label, value]) => (
             <div key={label}>
               <dt className="text-muted-foreground">{label}</dt>
-              <dd className="tabular-nums">{value}</dd>
+              <dd className="num">{value}</dd>
             </div>
           ))}
         </dl>
       </section>
-      <section className="rounded-lg border p-4" data-testid="rule-limits">
+      <section className="glass rounded-xl p-4" data-testid="rule-limits">
         <h3 className="mb-2 font-medium">
           Rule limits
           {a.rules && (
@@ -157,27 +157,27 @@ function OverviewTab({ a }: { a: Detail }) {
           <>
             <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
               <dt className="text-muted-foreground">Daily loss limit</dt>
-              <dd className="tabular-nums">
+              <dd className="num">
                 {a.rules.dailyLossPct
                   ? `${Number(a.rules.dailyLossPct)}% · ${u.dailyLossLimit ? formatMoney(u.dailyLossLimit) : '—'}`
                   : '—'}
               </dd>
               <dt className="text-muted-foreground">Max loss limit</dt>
-              <dd className="tabular-nums">
+              <dd className="num">
                 {a.rules.maxLossPct
                   ? `${Number(a.rules.maxLossPct)}% · floor ${u.maxLossFloor ? formatMoney(u.maxLossFloor) : '—'}`
                   : '—'}
               </dd>
               <dt className="text-muted-foreground">Profit target</dt>
-              <dd className="tabular-nums">{a.rules.profitTargetPct ? `${Number(a.rules.profitTargetPct)}%` : '—'}</dd>
+              <dd className="num">{a.rules.profitTargetPct ? `${Number(a.rules.profitTargetPct)}%` : '—'}</dd>
               <dt className="text-muted-foreground">
                 Daily loss used ({formatBeirut(new Date(`${a.rules.lastDay}T12:00:00Z`), 'd MMM')})
               </dt>
-              <dd className={cn('tabular-nums', u.warning && 'text-amber-400')}>
+              <dd className={cn('num', u.warning && 'text-warning')}>
                 {formatMoney(u.dailyLossUsed)} ({formatPct(u.dailyLossUsedShare)})
               </dd>
               <dt className="text-muted-foreground">Distance to max loss</dt>
-              <dd className="tabular-nums">{u.distanceToMaxLoss ? formatMoney(u.distanceToMaxLoss) : '—'}</dd>
+              <dd className="num">{u.distanceToMaxLoss ? formatMoney(u.distanceToMaxLoss) : '—'}</dd>
             </dl>
             <p className="mt-2 text-muted-foreground text-xs">
               Based on closed trades and daily snapshots, not live equity.
@@ -185,13 +185,13 @@ function OverviewTab({ a }: { a: Detail }) {
           </>
         )}
       </section>
-      <section className="rounded-lg border p-4 lg:col-span-2">
+      <section className="glass rounded-xl p-4 lg:col-span-2">
         <h3 className="mb-2 font-medium">Lifecycle</h3>
         <ol className="flex flex-col gap-2 border-l pl-4 text-sm" data-testid="lifecycle">
           {a.timeline.map((e) => (
             <li key={`${e.status}-${e.at.getTime()}`} className="relative">
               <span className="-left-[21px] absolute top-1.5 size-2.5 rounded-full bg-foreground" aria-hidden />
-              <span className="text-muted-foreground tabular-nums">{formatBeirut(e.at, 'd MMM yyyy HH:mm')}</span> ·{' '}
+              <span className="text-muted-foreground num">{formatBeirut(e.at, 'd MMM yyyy HH:mm')}</span> ·{' '}
               <span className="capitalize">{e.label}</span>
               {e.reason ? ` — ${e.reason}` : ''}
             </li>

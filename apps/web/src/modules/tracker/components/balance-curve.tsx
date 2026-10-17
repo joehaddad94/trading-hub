@@ -1,6 +1,6 @@
 'use client';
 
-import { Line, LineChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
+import { Area, AreaChart, CartesianGrid, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { ChartTooltip, chartMoney } from '@/components/chart-tooltip';
 import { tradeAxisTicks } from '@/lib/chart-axis';
 import { formatBeirut } from '@/lib/format';
@@ -24,7 +24,14 @@ export function BalanceCurve({
   return (
     <div className="h-56 w-full" data-testid="balance-curve">
       <ResponsiveContainer width="100%" height="100%">
-        <LineChart data={data} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
+        <AreaChart data={data} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
+          <defs>
+            <linearGradient id="balance-fill" x1="0" x2="0" y1="0" y2="1">
+              <stop offset="0" stopColor="var(--primary)" stopOpacity={0.35} />
+              <stop offset="1" stopColor="var(--primary)" stopOpacity={0} />
+            </linearGradient>
+          </defs>
+          <CartesianGrid stroke="currentColor" strokeOpacity={0.08} vertical={false} />
           <XAxis
             dataKey="i"
             type="number"
@@ -63,15 +70,18 @@ export function BalanceCurve({
               label={{ value: 'Max loss', position: 'insideBottomLeft', fontSize: 10, fill: 'var(--loss)' }}
             />
           )}
-          <Line
+          <Area
             type="monotone"
             dataKey="balance"
-            stroke="#60a5fa"
+            stroke="var(--primary)"
             strokeWidth={2}
+            fill="url(#balance-fill)"
+            baseValue="dataMin"
             dot={false}
+            activeDot={{ r: 4, stroke: 'var(--background)', strokeWidth: 2 }}
             isAnimationActive={false}
           />
-        </LineChart>
+        </AreaChart>
       </ResponsiveContainer>
     </div>
   );

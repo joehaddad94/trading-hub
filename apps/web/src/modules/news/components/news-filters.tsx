@@ -1,5 +1,6 @@
 import { COMMON_CURRENCIES, IMPACT_LABELS, IMPACTS, type NewsFilters } from '@trading/news';
 import Link from 'next/link';
+import { Glyph } from '@/components/glyph';
 import { cn } from '@/lib/utils';
 import { newsHref } from '../links';
 import { Folder } from './folder';
@@ -50,7 +51,7 @@ export function NewsFilterBar({
           className={chip(filters.restrictedOnly)}
           scroll={false}
         >
-          🔒 Restricted only
+          <Glyph kind="restricted" /> Restricted only
         </Link>
       </fieldset>
       <fieldset className="flex min-w-0 gap-2 overflow-x-auto pb-1">

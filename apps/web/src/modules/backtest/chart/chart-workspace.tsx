@@ -2,6 +2,7 @@
 
 import type { Drawing, OrderView, SessionView } from '@trading/backtest';
 import { parseTimeframe, TIMEFRAMES, type Timeframe } from '@trading/backtest-engine';
+import { Newspaper } from 'lucide-react';
 import { parseAsString, useQueryState } from 'nuqs';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { symbolWithAlias } from '@/lib/symbols';
@@ -252,8 +253,8 @@ export function ChartWorkspace({
   }
 
   return (
-    <div className="flex flex-1 flex-col md:h-full">
-      <div className="relative z-30 flex flex-wrap items-center gap-2 border-b px-2 py-1.5 text-sm md:px-4">
+    <div className="tv-dark flex flex-1 flex-col md:h-full">
+      <div className="relative z-30 flex flex-wrap items-center gap-1.5 border-b px-2 py-1 text-sm md:px-3">
         <fieldset className="flex items-center gap-1">
           <legend className="sr-only">Instrument</legend>
           {instruments.map((i) => (
@@ -264,7 +265,7 @@ export function ChartWorkspace({
               onClick={() => void setCode(i.code)}
               title={`${i.displayName} · ${symbolWithAlias(i.code)}`}
               className={cn(
-                'h-9 rounded-md px-3 font-medium',
+                'h-9 rounded-md px-3 font-semibold tracking-tight',
                 i.code === instrument.code
                   ? 'bg-accent text-accent-foreground'
                   : 'text-muted-foreground hover:bg-accent/60',
@@ -274,6 +275,7 @@ export function ChartWorkspace({
             </button>
           ))}
         </fieldset>
+        <Divider />
         <fieldset className="flex items-center gap-1">
           <legend className="sr-only">Timeframe</legend>
           {TIMEFRAMES.map((t) => (
@@ -284,7 +286,7 @@ export function ChartWorkspace({
               aria-keyshortcuts={t === 15 ? 'F' : String(t)}
               onClick={() => void setTfParam(String(t))}
               className={cn(
-                'h-9 min-w-11 rounded-md px-2 tabular-nums',
+                'h-9 min-w-11 rounded-md px-2 num',
                 t === tf ? 'bg-accent text-accent-foreground' : 'text-muted-foreground hover:bg-accent/60',
               )}
             >
@@ -292,9 +294,21 @@ export function ChartWorkspace({
             </button>
           ))}
         </fieldset>
+        <Divider />
+        <IndicatorMenu
+          prefs={prefs.indicators}
+          onChange={(id, next) => {
+            const merged = { ...prefs.indicators, [id]: { ...prefs.indicators[id], ...next } };
+            updatePrefs({ indicators: normalisePrefs(merged) });
+          }}
+        />
+        <Divider />
         <fieldset className="flex items-center gap-1">
           <legend className="sr-only">News markers</legend>
-          <span className="text-muted-foreground">News</span>
+          <span className="flex items-center gap-1 px-1 text-muted-foreground" title="News markers">
+            <Newspaper className="size-4" aria-hidden />
+            <span className="sr-only md:not-sr-only">News</span>
+          </span>
           {IMPACT_TOGGLES.map((t) => (
             <button
               key={t.id}
@@ -328,13 +342,6 @@ export function ChartWorkspace({
             <option value="all">All currencies</option>
           </select>
         </fieldset>
-        <IndicatorMenu
-          prefs={prefs.indicators}
-          onChange={(id, next) => {
-            const merged = { ...prefs.indicators, [id]: { ...prefs.indicators[id], ...next } };
-            updatePrefs({ indicators: normalisePrefs(merged) });
-          }}
-        />
         <div className="ml-auto flex items-center gap-2">
           <label className="flex h-9 items-center gap-2 text-muted-foreground">
             <input
@@ -372,6 +379,12 @@ export function ChartWorkspace({
             drawings.shown.map((d) => ({ tool: d.tool, points: d.points, style: d.style, label: d.label })),
           )}
         >
+          <div
+            aria-hidden
+            className="pointer-events-none absolute inset-0 flex select-none items-center justify-center font-semibold text-[clamp(3rem,10vw,8rem)] text-white/[0.025] tracking-tight"
+          >
+            {instrument.code}
+          </div>
           <NewsPanel events={hovered} timezone={prefs.timezone} />
           {picking && (
             <p
@@ -465,4 +478,9 @@ export function ChartWorkspace({
       </p>
     </div>
   );
+}
+
+/** Vertical separator between toolbar groups, as on TradingView's top bar. */
+function Divider() {
+  return <span aria-hidden className="mx-1 hidden h-6 w-px bg-border md:block" />;
 }

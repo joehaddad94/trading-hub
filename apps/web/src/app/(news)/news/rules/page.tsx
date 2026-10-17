@@ -1,4 +1,5 @@
 import { ActionForm } from '@/components/action-form';
+import { Glyph } from '@/components/glyph';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { getAccountRestrictions, getNewsSettingsOrDefault } from '@/modules/news/server/news';
@@ -12,7 +13,7 @@ export default async function RulesPage() {
   return (
     <div className="mx-auto flex max-w-2xl flex-col gap-4 p-4 md:p-6">
       <h2 className="font-semibold text-xl">Restriction rules</h2>
-      <section className="flex flex-col gap-2 rounded-lg border p-4 text-sm">
+      <section className="flex flex-col gap-2 glass rounded-xl p-4 text-sm">
         <h3 className="font-medium">FundedNext news rule</h3>
         <p>
           On a funded FundedNext account, a trade opened or closed within the window around a listed high-impact event
@@ -20,11 +21,12 @@ export default async function RulesPage() {
           removes it. Only events that move the traded instrument count: for US30 and NAS100 that is USD.
         </p>
         <p className="text-muted-foreground text-xs">
-          Checked against FundedNext&apos;s help centre on 9 Oct 2026. FundedNext flags each restricted event (🔒); the
-          window length and currencies below are settings, not hard-coded, in case the rule changes.
+          Checked against FundedNext&apos;s help centre on 9 Oct 2026. FundedNext flags each restricted event (
+          <Glyph kind="restricted" />
+          ); the window length and currencies below are settings, not hard-coded, in case the rule changes.
         </p>
       </section>
-      <section className="rounded-lg border p-4">
+      <section className="glass rounded-xl p-4">
         <ActionForm action={saveNewsRulesAction} submit="Save" label="Restriction window">
           <div className="grid grid-cols-2 gap-3">
             <div className="flex flex-col gap-1">
@@ -45,7 +47,7 @@ export default async function RulesPage() {
           </div>
         </ActionForm>
       </section>
-      <section className="flex flex-col gap-3 rounded-lg border p-4" aria-labelledby="per-account">
+      <section className="flex flex-col gap-3 glass rounded-xl p-4" aria-labelledby="per-account">
         <h3 id="per-account" className="font-medium">
           Restriction badges per account
         </h3>

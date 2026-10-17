@@ -98,7 +98,7 @@ function RiskCard({
   const net = new Decimal(t.netProfit);
   const rAt = (pct: string) => formatR(net.div(riskUsdFromPct(t.startingBalance, pct)));
   return (
-    <li className="flex flex-col gap-2 rounded-lg border p-3 text-sm" data-testid="risk-card">
+    <li className="flex flex-col gap-2 glass rounded-xl p-3 text-sm" data-testid="risk-card">
       <div className="flex items-start justify-between gap-2">
         <Link href={`/tracker/trades/${t.id}` as Route} className="min-w-0 hover:underline">
           <span className="font-medium">
@@ -108,7 +108,7 @@ function RiskCard({
             {t.account} · {formatBeirut(t.closedAt, 'd MMM HH:mm')}
           </span>
         </Link>
-        <span className={cn('font-semibold tabular-nums', net.gt(0) && 'text-profit', net.lt(0) && 'text-loss')}>
+        <span className={cn('font-semibold num', net.gt(0) && 'text-profit', net.lt(0) && 'text-loss')}>
           {formatMoney(t.netProfit)}
         </span>
       </div>
@@ -120,7 +120,7 @@ function RiskCard({
             disabled={disabled}
             onClick={() => onPick(pct)}
             title={`${formatMoney(riskUsdFromPct(t.startingBalance, pct))} risked → ${rAt(pct)}`}
-            className="h-11 rounded-full border px-3 tabular-nums hover:bg-accent disabled:opacity-50 md:h-8"
+            className="h-11 rounded-full border px-3 num hover:bg-accent disabled:opacity-50 md:h-8"
           >
             {pct}%
           </button>

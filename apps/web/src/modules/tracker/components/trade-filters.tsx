@@ -61,9 +61,7 @@ export function TradeFilters({
         >
           Filters
           {chips.length > 0 && (
-            <span className="rounded-full bg-primary px-1.5 text-primary-foreground text-xs tabular-nums">
-              {chips.length}
-            </span>
+            <span className="rounded-full bg-primary px-1.5 text-primary-foreground text-xs num">{chips.length}</span>
           )}
         </button>
         {chips.map((c) => (
@@ -84,7 +82,7 @@ export function TradeFilters({
         <button
           type="button"
           aria-label="Close filters"
-          className="fixed inset-0 z-40 bg-black/60 md:hidden"
+          className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm md:hidden"
           onClick={() => setOpen(false)}
         />
       )}

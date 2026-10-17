@@ -1,4 +1,5 @@
 import { IMPACT_COLOURS } from '@trading/core';
+import { Glyph } from '@/components/glyph';
 import type { ChartEvent } from '../lib/bars-query';
 import { formatCursor } from './replay-time';
 
@@ -16,7 +17,7 @@ export function NewsPanel({ events, timezone }: { events: ChartEvent[]; timezone
           <p className="flex items-center gap-1 font-medium">
             <span className="inline-block size-2.5 rounded-sm" style={{ backgroundColor: IMPACT_COLOURS[e.impact] }} />
             {e.currency} · {e.title}
-            {e.isRestricted && <span title="Restricted"> 🔒</span>}
+            {e.isRestricted && <Glyph kind="restricted" className="ml-1" />}
           </p>
           <p className="text-muted-foreground">
             {formatCursor(Date.parse(e.eventAt), timezone)} · forecast {e.forecast ?? '—'} · previous{' '}

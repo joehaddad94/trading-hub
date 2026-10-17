@@ -57,27 +57,27 @@ export default async function SessionPage({ params }: { params: Promise<{ id: st
           </Link>
         </div>
         {data.ambiguous > 0 && (
-          <p role="note" className="rounded-md border border-amber-500 bg-amber-500/10 px-3 py-2 text-sm">
+          <p role="note" className="rounded-md border border-warning bg-warning/10 px-3 py-2 text-sm">
             {data.ambiguous} {data.ambiguous === 1 ? 'trade' : 'trades'} hit stop and target in the same 1-minute bar;
             the stop was assumed first.
           </p>
         )}
         <dl className="grid grid-cols-2 gap-3 md:grid-cols-4" data-testid="session-stats">
           {tiles.map(([label, value]) => (
-            <div key={label} className="rounded-lg border p-3">
+            <div key={label} className="glass rounded-xl p-3">
               <dt className="text-muted-foreground text-xs">{label}</dt>
-              <dd className="font-semibold text-lg tabular-nums">{value}</dd>
+              <dd className="font-semibold text-lg num">{value}</dd>
             </div>
           ))}
         </dl>
-        <section className="rounded-lg border p-4">
+        <section className="glass rounded-xl p-4">
           <h3 className="mb-2 font-medium">Equity</h3>
           <EquityCurve
             points={data.curve.map((p) => ({ i: p.i, t: p.at, equity: p.equity, pnl: p.pnl, account: '' }))}
             boundaries={[]}
           />
         </section>
-        <section className="flex flex-col gap-2 rounded-lg border p-4">
+        <section className="flex flex-col gap-2 glass rounded-xl p-4">
           <h3 className="font-medium">Trades</h3>
           {trades.length === 0 ? (
             <p className="text-muted-foreground text-sm">No closed trades yet.</p>
@@ -96,23 +96,20 @@ export default async function SessionPage({ params }: { params: Promise<{ id: st
                 <tbody>
                   {[...trades].reverse().map((t) => (
                     <tr key={t.id} className="border-b last:border-0" data-testid="session-trade">
-                      <td className="p-2 tabular-nums">{formatBeirut(t.closedAt, 'd MMM, HH:mm')}</td>
+                      <td className="p-2 num">{formatBeirut(t.closedAt, 'd MMM, HH:mm')}</td>
                       <td className="p-2">
                         {t.symbol} {t.side === 'buy' ? 'long' : 'short'} {t.lots}
                       </td>
                       <td className="p-2">
                         {t.exitReason ? EXIT_LABELS[t.exitReason] : '—'}
-                        {t.ambiguous && <span className="ml-1 text-amber-500 text-xs">(same bar)</span>}
+                        {t.ambiguous && <span className="ml-1 text-warning text-xs">(same bar)</span>}
                       </td>
                       <td
-                        className={cn(
-                          'p-2 text-right tabular-nums',
-                          t.netProfit.startsWith('-') ? 'text-loss' : 'text-profit',
-                        )}
+                        className={cn('p-2 text-right num', t.netProfit.startsWith('-') ? 'text-loss' : 'text-profit')}
                       >
                         {formatMoney(t.netProfit)}
                       </td>
-                      <td className="p-2 text-right tabular-nums">{formatR(t.r)}</td>
+                      <td className="p-2 text-right num">{formatR(t.r)}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -120,7 +117,7 @@ export default async function SessionPage({ params }: { params: Promise<{ id: st
             </div>
           )}
         </section>
-        <section className="rounded-lg border p-4">
+        <section className="glass rounded-xl p-4">
           <h3 className="mb-3 font-medium">Settings</h3>
           <SessionForm
             action={updateSessionAction}

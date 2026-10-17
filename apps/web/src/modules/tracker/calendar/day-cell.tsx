@@ -3,6 +3,7 @@
 import type { Route } from 'next';
 import Link from 'next/link';
 import { useRef, useState } from 'react';
+import { Glyph } from '@/components/glyph';
 import { cn } from '@/lib/utils';
 
 export type DayCellPreview = {
@@ -60,9 +61,9 @@ export function DayCell(props: DayCellProps) {
 
   const background =
     tone === 'win'
-      ? `rgb(16 185 129 / ${0.12 + 0.5 * intensity})`
+      ? `rgb(62 207 142 / ${0.1 + 0.38 * intensity})`
       : tone === 'loss'
-        ? `rgb(239 68 68 / ${0.12 + 0.5 * intensity})`
+        ? `rgb(255 141 161 / ${0.1 + 0.38 * intensity})`
         : undefined;
 
   const cancel = () => {
@@ -111,25 +112,25 @@ export function DayCell(props: DayCellProps) {
         <div className="flex items-start justify-between gap-0.5">
           <span
             className={cn(
-              'flex size-5 items-center justify-center rounded text-[11px] tabular-nums md:text-xs',
+              'flex size-5 items-center justify-center rounded text-[11px] num md:text-xs',
               isToday && 'border border-foreground font-semibold',
             )}
           >
             {day}
           </span>
           <span className="flex gap-px text-[9px] leading-none md:text-xs" aria-hidden>
-            {icons.journaled && <span title="Journaled">📝</span>}
-            {icons.warning && <span title="Close to a rule limit">⚠️</span>}
-            {icons.status && <span title="Account status changed">🔄</span>}
+            {icons.journaled && <Glyph kind="journaled" />}
+            {icons.warning && <Glyph kind="warning" />}
+            {icons.status && <Glyph kind="status" />}
           </span>
         </div>
         {value && (
           <div className="min-w-0">
             <div
               className={cn(
-                'truncate font-semibold text-[11px] tabular-nums md:text-sm',
-                tone === 'win' && 'text-emerald-300',
-                tone === 'loss' && 'text-red-300',
+                'truncate font-semibold text-[11px] num md:text-sm',
+                tone === 'win' && 'text-[#d2f7e4]',
+                tone === 'loss' && 'text-[#ffdbe1]',
               )}
             >
               {/* Full value only when the cell is wide enough (phone, or Overview beside an open day). */}
@@ -155,7 +156,7 @@ export function DayCell(props: DayCellProps) {
           aria-hidden
           title="Red-folder news"
           data-testid="news-flag"
-          className="pointer-events-none absolute top-0 right-0 size-0 rounded-tr-md border-t-[14px] border-t-red-500 border-l-[14px] border-l-transparent md:border-t-[18px] md:border-l-[18px]"
+          className="pointer-events-none absolute top-0 right-0 size-0 rounded-tr-md border-t-[14px] border-t-loss border-l-[14px] border-l-transparent md:border-t-[18px] md:border-l-[18px]"
         />
       )}
       {open && preview && (
@@ -172,7 +173,7 @@ export function DayCell(props: DayCellProps) {
           <p className="mb-1 text-muted-foreground">{preview.wl}</p>
           <ul className="flex flex-col gap-1">
             {preview.trades.map((t) => (
-              <li key={t.key} className="flex justify-between gap-2 tabular-nums">
+              <li key={t.key} className="flex justify-between gap-2 num">
                 <span className="truncate">
                   {t.account} · {t.symbol} {t.side}
                 </span>

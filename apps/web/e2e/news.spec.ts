@@ -20,7 +20,7 @@ test.describe('news (M12)', () => {
     await expect(events).toHaveCount(1);
     await expect(events.first()).toContainText('FOMC Meeting Minutes');
     await expect(events.first()).toContainText('21:00'); // 18:00 UTC = 21:00 Beirut
-    await expect(events.first()).toContainText('🔒');
+    await expect(events.first().getByRole('img', { name: 'Restricted' })).toBeVisible();
     await expect(page.getByTestId('news-last-sync')).toContainText('Calendar last synced: 10 Oct 2026, 00:00');
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(
       page.viewportSize()?.width ?? 0,

@@ -56,9 +56,9 @@ export default async function MoneyPage({ searchParams }: { searchParams: Promis
             ['Fees', summary.fees, summary.fees.gt(0) ? 'text-loss' : undefined],
           ] as const
         ).map(([label, value, cls]) => (
-          <div key={label} className="rounded-lg border p-3">
+          <div key={label} className="glass rounded-xl p-3">
             <dt className="text-muted-foreground text-xs">{label}</dt>
-            <dd className={cn('font-semibold text-lg tabular-nums', cls)}>{formatMoney(value)}</dd>
+            <dd className={cn('font-semibold text-lg num', cls)}>{formatMoney(value)}</dd>
           </div>
         ))}
       </dl>
@@ -107,10 +107,10 @@ export default async function MoneyPage({ searchParams }: { searchParams: Promis
                   </div>
                   <div className="flex items-center gap-3">
                     <div className="text-right">
-                      <p className={cn('font-semibold tabular-nums', tone(new Decimal(r.amountUsd)))}>
+                      <p className={cn('font-semibold num', tone(new Decimal(r.amountUsd)))}>
                         {formatMoney(r.amountUsd)}
                       </p>
-                      {net && <p className="text-muted-foreground text-xs tabular-nums">net {formatMoney(net)}</p>}
+                      {net && <p className="text-muted-foreground text-xs num">net {formatMoney(net)}</p>}
                     </div>
                     {r.manual && (
                       <ActionForm
@@ -129,7 +129,7 @@ export default async function MoneyPage({ searchParams }: { searchParams: Promis
         )}
       </section>
 
-      <section className="rounded-lg border p-4">
+      <section className="glass rounded-xl p-4">
         <h3 className="mb-1 font-medium">Add a fee or payout</h3>
         <p className="mb-3 text-muted-foreground text-xs">
           For money the exports don&apos;t carry yet (payouts are kept raw until their shape is verified). Enter the
