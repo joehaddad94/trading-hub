@@ -1,4 +1,5 @@
 export { type Candle, normaliseCandles, type RawCandle, toCandle } from './candles';
+export { type CredentialCheck, checkS3Credentials } from './credentials';
 export { backfillWindow, daysBetween, formatUtcDay, parseUtcDay, previousUtcDay, utcDayRange } from './days';
 export { findGaps, type Gap, MIN_GAP_MINUTES } from './gaps';
 export {

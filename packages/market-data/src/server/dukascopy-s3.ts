@@ -3,20 +3,32 @@ import { AwsClient } from 'aws4fetch';
 import lzma from 'lzma';
 import { bi5DayKey, parseBi5MinuteCandles } from '../bi5';
 import type { RawCandle } from '../candles';
+import { checkS3Credentials, type S3Credentials } from '../credentials';
 import type { MarketDataProvider } from '../provider';
 
 const BUCKET_URL = 'https://cfg-public-proper-wallaby.s3.eu-west-1.amazonaws.com';
 const DAY_MS = 86_400_000;
 
-export type S3Credentials = { accessKeyId: string; secretAccessKey: string };
+export type { S3Credentials };
 
 /**
  * Dukascopy's historical data in their "Requester Pays" S3 bucket (eu-west-1): the same 1m bid candles the free
  * datafeed served before it started refusing bulk downloads (Oct 2026). The AWS account behind the keys pays the
  * (tiny) transfer cost. A day not published yet is a 404 and fails the run, so the next run retries it.
  */
-export function createDukascopyS3Provider(credentials: S3Credentials): MarketDataProvider {
-  const aws = new AwsClient({ ...credentials, region: 'eu-west-1', service: 's3' });
+export function createDukascopyS3Provider(raw: S3Credentials): MarketDataProvider {
+  const checked = checkS3Credentials(raw);
+  if (!checked.ok) {
+    // Each run fails with a readable message (shown in the Backtest Lab banner) until the key is fixed.
+    const { error } = checked;
+    return {
+      name: 'dukascopy',
+      async fetchMinuteCandles() {
+        throw new Error(error);
+      },
+    };
+  }
+  const aws = new AwsClient({ ...checked.credentials, region: 'eu-west-1', service: 's3' });
   return {
     name: 'dukascopy',
     async fetchMinuteCandles(providerCode, from, to) {

@@ -3,6 +3,7 @@ import { and, eq, sql } from '@trading/db/orm';
 import { alertsLog, candles1m, dataIngestRuns, instruments } from '@trading/db/schema';
 import { afterAll, describe, expect, it } from 'vitest';
 import type { RawCandle } from '../src/candles';
+import { daysBetween } from '../src/days';
 import { isMarketOpen } from '../src/hours';
 import type { MarketDataProvider } from '../src/provider';
 import {
@@ -10,6 +11,7 @@ import {
   candleCoverage,
   checkCandleHealth,
   ingestDay,
+  ingestRecentDays,
   latestRunsForDay,
   listInstruments,
 } from '../src/server';
@@ -71,21 +73,21 @@ describe.skipIf(!db)('candle ingestion', () => {
       const { provider } = fakeProvider();
       const first = await ingestDay(tx, provider, '2026-10-07', { now: new Date('2026-10-08T04:00:00Z') });
       expect(first.map((r) => [r.code, r.status, r.rows])).toEqual([
-        ['NAS100', 'ok', 1380],
-        ['US30', 'ok', 1380],
+        ['NAS100', 'ok', 1335],
+        ['US30', 'ok', 1335],
       ]);
       const again = fakeProvider({ price: 47000 });
       await ingestDay(tx, again.provider, '2026-10-07');
       const [row] = await tx
         .select({ count: sql<number>`count(*)`.mapWith(Number), close: sql<string>`max(${candles1m.close})` })
         .from(candles1m);
-      expect(row).toEqual({ count: 2760, close: '47001.10000' });
+      expect(row).toEqual({ count: 2670, close: '47001.10000' });
       const runs = await tx.select().from(dataIngestRuns);
       expect(runs).toHaveLength(4);
       const coverage = await candleCoverage(tx);
       expect(coverage.map((c) => [c.code, c.count, c.first?.toISOString()])).toEqual([
-        ['NAS100', 1380, '2026-10-07T00:00:00.000Z'],
-        ['US30', 1380, '2026-10-07T00:00:00.000Z'],
+        ['NAS100', 1335, '2026-10-07T00:00:00.000Z'],
+        ['US30', 1335, '2026-10-07T00:00:00.000Z'],
       ]);
     });
   });
@@ -164,6 +166,34 @@ describe.skipIf(!db)('candle ingestion', () => {
         .from(dataIngestRuns)
         .where(and(eq(dataIngestRuns.instrumentId, us30?.id ?? '')));
       expect(runs.every((r) => r.trigger === 'backfill')).toBe(true);
+    });
+  });
+
+  it('daily job fills days missed by earlier failed runs, then fetches only the new day', async () => {
+    await inTx(async (tx) => {
+      // 13–17 Oct 2026: every run failed (bad key), so 11–16 Oct have only failed runs.
+      const broken = fakeProvider({ fail: daysBetween('2026-10-11', '2026-10-16') });
+      for (const day of daysBetween('2026-10-11', '2026-10-16')) await ingestDay(tx, broken.provider, day);
+
+      const fixed = fakeProvider();
+      const results = await ingestRecentDays(tx, fixed.provider, '2026-10-17', { now: new Date('2026-10-18T04:00Z') });
+      // 8–10 Oct have no run at all in this test DB either, so the 10-day window covers them too.
+      const window = daysBetween('2026-10-08', '2026-10-17');
+      expect(fixed.calls.filter((c) => c.startsWith('usa30idxusd:'))).toEqual(window.map((d) => `usa30idxusd:${d}`));
+      expect(results.every((r) => r.status !== 'failed')).toBe(true);
+
+      const next = fakeProvider();
+      await ingestRecentDays(tx, next.provider, '2026-10-18');
+      expect(next.calls).toEqual(['usatechidxusd:2026-10-18', 'usa30idxusd:2026-10-18']);
+    });
+  });
+
+  it('daily job stops starting new days at its deadline', async () => {
+    await inTx(async (tx) => {
+      const { provider, calls } = fakeProvider();
+      const results = await ingestRecentDays(tx, provider, '2026-10-17', { deadline: Date.now() - 1 });
+      expect(calls).toEqual([]);
+      expect(results).toEqual([]);
     });
   });
 
