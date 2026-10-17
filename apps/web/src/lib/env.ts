@@ -17,8 +17,8 @@ export const env = createEnv({
     CRON_SECRET: z.string().min(16).optional(),
     SENTRY_DSN: z.url().optional(),
     // Dukascopy's Requester Pays S3 bucket (AWS_* names are reserved on Vercel).
-    DUKASCOPY_S3_ACCESS_KEY_ID: z.string().min(16).optional(),
-    DUKASCOPY_S3_SECRET_ACCESS_KEY: z.string().min(30).optional(),
+    DUKASCOPY_S3_ACCESS_KEY_ID: z.string().trim().min(16).optional(),
+    DUKASCOPY_S3_SECRET_ACCESS_KEY: z.string().trim().min(30).optional(),
   },
   client: {
     NEXT_PUBLIC_SUPABASE_URL: z.url(),

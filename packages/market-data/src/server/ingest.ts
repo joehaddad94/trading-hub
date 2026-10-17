@@ -2,7 +2,7 @@ import type { Executor } from '@trading/db';
 import { and, asc, desc, eq, gte, inArray, lt, sql } from '@trading/db/orm';
 import { candles1m, dataIngestRuns, instruments } from '@trading/db/schema';
 import { normaliseCandles } from '../candles';
-import { daysBetween, utcDayRange } from '../days';
+import { daysBetween, formatUtcDay, utcDayRange } from '../days';
 import { findGaps, type Gap } from '../gaps';
 import { type IngestStatus, ingestStatus } from '../health';
 import { expectedMinutes } from '../hours';
@@ -128,6 +128,11 @@ export type BackfillOptions = {
   codes?: string[];
   /** Re-fetch days that already have a good run. */
   force?: boolean;
+  /** Logged on each run; `backfill` unless the daily job is catching up. */
+  trigger?: string;
+  now?: Date;
+  /** Stop starting new days after this time (epoch ms); the rest wait for the next run. */
+  deadline?: number;
   onProgress?: (result: IngestResult, done: number, total: number) => void;
 };
 
@@ -148,12 +153,34 @@ export async function backfill(db: Executor, provider: MarketDataProvider, optio
     for (const day of days) {
       done += 1;
       if (skip.has(day)) continue;
-      const result = await ingestInstrumentDay(db, provider, instrument, day, { trigger: 'backfill' });
+      if (options.deadline !== undefined && Date.now() > options.deadline) return results;
+      const result = await ingestInstrumentDay(db, provider, instrument, day, {
+        trigger: options.trigger ?? 'backfill',
+        ...(options.now ? { now: options.now } : {}),
+      });
       results.push(result);
       options.onProgress?.(result, done, total);
     }
   }
   return results;
+}
+
+/** How far back the daily job looks for days without a good run. */
+export const CATCH_UP_DAYS = 10;
+
+/**
+ * The daily job: `day` plus any of the CATCH_UP_DAYS - 1 days before it that still have no good run (the job
+ * failed, a key was fixed late, a file wasn't published in time). Days with an ok/gaps run are skipped, so a
+ * normal run fetches one day per instrument and a run after an outage fills the hole by itself.
+ */
+export async function ingestRecentDays(
+  db: Executor,
+  provider: MarketDataProvider,
+  day: string,
+  options: { now?: Date; deadline?: number } = {},
+): Promise<IngestResult[]> {
+  const from = formatUtcDay(new Date(utcDayRange(day).from.getTime() - (CATCH_UP_DAYS - 1) * 86_400_000));
+  return backfill(db, provider, { from, to: day, trigger: 'cron', ...options });
 }
 
 /** Latest run per instrument for one UTC day (health check, Backtest Lab status). */

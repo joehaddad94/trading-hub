@@ -4,16 +4,38 @@ import { SERVER_TIME_PATTERN } from './fields';
 /** Export file contract, schema_version 1 (tracker spec §4, news spec §1.2). */
 
 const numeric = z.union([z.number(), z.string().regex(/^-?\d+(\.\d+)?$/)]);
+/**
+ * Integers and plain numbers: the export sometimes quotes them ("4288969", seen 14 Oct 2026), so a numeric
+ * string is accepted and converted. Anything else (empty, "abc", "1e3") still fails.
+ */
+const int = z
+  .union([
+    z.number().int(),
+    z
+      .string()
+      .regex(/^-?\d+$/)
+      .transform(Number),
+  ])
+  .pipe(z.number().int());
+const num = z
+  .union([
+    z.number(),
+    z
+      .string()
+      .regex(/^-?\d+(\.\d+)?$/)
+      .transform(Number),
+  ])
+  .pipe(z.number());
 const serverTime = z.string().regex(SERVER_TIME_PATTERN);
 const zeroOne = z.union([z.literal(0), z.literal(1), z.boolean()]);
 
 export const tradeSchema = z.looseObject({
-  ticket: z.union([z.string().min(1), z.number().int()]).transform(String),
+  ticket: z.union([z.string().min(1), int]).transform(String),
   symbol: z.string().min(1),
   type: z.union([z.literal(0), z.literal(1)]),
   type_str: z.string().optional(),
   lots: numeric,
-  volume: z.number().nullish(),
+  volume: num.nullish(),
   open_price: numeric,
   close_price: numeric,
   open_time_str: serverTime,
@@ -22,20 +44,20 @@ export const tradeSchema = z.looseObject({
   commission: numeric.default(0),
   swap: numeric.default(0),
   // Optional: missing from past-cycle trades (get_cycle_trading_history).
-  id: z.number().nullish(),
+  id: num.nullish(),
   sl: numeric.nullish(),
   tp: numeric.nullish(),
   rr_ratio: z.string().nullish(),
-  reason: z.number().int().nullish(),
+  reason: int.nullish(),
   is_news: zeroOne.nullish(),
-  pnl_percentage: z.number().nullish(),
+  pnl_percentage: num.nullish(),
   // Present but wrong by the server offset — never used.
-  open_time: z.number().nullish(),
-  close_time: z.number().nullish(),
+  open_time: num.nullish(),
+  close_time: num.nullish(),
 });
 
 export const cycleSchema = z.looseObject({
-  external_id: z.number().int(),
+  external_id: int,
   reason: z.string().nullish(),
   created_at: serverTime.nullish(),
   ending_at: serverTime.nullish(),
@@ -53,25 +75,25 @@ export const statusHistoryRowSchema = z.looseObject({
 export const applicableRuleSchema = z.looseObject({
   condition: z.string(),
   label: z.string().nullish(),
-  value: z.union([z.string(), z.number()]).nullish(),
+  value: z.union([z.string(), num]).nullish(),
   is_account_override: z.boolean().nullish(),
 });
 
 export const accountSchema = z.looseObject({
   firm: z.string().min(1),
-  external_id: z.number().int(),
-  login: z.number().int(),
-  parent_external_id: z.number().int().nullish(),
+  external_id: int,
+  login: int,
+  parent_external_id: int.nullish(),
   bucket: z.enum(['active', 'inactive', 'breached']),
   type_label: z.string().nullish(),
   plan: z
     .looseObject({
-      id: z.number().int().nullish(),
+      id: int.nullish(),
       type: z.string().nullish(),
       title: z.string().nullish(),
-      next_plan: z.number().int().nullish(),
+      next_plan: int.nullish(),
       starting_balance: numeric.nullish(),
-      leverage: z.number().nullish(),
+      leverage: num.nullish(),
     })
     .nullish(),
   platform: z.string().nullish(),
@@ -92,8 +114,8 @@ export const accountSchema = z.looseObject({
 });
 
 export const paymentSchema = z.looseObject({
-  id: z.union([z.number(), z.string()]).transform(String),
-  login: z.number().int().nullish(),
+  id: z.union([num, z.string()]).transform(String),
+  login: int.nullish(),
   total: numeric.nullish(),
   discount: numeric.nullish(),
   grand_total: numeric,
@@ -103,11 +125,11 @@ export const paymentSchema = z.looseObject({
 });
 
 export const newsEventSchema = z.looseObject({
-  id: z.number().int(),
+  id: int,
   title: z.string(),
   country: z.string(),
   impact: z.enum(['High', 'Medium', 'Low', 'Holiday']),
-  timestamp: z.number().int(),
+  timestamp: int,
   forecast: z.string().nullish(),
   previous: z.string().nullish(),
   is_restricted: zeroOne.nullish(),
@@ -120,15 +142,13 @@ export const exportFileSchema = z.looseObject({
   generated_at: z.iso.datetime({ offset: true }),
   mode: z.enum(['full', 'incremental']),
   status: z.enum(['ok', 'partial', 'error']),
-  errors: z
-    .array(z.looseObject({ step: z.string(), account_id: z.number().nullish(), message: z.string() }))
-    .default([]),
+  errors: z.array(z.looseObject({ step: z.string(), account_id: num.nullish(), message: z.string() })).default([]),
   firm_server_time_offset: z.string().regex(/^[+-]\d{2}:\d{2}$/),
   checksums: z
     .record(
       z.string(),
       z.looseObject({
-        trade_count: z.number().int(),
+        trade_count: int,
         sum_profit: numeric,
         balance_change: numeric,
         match: z.boolean(),

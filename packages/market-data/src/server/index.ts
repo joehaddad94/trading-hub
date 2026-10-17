@@ -5,12 +5,14 @@ export { checkCandleHealth, getCandleConditions } from './health';
 export {
   type BackfillOptions,
   backfill,
+  CATCH_UP_DAYS,
   candleCoverage,
   completedDays,
   type IngestResult,
   type Instrument,
   ingestDay,
   ingestInstrumentDay,
+  ingestRecentDays,
   latestRunsForDay,
   listInstruments,
 } from './ingest';

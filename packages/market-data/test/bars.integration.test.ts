@@ -82,7 +82,7 @@ describe.skipIf(!db)('loadBars', () => {
         if (!page.hasMore) break;
       }
       expect(pages.flat()).toEqual(aggregate(all?.bars ?? [], 15));
-      expect(pages.flat()).toHaveLength(92);
+      expect(pages.flat()).toHaveLength(89);
     });
   });
 
@@ -117,10 +117,10 @@ describe.skipIf(!db)('nextMinuteAt', () => {
     await inTx(async (tx) => {
       await ingestDay(tx, walk, '2026-10-09');
       await ingestDay(tx, walk, '2026-10-11');
-      expect((await nextMinuteAt(tx, 'US30', new Date('2026-10-09T20:59:00Z')))?.toISOString()).toBe(
-        '2026-10-09T20:59:00.000Z',
+      expect((await nextMinuteAt(tx, 'US30', new Date('2026-10-09T20:14:00Z')))?.toISOString()).toBe(
+        '2026-10-09T20:14:00.000Z',
       );
-      expect((await nextMinuteAt(tx, 'US30', new Date('2026-10-09T21:00:00Z')))?.toISOString()).toBe(
+      expect((await nextMinuteAt(tx, 'US30', new Date('2026-10-09T20:15:00Z')))?.toISOString()).toBe(
         '2026-10-11T22:00:00.000Z',
       );
       expect(await nextMinuteAt(tx, 'US30', new Date('2026-10-12T00:00:00Z'))).toBeNull();

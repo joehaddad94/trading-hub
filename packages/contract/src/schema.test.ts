@@ -110,6 +110,30 @@ describe('parseExportFile — real Phase 0 export', () => {
   });
 });
 
+describe('parseExportFile — quoted numbers', () => {
+  // The 14 Oct 2026 export quoted every account and cycle id ("external_id": "4288969") and was rejected.
+  it('accepts integer ids sent as strings and converts them', () => {
+    const file = structuredClone(fixture) as { accounts: Record<string, unknown>[] };
+    const account = file.accounts[0] as { external_id: number; login: number; cycles: { external_id: number }[] };
+    const { external_id, login } = account;
+    const cycleId = account.cycles[0]?.external_id;
+    Object.assign(account, { external_id: String(external_id), login: String(login) });
+    if (account.cycles[0]) Object.assign(account.cycles[0], { external_id: String(cycleId) });
+    const result = parseExportFile(file);
+    if (!result.ok) throw new Error(result.error);
+    expect(result.data.accounts[0]).toMatchObject({ external_id, login });
+    expect(result.data.accounts[0]?.cycles[0]?.external_id).toBe(cycleId);
+  });
+
+  it('still rejects a string that is not a whole number', () => {
+    for (const bad of ['', 'abc', '42.5', '1e3']) {
+      const file = structuredClone(fixture) as { accounts: Record<string, unknown>[] };
+      Object.assign(file.accounts[0] as object, { login: bad });
+      expect(parseExportFile(file)).toMatchObject({ ok: false, unknownVersion: false });
+    }
+  });
+});
+
 describe('parseExportFile — rejects', () => {
   it('an unknown schema_version', () => {
     const result = parseExportFile({ ...fixture, schema_version: 2 });
