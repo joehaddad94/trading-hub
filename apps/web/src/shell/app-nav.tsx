@@ -46,7 +46,10 @@ function Badge({ count, className }: { count: number; className?: string }) {
   );
 }
 
-/** Desktop: slim icon rail; labels show as tooltips on hover and focus. */
+/**
+ * Desktop: slim icon rail; labels show as tooltips on hover and focus. The rail is its own stacking context
+ * (sticky + backdrop blur), so it needs z-40 to keep those labels above the glass cards and sticky header.
+ */
 export function AppRail({ journalBadge = 0 }: { journalBadge?: number }) {
   const active = activeId(usePathname());
   const item = (link: AppLink) => {
@@ -75,7 +78,7 @@ export function AppRail({ journalBadge = 0 }: { journalBadge?: number }) {
     );
   };
   return (
-    <aside className="sticky top-0 hidden h-dvh w-16 shrink-0 flex-col items-center gap-2 border-r bg-chrome py-3 backdrop-blur-xl md:flex">
+    <aside className="sticky top-0 z-40 hidden h-dvh w-16 shrink-0 flex-col items-center gap-2 border-r bg-chrome py-3 backdrop-blur-xl md:flex">
       <Link
         href="/"
         aria-label="Back to hub"
