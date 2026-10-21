@@ -24,7 +24,7 @@ Next.js App Router (no NestJS) · pnpm + Turborepo · Supabase (Postgres, Auth, 
 4. Pure logic (metrics, indicators, backtest engine, contract parsing) lives in packages with unit tests. No business logic in components or route files.
 5. Money: `numeric` in DB, `decimal.js` in code. Never `parseFloat` money.
 6. Time: store UTC; display Asia/Beirut; trading sessions in America/New_York.
-7. Backtester: **no lookahead** — never return or render data after the replay cursor.
+7. Backtester: **no lookahead** — never render data after the replay cursor, nor use it for indicators or fills. Exception (Joe, 21 Oct 2026): replay may hold 1m candles ahead of the cursor in memory as a step buffer; chart windows still never go past the cursor (backtester spec §3.2).
 8. Every metric comes from `packages/core/metrics` — one definition, used everywhere.
 9. zod at every boundary; Server Actions return `{ ok, data } | { ok: false, error }`.
 10. Server-only files start with `import 'server-only'`; service-role key never reaches the client.

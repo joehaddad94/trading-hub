@@ -306,7 +306,7 @@ export function ChartWorkspace({
       }
       if (cursor !== null && event.key === 'ArrowLeft') {
         event.preventDefault();
-        replay.stepBack(event.shiftKey ? 'minute' : 'bar', back);
+        void replay.stepBack(event.shiftKey ? 'minute' : 'bar', back);
         return;
       }
       if (cursor !== null && event.key === 'ArrowRight') {

@@ -17,7 +17,7 @@ function Label({ children }: { children: string }) {
   return <span className="hidden sm:inline">{children}</span>;
 }
 
-/** Replay bar (spec §3.1): start at a date/time or a clicked bar, step, play, jump, exit. No step back. */
+/** Replay bar (spec §3.1): start at a date/time or a clicked bar, step back and forward, play, jump, exit. */
 export function ReplayControls({
   replay,
   timezone,
@@ -173,7 +173,7 @@ export function ReplayControls({
         <button
           type="button"
           className={button}
-          onClick={() => replay.stepBack('bar', back)}
+          onClick={() => void replay.stepBack('bar', back)}
           aria-keyshortcuts="ArrowLeft"
           aria-label="Bar back"
           title={back.blocked ?? 'One bar back (←, Shift+← one minute)'}

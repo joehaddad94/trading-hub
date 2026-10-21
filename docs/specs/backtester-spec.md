@@ -82,6 +82,7 @@
 - On 5m/15m, the current (forming) candle is built **only from 1m bars up to the cursor**, and it updates minute by minute as replay advances — exactly like a live chart. Never show the completed higher-timeframe candle before its last minute has been replayed.
 - Indicators (ATR, RSI) are computed **only from candles up to the cursor**, including the partial forming candle.
 - The API endpoint that serves candles during replay must accept `until` and never return data after it.
+- **Exception (Joe, 21 Oct 2026), so stepping is instant:** replay keeps a buffer of 1m candles ahead of the cursor in memory (up to 1,500 minutes per request, refilled in the background). Buffered candles are never drawn, never used by an indicator, and never used for a fill; each step draws only the minutes up to the new cursor. Chart windows (the candles the chart loads) still never go past the cursor. Stepping back uses bars already on the chart and makes no request.
 
 ---
 
@@ -173,7 +174,7 @@ Dropped (Joe, 9 Oct 2026): there are no existing Excel backtest journals to impo
 |---|---|---|
 | **B1. Data** | `instruments`, `candles_1m`, backfill script, daily cron, gap check, alerts | 12 months of 1m candles for both instruments in the DB; yesterday's data appears automatically each day; a failed run sends an alert. |
 | **B2. Chart** | KLineCharts, instrument switch, 1m/5m/15m, lazy loading, crosshair, session shading | Smooth scrolling back through the full year on desktop; 5m/15m candles match an aggregation of the 1m data. |
-| **B3. Replay** | Cursor, controls, partial forming candles, no-lookahead API | On 15m, the forming candle updates minute by minute; no request ever returns data after the cursor (add a test). |
+| **B3. Replay** | Cursor, controls, partial forming candles, no-lookahead API | On 15m, the forming candle updates minute by minute; nothing after the cursor is ever drawn, and chart windows never return data after it (add a test; the 1m replay buffer is the §3.2 exception). |
 | **B4. Drawings** | Horizontal, trend, long, short, measure; persistence; tool registry | Drawings survive reload and timeframe switches at the same time/price. |
 | **B5. Indicators** | ATR, RSI with settings; unit tests vs reference values | Values match TradingView's for a sample window. |
 | **B6. Simulated trading** | Place trade from position tool, fills, SL/TP rules, costs, recording into `trades`, snapshots | A full session of trades shows up in the tracker calendar, stats, and journal under the Backtest scope. |

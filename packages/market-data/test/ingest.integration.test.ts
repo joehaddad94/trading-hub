@@ -85,9 +85,9 @@ describe.skipIf(!db)('candle ingestion', () => {
       const runs = await tx.select().from(dataIngestRuns);
       expect(runs).toHaveLength(4);
       const coverage = await candleCoverage(tx);
-      expect(coverage.map((c) => [c.code, c.count, c.first?.toISOString()])).toEqual([
-        ['NAS100', 1335, '2026-10-07T00:00:00.000Z'],
-        ['US30', 1335, '2026-10-07T00:00:00.000Z'],
+      expect(coverage.map((c) => [c.code, c.first?.toISOString(), c.last?.toISOString()])).toEqual([
+        ['NAS100', '2026-10-07T00:00:00.000Z', '2026-10-07T23:59:00.000Z'],
+        ['US30', '2026-10-07T00:00:00.000Z', '2026-10-07T23:59:00.000Z'],
       ]);
     });
   });

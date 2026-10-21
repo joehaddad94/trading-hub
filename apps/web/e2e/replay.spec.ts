@@ -44,7 +44,7 @@ test.describe('replay (M16)', () => {
     await signIn(context, baseURL ?? '');
   });
 
-  test('the 15m forming candle updates minute by minute and nothing past the cursor is fetched', async ({ page }) => {
+  test('the 15m forming candle updates minute by minute and nothing past the cursor is drawn', async ({ page }) => {
     const seen = watchCandles(page);
     await page.goto('/backtest/chart?i=US30&tf=15&at=2026-10-07T14:37:00.000Z');
     await expect(cursor(page)).toHaveAttribute('data-cursor', String(Date.parse('2026-10-07T14:37:00Z')));
@@ -67,13 +67,17 @@ test.describe('replay (M16)', () => {
     await expect.poll(async () => (await lastBar(page))?.ts).toBe(Date.parse('2026-10-07T14:45:00Z'));
     await expect(page).toHaveURL(/at=2026-10-07T14(%3A|:)59/);
 
-    // Every candles response stayed at or before the cursor of its moment.
+    // Chart windows stop at the cursor; 1m minutes ahead of it are only the in-memory replay buffer (Joe's
+    // exception to spec §3.2, 21 Oct 2026), and the bars drawn above never passed the cursor.
     const finalCursor = Date.parse('2026-10-07T14:59:00Z');
-    expect(seen.length).toBeGreaterThan(3);
-    for (const s of seen) {
+    const windows = seen.filter((s) => s.tf !== 1);
+    expect(windows.length).toBeGreaterThan(0);
+    for (const s of windows) {
       expect(s.until).toBeLessThanOrEqual(finalCursor);
       expect(s.maxTs).toBeLessThanOrEqual(s.until);
     }
+    // The steps came from the buffer: one or two 1m requests, not one per step.
+    expect(seen.filter((s) => s.tf === 1).length).toBeLessThanOrEqual(2);
   });
 
   test('jumps to the next session, plays, keeps the cursor across timeframes and exits', async ({ page }) => {

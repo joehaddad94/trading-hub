@@ -7,9 +7,15 @@ import type { ChartEvent } from '../lib/bars-query';
 import type { Marker } from './news-markers';
 
 const DAY = 86_400_000;
-/** One request covers a year behind the reference time and two weeks ahead (the schedule is public). */
-const BACK = 370 * DAY;
+/**
+ * One request covers six weeks behind the reference time and two weeks ahead (the schedule is public): more
+ * than any loaded chart window, and a small response. It is refetched once replay is a fortnight past it.
+ */
+const BACK = 42 * DAY;
 const AHEAD = 14 * DAY;
+/** Refetch when the reference time gets this close to either end of the window. */
+const MARGIN_BACK = 28 * DAY;
+const MARGIN_AHEAD = 7 * DAY;
 const RANK = { high: 0, medium: 1, low: 2, holiday: 3 } as const;
 
 export type NewsFilter = { impacts: ChartEvent['impact'][]; currencies: string[] };
@@ -20,20 +26,31 @@ export type NewsFilter = { impacts: ChartEvent['impact'][]; currencies: string[]
  */
 export function useNewsEvents(cursor: number | null, filter: NewsFilter, enabled: boolean) {
   const [events, setEvents] = useState<ChartEvent[]>([]);
+  const eventsRef = useRef(events);
+  eventsRef.current = events;
   const fetched = useRef<{ key: string; from: number; to: number; until: number } | null>(null);
+  const inFlight = useRef<AbortController | null>(null);
   const key = `${filter.impacts.join(',')}|${filter.currencies.join(',')}`;
+  const impacts = filter.impacts.join(',');
+  const currencies = filter.currencies.join(',');
 
+  // Only a new cursor or filter can start a request, and a request is only aborted by the next one (not by
+  // re-renders), so it is never cancelled and then skipped as "already fetched".
   useEffect(() => {
-    if (!enabled || filter.impacts.length === 0) {
-      setEvents([]);
+    if (!enabled || impacts === '') {
+      inFlight.current?.abort();
+      inFlight.current = null;
       fetched.current = null;
+      setEvents([]);
       return;
     }
     const ref = cursor ?? Date.now();
     const last = fetched.current;
     const passedEvent =
-      last !== null && events.some((e) => Date.parse(e.eventAt) > last.until && Date.parse(e.eventAt) <= ref);
-    const inWindow = last !== null && last.key === key && ref >= last.from + 30 * DAY && ref <= last.to - 7 * DAY;
+      last !== null &&
+      eventsRef.current.some((e) => Date.parse(e.eventAt) > last.until && Date.parse(e.eventAt) <= ref);
+    const inWindow =
+      last !== null && last.key === key && ref >= last.from + MARGIN_BACK && ref <= last.to - MARGIN_AHEAD;
     if (inWindow && !passedEvent && ref >= last.until) return;
     // Restarted earlier than before: drop actuals that are now in the future until the refetch lands.
     if (last !== null && ref < last.until) setEvents((current) => maskAfter(current, ref));
@@ -43,20 +60,25 @@ export function useNewsEvents(cursor: number | null, filter: NewsFilter, enabled
       from: new Date(window.from).toISOString(),
       to: new Date(window.to).toISOString(),
       until: new Date(ref).toISOString(),
-      impact: filter.impacts.join(','),
+      impact: impacts,
     });
-    if (filter.currencies.length) q.set('currency', filter.currencies.join(','));
+    if (currencies) q.set('currency', currencies);
+    inFlight.current?.abort();
     const controller = new AbortController();
+    inFlight.current = controller;
     fetch(`/api/backtest/events?${q}`, { signal: controller.signal, cache: 'no-store' })
       .then((r) => r.json() as Promise<{ ok: true; data: ChartEvent[] } | { ok: false; error: string }>)
       .then((body) => {
+        if (controller.signal.aborted) return;
         if (body.ok) setEvents(body.data);
+        else fetched.current = null;
       })
       .catch(() => {
-        fetched.current = null;
+        if (fetched.current === window) fetched.current = null;
       });
-    return () => controller.abort();
-  }, [cursor, key, enabled, events, filter.impacts, filter.currencies]);
+  }, [cursor, key, enabled, impacts, currencies]);
+
+  useEffect(() => () => inFlight.current?.abort(), []);
 
   return events;
 }

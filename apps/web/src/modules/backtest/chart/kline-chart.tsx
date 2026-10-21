@@ -22,6 +22,13 @@ export type ChartApi = {
   /** Upserts bars at the right edge: a bar with the last bar's time replaces it, a newer one is appended. */
   upsert(bars: Bar[]): void;
   lastBar(): Bar | null;
+  /** Every bar on the chart, oldest first. */
+  bars(): Bar[];
+  /**
+   * Replaces the chart's bars with `bars` (already on the client, so no request): stepping back drops the
+   * newest bars without reloading the window.
+   */
+  rewind(bars: Bar[]): void;
   /** The KLineCharts instance, for the drawing controller. */
   chart: Chart;
 };
@@ -103,6 +110,8 @@ export function KLineChart(props: ChartProps) {
   const crosshairRef = useRef(onCrosshair);
   crosshairRef.current = onCrosshair;
   const generation = useRef(0);
+  /** Bars the next 'init' load uses instead of fetching (set by `rewind`). */
+  const localRef = useRef<Bar[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [ready, setReady] = useState(false);
   /** 'init' while a switch or replay jump reloads the window; 'page' while older bars load on scroll. */
@@ -187,6 +196,11 @@ export function KLineChart(props: ChartProps) {
         const last = chart.getDataList().at(-1);
         return last ? toBar(last) : null;
       },
+      bars: () => chart.getDataList().map(toBar),
+      rewind: (bars) => {
+        localRef.current = bars;
+        chart.resetData();
+      },
       chart,
     };
     onReady?.(api);
@@ -218,7 +232,13 @@ export function KLineChart(props: ChartProps) {
         const until = cursorRef.current === null ? liveUntil(Date.now()) : new Date(cursorRef.current);
         const anchor = anchorRef.current;
         try {
-          if (type === 'init') {
+          const local = localRef.current;
+          if (type === 'init' && local) {
+            localRef.current = null;
+            callback(local.map(toKLine), { forward: true, backward: false });
+            syncLast();
+            setLoading(null);
+          } else if (type === 'init') {
             const before = anchor ? new Date(anchor + RIGHT_OF_ANCHOR * tf * MINUTE_MS) : undefined;
             const page = await fetchBars({ instrument: instrument.code, tf, until, before, count: PAGE });
             if (gen !== generation.current) return;
