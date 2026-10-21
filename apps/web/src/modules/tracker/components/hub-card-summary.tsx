@@ -16,7 +16,10 @@ export type HubMaxLoss = { room: string; limit: string };
 const tone = (v: Decimal) => cn(v.gt(0) && 'text-profit', v.lt(0) && 'text-loss');
 const signed = (v: Decimal) => `${v.gt(0) ? '+' : ''}${formatMoney(v)}`;
 
-/** The hub's hero (design spec): today's P&L first, then the week, the loss room and this month's curve. */
+/**
+ * The hub's hero (design spec): today's P&L first, then the week, the loss room and this month's curve.
+ * With no closed trades today, the headline falls back to this week's P&L so the hub never leads with $0.00.
+ */
 export function TrackerHubHero({
   summary,
   maxLoss,
@@ -33,9 +36,12 @@ export function TrackerHubHero({
   }
   const today = new Decimal(summary.today.net);
   const week = new Decimal(summary.week.net);
+  const quietDay = summary.today.trades === 0;
+  const headline = quietDay ? summary.week : summary.today;
+  const count = `${headline.trades} ${headline.trades === 1 ? 'trade' : 'trades'}`;
   return (
     <section
-      aria-label="Today"
+      aria-label={quietDay ? 'This week' : 'Today'}
       className={cn(
         'glass rise grid gap-6 rounded-2xl p-5 md:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)] md:p-7',
         today.gt(0) && 'green-day',
@@ -45,16 +51,26 @@ export function TrackerHubHero({
       <div className="flex min-w-0 flex-col gap-4">
         <p className="flex items-center gap-2 font-medium text-muted-foreground text-xs uppercase tracking-wider">
           <ChartCandlestick className="size-4 text-primary" aria-hidden />
-          Today · {summary.today.trades} {summary.today.trades === 1 ? 'trade' : 'trades'}
+          {quietDay ? 'This week' : 'Today'} · {count}
         </p>
-        <p className={cn('num font-semibold text-5xl tracking-tight md:text-6xl', tone(today))} data-testid="hub-today">
-          <CountUpMoney value={summary.today.net} signed />
+        <p
+          className={cn('num font-semibold text-5xl tracking-tight md:text-6xl', tone(quietDay ? week : today))}
+          data-testid={quietDay ? 'hub-week' : 'hub-today'}
+        >
+          <CountUpMoney value={headline.net} signed />
         </p>
         <dl className="flex flex-wrap gap-x-6 gap-y-1 text-sm">
-          <div className="flex gap-2">
-            <dt className="text-muted-foreground">This week</dt>
-            <dd className={cn('num', tone(week))}>{signed(week)}</dd>
-          </div>
+          {quietDay ? (
+            <div className="flex gap-2">
+              <dt className="text-muted-foreground">Today</dt>
+              <dd className="text-muted-foreground">No trades yet</dd>
+            </div>
+          ) : (
+            <div className="flex gap-2">
+              <dt className="text-muted-foreground">This week</dt>
+              <dd className={cn('num', tone(week))}>{signed(week)}</dd>
+            </div>
+          )}
           <div className="flex gap-2">
             <dt className="text-muted-foreground">Win rate</dt>
             <dd className="num">{formatPct(summary.week.winRate ? new Decimal(summary.week.winRate) : null)}</dd>

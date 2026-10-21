@@ -105,6 +105,10 @@ test.describe('signed in', () => {
     await page.goto('/');
     await expect(page.getByTestId('tracker-hub-summary')).toContainText('Active account');
     await expect(page.getByTestId('tracker-hub-summary')).toContainText('7002880 · Funded');
+    // The fixture's trades are all in the past, so today has none and the hero leads with this week instead.
+    await expect(page.getByTestId('hub-hero')).toContainText('This week');
+    await expect(page.getByTestId('hub-week')).toBeVisible();
+    await expect(page.getByTestId('hub-hero')).toContainText('No trades yet');
     // U7: max-loss room for the active account, and "To journal" goes straight to the quick-journal queue.
     await expect(page.getByTestId('hub-max-loss')).toContainText('Room to max loss');
     await page.getByTestId('hub-quick-journal').click();
