@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { FIXTURE_PATH, requireAuth, signIn } from './support/auth';
+import { FIXTURE_PATH, importFixture, requireAuth, signIn } from './support/auth';
 
 requireAuth();
 
@@ -98,6 +98,37 @@ test.describe('signed in', () => {
     await page.getByTestId('scope-selector').selectOption('all');
     await expect(page).not.toHaveURL(/scope=/);
     await expect(page.getByTestId('scope-notice')).toBeVisible();
+  });
+
+  test('rail hover labels sit above the page on every module', async ({ page, isMobile }) => {
+    test.skip(isMobile, 'the rail is desktop-only');
+    test.skip(!process.env.DATABASE_URL, 'DATABASE_URL not set');
+    await importFixture(page);
+    for (const path of ['/', '/tracker?scope=account:7002880', '/news', '/backtest', '/settings']) {
+      await page.goto(path);
+      const rail = page.locator('aside').filter({ has: page.getByRole('navigation', { name: 'Modules' }) });
+      for (const name of ['Hub', 'Tracker', 'Journal', 'News', 'Backtest']) {
+        // Journal's accessible name also carries its badge count.
+        await rail.getByRole('link', { name: new RegExp(`^${name}( |$)`) }).hover();
+        const label = rail.locator('span[aria-hidden]', { hasText: new RegExp(`^${name}$`) });
+        await expect(label).toHaveCSS('opacity', '1');
+        const box = await label.boundingBox();
+        expect(box, `${name} label on ${path}`).not.toBeNull();
+        if (!box) continue;
+        // Probe the label's right end, which overlaps the page content: the label must be on top there.
+        // The label ignores the pointer, so let hit-testing see it for the probe.
+        const onTop = await label.evaluate(
+          (el, [x, y]) => {
+            (el as HTMLElement).style.pointerEvents = 'auto';
+            const hit = document.elementFromPoint(x, y);
+            (el as HTMLElement).style.pointerEvents = '';
+            return hit === el;
+          },
+          [box.x + box.width - 3, box.y + box.height / 2] as const,
+        );
+        expect(onTop, `${name} label hidden on ${path}`).toBe(true);
+      }
+    }
   });
 
   test('hub shows the Tracker summary', async ({ page }) => {
