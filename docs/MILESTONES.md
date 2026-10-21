@@ -109,7 +109,7 @@ A milestone marked **⛔ Blocked** needs an answer from Joe (see "Open questions
 
 ## M16 · Replay  *(backtest B3)*
 **Scope:** `packages/backtest-engine` cursor + aggregation, controls, forming candles, `/api/backtest/candles` requiring `until`.
-**Done when:** a test proves no request returns data after the cursor; the 15m forming candle updates minute by minute.
+**Done when:** a test proves nothing after the cursor is drawn and chart windows never return data after it (the in-memory 1m step buffer is the 21 Oct 2026 exception, backtester spec §3.2); the 15m forming candle updates minute by minute.
 
 ## M17 · News markers on replay  *(news N4)*
 **Done when:** event markers show on the replay chart without leaking future actuals.

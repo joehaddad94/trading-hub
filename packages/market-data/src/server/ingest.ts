@@ -206,18 +206,19 @@ export async function latestRunsForDay(db: Executor, day: string) {
   );
 }
 
-/** Coverage per instrument: first/last candle and count. */
+/** Coverage per instrument: first and last candle. */
 export async function candleCoverage(db: Executor) {
+  // First and last candle per instrument straight off the (instrument_id, ts) primary key: two index probes.
+  // A count or min/max over the join reads every row (≈1.5M after two years), which took seconds in prod.
+  const first = sql<Date | null>`(select c.ts from candles_1m c where c.instrument_id = ${instruments.id} order by c.ts asc limit 1)`;
+  const last = sql<Date | null>`(select c.ts from candles_1m c where c.instrument_id = ${instruments.id} order by c.ts desc limit 1)`;
   return db
     .select({
       code: instruments.code,
       displayName: instruments.displayName,
-      first: sql<Date | null>`min(${candles1m.ts})`.mapWith(candles1m.ts),
-      last: sql<Date | null>`max(${candles1m.ts})`.mapWith(candles1m.ts),
-      count: sql<number>`count(${candles1m.ts})`.mapWith(Number),
+      first: first.mapWith(candles1m.ts),
+      last: last.mapWith(candles1m.ts),
     })
     .from(instruments)
-    .leftJoin(candles1m, eq(candles1m.instrumentId, instruments.id))
-    .groupBy(instruments.id)
     .orderBy(asc(instruments.code));
 }

@@ -45,18 +45,24 @@ export async function runCandleJob(now = new Date()): Promise<CandleJobRun> {
   }
 }
 
-export type CandleStatus = {
-  conditions: CandleCondition[];
-  coverage: Awaited<ReturnType<typeof candleCoverage>>;
-};
-
-/** Backtest Lab: data health banner + coverage. Cheap reads, no side effects. */
-export async function getCandleStatus(now = new Date()): Promise<CandleStatus | null> {
+/** Backtest Lab banner: data health conditions only (every lab page renders it). No side effects. */
+export async function getCandleHealth(now = new Date()): Promise<CandleCondition[] | null> {
   const db = getDb();
   if (!db) return null;
   try {
-    const [conditions, coverage] = await Promise.all([getCandleConditions(db, now), candleCoverage(db)]);
-    return { conditions, coverage };
+    return await getCandleConditions(db, now);
+  } catch (error) {
+    Sentry.captureException(error);
+    return null;
+  }
+}
+
+/** Runs page: first and last candle per instrument. */
+export async function getCandleCoverage(): Promise<Awaited<ReturnType<typeof candleCoverage>> | null> {
+  const db = getDb();
+  if (!db) return null;
+  try {
+    return await candleCoverage(db);
   } catch (error) {
     Sentry.captureException(error);
     return null;
