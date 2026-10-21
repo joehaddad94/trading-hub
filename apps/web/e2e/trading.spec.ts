@@ -43,7 +43,7 @@ test.describe('simulated trading (M20)', () => {
     await page.keyboard.press('Alt+KeyL');
     await clickChart(page, 0.7, 0.5);
     await page.getByRole('button', { name: 'Buy market' }).click();
-    await page.getByRole('button', { name: /Session \d+/ }).click();
+    await page.getByRole('button', { name: /Run \d+/ }).click();
     await expect(rows(page)).toHaveCount(1);
     await expect(rows(page).first()).toHaveAttribute('data-status', 'pending');
     // The tool became the order.
@@ -69,7 +69,7 @@ test.describe('simulated trading (M20)', () => {
 
     // Delete, undo, delete for good.
     await page.goto(`/backtest/chart?i=US30&tf=5&at=${AT}`);
-    await page.getByRole('button', { name: /Session \d+/ }).click();
+    await page.getByRole('button', { name: /Run \d+/ }).click();
     page.once('dialog', (d) => {
       expect(d.message()).toContain('removed from all stats');
       void d.accept();
@@ -95,7 +95,7 @@ test.describe('simulated trading (M20)', () => {
     await page.keyboard.press('Alt+KeyS');
     await clickChart(page, 0.7, 0.15);
     await page.getByRole('button', { name: 'Place pending' }).click();
-    await page.getByRole('button', { name: /Session \d+/ }).click();
+    await page.getByRole('button', { name: /Run \d+/ }).click();
     await expect(rows(page).first()).toHaveAttribute('data-status', 'pending');
     await rows(page).first().getByRole('button', { name: 'Cancel' }).click();
     await expect(rows(page)).toHaveCount(0);

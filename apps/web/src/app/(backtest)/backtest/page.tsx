@@ -6,7 +6,7 @@ import { getSessionsPage } from '@/modules/backtest/server/sessions';
 import { SessionForm } from '@/modules/backtest/sessions/session-form';
 import { createSessionAction } from './actions';
 
-export const metadata = { title: 'Sessions · Backtest Lab' };
+export const metadata = { title: 'Runs · Backtest Lab' };
 
 /** Backtester spec §7: sessions list, new session, candle coverage. */
 export default async function SessionsPage() {
@@ -15,7 +15,7 @@ export default async function SessionsPage() {
     <div className="h-full overflow-y-auto">
       <div className="flex flex-col gap-4 p-4 md:p-6">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <h2 className="font-semibold text-xl">Sessions</h2>
+          <h2 className="font-semibold text-xl">Runs</h2>
           <Link
             href="/backtest/chart"
             className="inline-flex h-11 items-center rounded-md bg-primary px-4 font-medium text-primary-foreground text-sm md:h-9"
@@ -28,9 +28,9 @@ export default async function SessionsPage() {
         ) : (
           <>
             {data.sessions.length === 0 ? (
-              <p className="text-muted-foreground text-sm">No sessions yet. Create one below or open the chart.</p>
+              <p className="text-muted-foreground text-sm">No runs yet. Create one below to replay and place trades.</p>
             ) : (
-              <ul className="flex flex-col divide-y glass rounded-xl" aria-label="Backtest sessions">
+              <ul className="flex flex-col divide-y glass rounded-xl" aria-label="Backtest runs">
                 {data.sessions.map((s) => (
                   <li key={s.id} data-testid="session-row">
                     <Link
@@ -70,11 +70,11 @@ export default async function SessionsPage() {
               </ul>
             )}
             <section className="glass rounded-xl p-4">
-              <h3 className="mb-3 font-medium">New session</h3>
+              <h3 className="mb-3 font-medium">New run</h3>
               <SessionForm
                 action={createSessionAction}
                 submit="Create and open chart"
-                label="New session"
+                label="New run"
                 tags={data.tags}
                 instruments={data.instruments}
                 idPrefix="new"

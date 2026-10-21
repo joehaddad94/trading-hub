@@ -69,7 +69,7 @@ async function run<T>(fn: (db: NonNullable<ReturnType<typeof getDb>>) => Promise
   } catch (error) {
     if (error instanceof TradingError) return { ok: false, error: error.message };
     Sentry.captureException(error);
-    return { ok: false, error: 'The session could not be saved.' };
+    return { ok: false, error: 'The run could not be saved.' };
   }
 }
 

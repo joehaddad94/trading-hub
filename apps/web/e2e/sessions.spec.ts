@@ -24,8 +24,8 @@ test.describe('backtest sessions (M21)', () => {
     page,
   }) => {
     await page.goto('/backtest');
-    await expect(page.getByText('No sessions yet')).toBeVisible();
-    const form = page.getByRole('form', { name: 'New session' });
+    await expect(page.getByText('No runs yet')).toBeVisible();
+    const form = page.getByRole('form', { name: 'New run' });
     await form.getByLabel('Name').fill('London breakouts');
     await form.getByLabel('Starting balance $').fill('50000');
     await form.getByLabel('Risk per trade %').fill('1');
@@ -51,20 +51,20 @@ test.describe('backtest sessions (M21)', () => {
       new RegExp(`at=${encodeURIComponent(cursor)}`),
     );
 
-    const settings = page.getByRole('form', { name: 'Session settings' });
+    const settings = page.getByRole('form', { name: 'Run settings' });
     await settings.getByLabel('Name').fill('London ORB');
     await settings.getByRole('button', { name: 'Save' }).click();
     await expect(settings.getByRole('status')).toHaveText('Saved.');
     await expect(page.getByRole('heading', { name: 'London ORB' })).toBeVisible();
 
-    await page.getByRole('button', { name: 'Complete session' }).click();
-    await expect(page.getByText('Session completed.')).toBeVisible();
+    await page.getByRole('button', { name: 'Complete run' }).click();
+    await expect(page.getByText('Run completed.')).toBeVisible();
     await page.goto('/backtest');
     await expect(page.getByTestId('session-row')).toHaveCount(1);
     await expect(page.getByTestId('session-row')).toContainText('Completed');
 
     await page.getByTestId('session-row').getByRole('link').click();
-    await page.getByText('Delete session…').click();
+    await page.getByText('Delete run…').click();
     await page.getByRole('button', { name: 'Delete for good' }).click();
     await expect(page).toHaveURL(/\/backtest$/);
     await expect(page.getByTestId('session-row')).toHaveCount(0);

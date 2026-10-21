@@ -9,7 +9,7 @@ import { SessionControls } from '@/modules/backtest/sessions/session-controls';
 import { SessionForm } from '@/modules/backtest/sessions/session-form';
 import { deleteSessionAction, sessionStatusAction, updateSessionAction } from '../../actions';
 
-export const metadata = { title: 'Session · Backtest Lab' };
+export const metadata = { title: 'Run · Backtest Lab' };
 
 const EXIT_LABELS: Record<string, string> = { tp: 'Target', sl: 'Stop', breakeven: 'Breakeven', manual: 'Manual' };
 
@@ -40,7 +40,7 @@ export default async function SessionPage({ params }: { params: Promise<{ id: st
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex min-w-0 flex-col">
             <Link href="/backtest" className="text-muted-foreground text-xs hover:underline">
-              ← Sessions
+              ← Runs
             </Link>
             <h2 className="truncate font-semibold text-xl">{session.name}</h2>
             <p className="text-muted-foreground text-xs">
@@ -83,7 +83,7 @@ export default async function SessionPage({ params }: { params: Promise<{ id: st
             <p className="text-muted-foreground text-sm">No closed trades yet.</p>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[34rem] text-sm" aria-label="Session trades">
+              <table className="w-full min-w-[34rem] text-sm" aria-label="Run trades">
                 <thead>
                   <tr className="border-b text-left text-muted-foreground text-xs">
                     <th className="p-2 font-normal">Closed</th>
@@ -122,7 +122,7 @@ export default async function SessionPage({ params }: { params: Promise<{ id: st
           <SessionForm
             action={updateSessionAction}
             submit="Save"
-            label="Session settings"
+            label="Run settings"
             session={session}
             tags={data.tags}
             instruments={data.instruments}

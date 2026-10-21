@@ -4,7 +4,7 @@ import { TZDate } from '@date-fns/tz';
 import type { OrderView } from '@trading/backtest';
 import { format } from 'date-fns';
 import Link from 'next/link';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { cn } from '@/lib/utils';
 import type { Trading } from './use-trading';
 
@@ -19,6 +19,12 @@ export function TradePanel({ trading, timezone }: { trading: Trading; timezone: 
   const [open, setOpen] = useState(false);
   const live = trading.orders.filter((o) => o.status === 'pending' || o.status === 'open');
   const closed = trading.orders.filter((o) => o.status === 'closed');
+  // A newly placed order opens the list, so the trade you just made is in view.
+  const seen = useRef(trading.orders.length);
+  useEffect(() => {
+    if (trading.orders.length > seen.current) setOpen(true);
+    seen.current = trading.orders.length;
+  }, [trading.orders.length]);
   if (!trading.session) return null;
   return (
     <section className="border-t text-sm" aria-label="Simulated trades">

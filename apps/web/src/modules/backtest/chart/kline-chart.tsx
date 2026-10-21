@@ -7,6 +7,7 @@ import { type RefObject, useEffect, useRef, useState } from 'react';
 import { type ActiveIndicator, INDICATOR_TEMPLATES, indicatorName, indicatorPane } from './indicators';
 import { fetchBars, toKLine } from './loader';
 import { type Marker, NEWS_INDICATOR, newsMarkers } from './news-markers';
+import { ORDER_LEVEL_OVERLAY, orderLevelOverlay } from './order-handles';
 import { ORDERS_INDICATOR, type OrderMark, orderLines } from './order-lines';
 import { SESSION_INDICATOR, sessionShading } from './session-shading';
 import { chartStyles } from './styles';
@@ -105,6 +106,8 @@ export function KLineChart(props: ChartProps) {
   const generation = useRef(0);
   const [error, setError] = useState<string | null>(null);
   const [ready, setReady] = useState(false);
+  /** 'init' while a switch or replay jump reloads the window; 'page' while older bars load on scroll. */
+  const [loading, setLoading] = useState<'init' | 'page' | null>('init');
   const [lastBar, setLastBar] = useState<Bar | null>(null);
 
   // The chart is created once; prop changes are applied by the effects below.
@@ -139,6 +142,7 @@ export function KLineChart(props: ChartProps) {
       for (const t of INDICATOR_TEMPLATES) if (!k.getSupportedIndicators().includes(t.name)) k.registerIndicator(t);
       const overlays = k.getSupportedOverlays();
       for (const tool of TOOLS) if (!overlays.includes(tool.overlay.name)) k.registerOverlay(tool.overlay);
+      if (!overlays.includes(ORDER_LEVEL_OVERLAY)) k.registerOverlay(orderLevelOverlay);
       const chart = k.init(node, {
         styles: chartStyles({ label: `${instrument.code} · ${tf}m`, digits: instrument.priceDigits }),
         timezone,
@@ -205,6 +209,7 @@ export function KLineChart(props: ChartProps) {
         : null;
     const gen = ++generation.current;
     setError(null);
+    setLoading('init');
     const syncLast = () => {
       const last = chart.getDataList().at(-1);
       setLastBar(last ? toBar(last) : null);
@@ -221,7 +226,9 @@ export function KLineChart(props: ChartProps) {
             callback(page.bars.map(toKLine), { forward: page.hasMore, backward: Boolean(anchor) });
             if (anchor) chart.scrollToTimestamp(anchor);
             syncLast();
+            setLoading(null);
           } else if (type === 'forward' && timestamp) {
+            setLoading('page');
             const page = await fetchBars({
               instrument: instrument.code,
               tf,
@@ -231,18 +238,22 @@ export function KLineChart(props: ChartProps) {
             });
             if (gen !== generation.current) return;
             callback(page.bars.map(toKLine), { forward: page.hasMore });
+            setLoading(null);
           } else if (type === 'backward' && timestamp) {
+            setLoading('page');
             const after = new Date(timestamp + tf * MINUTE_MS);
             const page = await fetchBars({ instrument: instrument.code, tf, until, after, count: PAGE });
             if (gen !== generation.current) return;
             callback(page.bars.map(toKLine), { backward: page.hasMore });
             syncLast();
+            setLoading(null);
           } else {
             callback([], false);
           }
         } catch (e) {
           if (gen !== generation.current) return;
           setError((e as Error).message);
+          setLoading(null);
           callback([], false);
         }
       },
@@ -345,11 +356,37 @@ export function KLineChart(props: ChartProps) {
         data-last-bar={lastBar ? JSON.stringify(lastBar) : ''}
         data-markers={markers?.length ?? 0}
         data-order-marks={orderMarks?.length ?? 0}
+        data-loading={loading ?? ''}
       />
+      {loading && <ChartLoading full={loading === 'init'} label={`${instrument.code} · ${tf}m`} />}
       {error && (
         <p role="alert" className="absolute top-2 left-2 rounded-md bg-loss/20 px-3 py-1 text-sm">
           {error}
         </p>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Loading state for the chart: a sliding bar on top always; on a full reload (instrument, timeframe, replay
+ * jump) the old candles dim and a label says what is loading. Motion only when the user allows it.
+ */
+function ChartLoading({ full, label }: { full: boolean; label: string }) {
+  return (
+    <div role="status" aria-live="polite" className="pointer-events-none absolute inset-0 z-10">
+      <div className="absolute inset-x-0 top-0 h-0.5 overflow-hidden bg-primary/15">
+        <div className="h-full w-1/3 bg-primary motion-safe:animate-[chart-load_1.1s_ease-in-out_infinite]" />
+      </div>
+      {full ? (
+        <div className="flex h-full items-center justify-center bg-background/35 backdrop-blur-[1px] motion-safe:animate-in motion-safe:fade-in">
+          <span className="flex items-center gap-2 rounded-full border bg-popover/90 px-3 py-1.5 text-muted-foreground text-xs shadow">
+            <span className="size-3 rounded-full border-2 border-primary border-t-transparent motion-safe:animate-spin" />
+            Loading {label}
+          </span>
+        </div>
+      ) : (
+        <span className="sr-only">Loading older candles</span>
       )}
     </div>
   );

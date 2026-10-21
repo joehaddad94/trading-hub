@@ -128,12 +128,12 @@ export async function currentSession(db: Executor, id?: string | null): Promise<
     .limit(1);
   if (row) return toSession(row);
   const [{ n } = { n: 0 }] = await db.select({ n: sql<number>`count(*)::int` }).from(backtestSessions);
-  return createSession(db, { name: `Session ${n + 1}` });
+  return createSession(db, { name: `Run ${n + 1}` });
 }
 
 async function getSession(db: Executor, id: string): Promise<SessionRow> {
   const [row] = await db.select().from(backtestSessions).where(eq(backtestSessions.id, id));
-  if (!row) throw new TradingError('That backtest session no longer exists.');
+  if (!row) throw new TradingError('That backtest run no longer exists.');
   return row;
 }
 
@@ -185,7 +185,7 @@ const side = (s: 'buy' | 'sell') => (s === 'buy' ? 'long' : 'short') as 'long' |
  */
 export async function placeOrder(db: Executor, sessionId: string, input: PlaceOrderInput): Promise<OrderView> {
   const session = await getSession(db, sessionId);
-  if (session.status !== 'in_progress') throw new TradingError('This session is completed.');
+  if (session.status !== 'in_progress') throw new TradingError('This run is completed. Reopen it to trade.');
   const instrument = await instrumentBy(db, { code: input.instrument });
   if (!validLevels(input.side, input.entry, input.sl, input.tp)) {
     throw new TradingError(

@@ -2,9 +2,9 @@
 
 import { SPEEDS, type Speed } from '@trading/backtest-engine';
 import { FastForward, Pause, Play, SkipForward, StepForward, X } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { cn } from '@/lib/utils';
-import { formatCursor, localInputToUtc } from './replay-time';
+import { defaultReplayStart, formatCursor, localInputToUtc, utcToLocalInput } from './replay-time';
 import type { useReplay } from './use-replay';
 
 type Replay = ReturnType<typeof useReplay>;
@@ -25,6 +25,9 @@ export function ReplayControls({
   onPick: (on: boolean) => void;
 }) {
   const [when, setWhen] = useState('');
+  const [hint, setHint] = useState<string | null>(null);
+  // Prefilled after mount (the server doesn't know "now" the same way), so Start always does something.
+  useEffect(() => setWhen((w) => w || utcToLocalInput(defaultReplayStart(Date.now()), timezone)), [timezone]);
 
   if (replay.cursor === null) {
     return (
@@ -34,7 +37,12 @@ export function ReplayControls({
         onSubmit={(e) => {
           e.preventDefault();
           const at = localInputToUtc(when, timezone);
-          if (at !== null) replay.start(at);
+          if (at === null) {
+            setHint('Pick a date and time first, or use Start replay here and click a candle.');
+            return;
+          }
+          setHint(null);
+          replay.start(at);
         }}
       >
         <label className="flex items-center gap-2 text-muted-foreground">
@@ -42,17 +50,25 @@ export function ReplayControls({
           <input
             type="datetime-local"
             value={when}
-            onChange={(e) => setWhen(e.target.value)}
+            onChange={(e) => {
+              setWhen(e.target.value);
+              setHint(null);
+            }}
             className="h-9 rounded-md border bg-background px-2 text-foreground"
             aria-label="Replay start"
           />
         </label>
-        <button type="submit" className={cn(button, 'bg-accent text-accent-foreground')} disabled={!when}>
+        <button type="submit" className={cn(button, 'bg-accent text-accent-foreground')}>
           <Play className="size-4" aria-hidden /> Start
         </button>
         <button type="button" className={button} aria-pressed={picking} onClick={() => onPick(!picking)}>
           {picking ? 'Click a candle…' : 'Start replay here'}
         </button>
+        {hint && (
+          <p role="alert" className="text-warning">
+            {hint}
+          </p>
+        )}
       </form>
     );
   }

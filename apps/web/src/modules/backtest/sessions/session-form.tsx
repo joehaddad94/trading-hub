@@ -44,7 +44,7 @@ export function SessionForm({
             name="name"
             required
             maxLength={80}
-            defaultValue={session?.name ?? `Session · ${formatBeirut(new Date(), 'd MMM yyyy')}`}
+            defaultValue={session?.name ?? `Run · ${formatBeirut(new Date(), 'd MMM yyyy')}`}
           />
         </div>
         <div className="flex flex-col gap-1">

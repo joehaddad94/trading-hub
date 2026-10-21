@@ -19,18 +19,18 @@ export function SessionControls({
     <div className="flex flex-wrap items-start gap-4">
       <ActionForm
         action={statusAction}
-        submit={completed ? 'Reopen session' : 'Complete session'}
-        label={completed ? 'Reopen session' : 'Complete session'}
+        submit={completed ? 'Reopen run' : 'Complete run'}
+        label={completed ? 'Reopen run' : 'Complete run'}
       >
         <input type="hidden" name="id" value={session.id} />
         <input type="hidden" name="status" value={completed ? 'in_progress' : 'completed'} />
       </ActionForm>
       <details className="rounded-md border px-3 py-2 text-sm">
-        <summary className="cursor-pointer text-loss">Delete session…</summary>
+        <summary className="cursor-pointer text-loss">Delete run…</summary>
         <p className="my-2 max-w-sm text-muted-foreground text-xs">
           Deletes this session&apos;s trades, orders, journal entries and drawings. Live trades are never touched.
         </p>
-        <ActionForm action={deleteAction} submit="Delete for good" label="Delete session">
+        <ActionForm action={deleteAction} submit="Delete for good" label="Delete run">
           <input type="hidden" name="id" value={session.id} />
           <input type="hidden" name="confirm" value="delete" />
         </ActionForm>

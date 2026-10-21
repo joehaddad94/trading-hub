@@ -48,7 +48,7 @@ export const MODULES: ModuleDef[] = [
     href: '/backtest',
     description: 'Bar-by-bar replay of US30 and NAS100',
     nav: [
-      { href: '/backtest', label: 'Sessions' },
+      { href: '/backtest', label: 'Runs' },
       { href: '/backtest/chart', label: 'Chart' },
     ],
   },
