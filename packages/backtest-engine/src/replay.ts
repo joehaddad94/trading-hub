@@ -44,6 +44,15 @@ export function applyMinutes(last: Bar | null, minutes: Bar[], tf: Timeframe): B
   return out;
 }
 
+/**
+ * Where a step back lands: `minute` hides the newest 1m bar; `bar` hides the forming `tf` bar (or, on a bar's
+ * last minute, the whole bar), leaving the cursor on the previous bar's last minute.
+ */
+export function stepBackTarget(cursor: number, tf: Timeframe, mode: StepMode): number {
+  if (mode === 'minute' || tf === 1) return cursor - MINUTE_MS;
+  return bucketStart(cursor, tf) - MINUTE_MS;
+}
+
 /** Where `count` steps in a row land: lets playback reveal several bars per request when the network lags. */
 export function stepTargetBy(cursor: number, tf: Timeframe, mode: StepMode, count: number): number {
   let target = cursor;

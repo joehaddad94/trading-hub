@@ -1,7 +1,7 @@
 'use client';
 
 import { SPEEDS, type Speed } from '@trading/backtest-engine';
-import { CalendarDays, FastForward, Pause, Play, SkipForward, StepForward, X } from 'lucide-react';
+import { CalendarDays, FastForward, Pause, Play, SkipForward, StepBack, StepForward, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { cn } from '@/lib/utils';
 import { defaultReplayStart, formatCursor, formatCursorShort, localInputToUtc, utcToLocalInput } from './replay-time';
@@ -23,11 +23,14 @@ export function ReplayControls({
   timezone,
   picking,
   onPick,
+  back,
 }: {
   replay: Replay;
   timezone: string;
   picking: boolean;
   onPick: (on: boolean) => void;
+  /** Step back: why it is blocked (or null) and the earliest cursor allowed. */
+  back: { blocked: string | null; floor: number | null };
 }) {
   const [when, setWhen] = useState('');
   const [hint, setHint] = useState<string | null>(null);
@@ -81,122 +84,134 @@ export function ReplayControls({
   }
 
   return (
-    // Phones: one row that scrolls sideways, icons only, short time — so the chart keeps its height.
-    <div
-      className="flex flex-nowrap items-center gap-1 overflow-x-auto whitespace-nowrap border-b px-2 py-1.5 text-sm md:flex-wrap md:px-4"
-      role="toolbar"
-      aria-label="Replay"
-    >
-      <span className="mr-1 shrink-0 font-medium num" data-testid="replay-cursor" data-cursor={replay.cursor}>
-        <span className="hidden sm:inline">{formatCursor(replay.cursor, timezone)}</span>
-        <span className="sm:hidden">{formatCursorShort(replay.cursor, timezone)}</span>
-      </span>
-      <button
-        type="button"
-        className={button}
-        aria-expanded={changing}
-        aria-label="Change replay date"
-        title="Replay from another date"
-        onClick={() => {
-          if (!changing && replay.cursor !== null) setWhen(utcToLocalInput(replay.cursor, timezone));
-          setHint(null);
-          setChanging(!changing);
-        }}
+    <>
+      {/* Phones: one row that scrolls sideways, icons only, short time — so the chart keeps its height. */}
+      <div
+        className="flex flex-nowrap items-center gap-1 overflow-x-auto whitespace-nowrap border-b px-2 py-1.5 text-sm md:flex-wrap md:px-4"
+        role="toolbar"
+        aria-label="Replay"
       >
-        <CalendarDays className="size-4" aria-hidden />
-      </button>
-      {changing && (
-        <form
-          className="flex shrink-0 items-center gap-1"
+        <span className="mr-1 shrink-0 font-medium num" data-testid="replay-cursor" data-cursor={replay.cursor}>
+          <span className="hidden sm:inline">{formatCursor(replay.cursor, timezone)}</span>
+          <span className="sm:hidden">{formatCursorShort(replay.cursor, timezone)}</span>
+        </span>
+        <button
+          type="button"
+          className={button}
+          aria-expanded={changing}
           aria-label="Change replay date"
-          onSubmit={(e) => {
-            e.preventDefault();
-            const at = localInputToUtc(when, timezone);
-            if (at === null) {
-              setHint('Pick a date and time first.');
-              return;
-            }
+          title="Replay from another date"
+          onClick={() => {
+            if (!changing && replay.cursor !== null) setWhen(utcToLocalInput(replay.cursor, timezone));
             setHint(null);
-            setChanging(false);
-            replay.start(at);
+            setChanging(!changing);
           }}
         >
-          <input
-            type="datetime-local"
-            value={when}
-            onChange={(e) => {
-              setWhen(e.target.value);
+          <CalendarDays className="size-4" aria-hidden />
+        </button>
+        {changing && (
+          <form
+            className="flex shrink-0 items-center gap-1"
+            aria-label="Change replay date"
+            onSubmit={(e) => {
+              e.preventDefault();
+              const at = localInputToUtc(when, timezone);
+              if (at === null) {
+                setHint('Pick a date and time first.');
+                return;
+              }
               setHint(null);
+              setChanging(false);
+              replay.start(at);
             }}
-            className="h-9 rounded-md border bg-background px-2 text-foreground"
-            aria-label="New replay start"
-          />
-          <button type="submit" className={cn(button, 'bg-accent text-accent-foreground')}>
-            Go
-          </button>
-          {hint && (
-            <span role="alert" className="text-warning">
-              {hint}
-            </span>
-          )}
-        </form>
-      )}
-      <button
-        type="button"
-        className={button}
-        onClick={() => replay.setPlaying(!replay.playing)}
-        aria-keyshortcuts="Space"
-        aria-label={replay.playing ? 'Pause' : 'Play'}
-      >
-        {replay.playing ? <Pause className="size-4" aria-hidden /> : <Play className="size-4" aria-hidden />}
-        <Label>{replay.playing ? 'Pause' : 'Play'}</Label>
-      </button>
-      <label className="flex items-center text-muted-foreground">
-        <span className="sr-only">Speed</span>
-        <select
-          value={replay.speed}
-          onChange={(e) => replay.setSpeed(Number(e.target.value) as Speed)}
-          className="h-9 rounded-md border bg-background px-1 text-foreground"
-          aria-label="Bars per second"
+          >
+            <input
+              type="datetime-local"
+              value={when}
+              onChange={(e) => {
+                setWhen(e.target.value);
+                setHint(null);
+              }}
+              className="h-9 rounded-md border bg-background px-2 text-foreground"
+              aria-label="New replay start"
+            />
+            <button type="submit" className={cn(button, 'bg-accent text-accent-foreground')}>
+              Go
+            </button>
+            {hint && (
+              <span role="alert" className="text-warning">
+                {hint}
+              </span>
+            )}
+          </form>
+        )}
+        <button
+          type="button"
+          className={button}
+          onClick={() => replay.setPlaying(!replay.playing)}
+          aria-keyshortcuts="Space"
+          aria-label={replay.playing ? 'Pause' : 'Play'}
         >
-          {SPEEDS.map((s) => (
-            <option key={s} value={s}>
-              {s}×
-            </option>
-          ))}
-        </select>
-      </label>
-      <button
-        type="button"
-        className={button}
-        onClick={() => void replay.step('bar')}
-        aria-keyshortcuts="ArrowRight"
-        aria-label="Bar"
-      >
-        <StepForward className="size-4" aria-hidden /> <Label>Bar</Label>
-      </button>
-      <button
-        type="button"
-        className={button}
-        onClick={() => void replay.step('minute')}
-        aria-keyshortcuts="Shift+ArrowRight"
-      >
-        +1m
-      </button>
-      <button type="button" className={button} onClick={() => void replay.jump('session')} aria-label="Next session">
-        <SkipForward className="size-4" aria-hidden /> <Label>Next session</Label>
-      </button>
-      <button type="button" className={button} onClick={() => void replay.jump('day')} aria-label="Next day">
-        <FastForward className="size-4" aria-hidden /> <Label>Next day</Label>
-      </button>
-      <button type="button" className={cn(button, 'ml-auto')} onClick={replay.exit} aria-label="Exit replay">
-        <X className="size-4" aria-hidden /> <Label>Exit replay</Label>
-      </button>
+          {replay.playing ? <Pause className="size-4" aria-hidden /> : <Play className="size-4" aria-hidden />}
+          <Label>{replay.playing ? 'Pause' : 'Play'}</Label>
+        </button>
+        <label className="flex items-center text-muted-foreground">
+          <span className="sr-only">Speed</span>
+          <select
+            value={replay.speed}
+            onChange={(e) => replay.setSpeed(Number(e.target.value) as Speed)}
+            className="h-9 rounded-md border bg-background px-1 text-foreground"
+            aria-label="Bars per second"
+          >
+            {SPEEDS.map((s) => (
+              <option key={s} value={s}>
+                {s}×
+              </option>
+            ))}
+          </select>
+        </label>
+        <button
+          type="button"
+          className={button}
+          onClick={() => replay.stepBack('bar', back)}
+          aria-keyshortcuts="ArrowLeft"
+          aria-label="Bar back"
+          title={back.blocked ?? 'One bar back (←, Shift+← one minute)'}
+        >
+          <StepBack className="size-4" aria-hidden />
+        </button>
+        <button
+          type="button"
+          className={button}
+          onClick={() => void replay.step('bar')}
+          aria-keyshortcuts="ArrowRight"
+          aria-label="Bar"
+        >
+          <StepForward className="size-4" aria-hidden /> <Label>Bar</Label>
+        </button>
+        <button
+          type="button"
+          className={button}
+          onClick={() => void replay.step('minute')}
+          aria-keyshortcuts="Shift+ArrowRight"
+        >
+          +1m
+        </button>
+        <button type="button" className={button} onClick={() => void replay.jump('session')} aria-label="Next session">
+          <SkipForward className="size-4" aria-hidden /> <Label>Next session</Label>
+        </button>
+        <button type="button" className={button} onClick={() => void replay.jump('day')} aria-label="Next day">
+          <FastForward className="size-4" aria-hidden /> <Label>Next day</Label>
+        </button>
+        <button type="button" className={cn(button, 'ml-auto')} onClick={replay.exit} aria-label="Exit replay">
+          <X className="size-4" aria-hidden /> <Label>Exit replay</Label>
+        </button>
+      </div>
       {replay.message && (
-        <p role="status" className="w-full text-muted-foreground text-xs">
+        <p role="status" className="border-b px-2 py-1 text-muted-foreground text-xs md:px-4">
           {replay.message}
         </p>
       )}
-    </div>
+    </>
   );
 }

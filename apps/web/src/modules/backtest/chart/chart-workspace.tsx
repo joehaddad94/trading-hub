@@ -85,6 +85,22 @@ export function atMarket<P extends { price: number }>(points: P[], price: number
   return points.map((p) => ({ ...p, price: p.price + shift }));
 }
 
+/**
+ * Joe's rule for stepping back (21 Oct 2026): only with no open trade or pending order, and never before the
+ * last closed trade's exit, so a run can't be re-traded with hindsight.
+ */
+export function stepBackRule(orders: Pick<OrderView, 'status' | 'closedAt'>[]): {
+  blocked: string | null;
+  floor: number | null;
+} {
+  const live = orders.some((o) => o.status === 'open' || o.status === 'pending');
+  const closes = orders.flatMap((o) => (o.status === 'closed' && o.closedAt !== null ? [o.closedAt] : []));
+  return {
+    blocked: live ? 'Close or cancel your open trades to step back.' : null,
+    floor: closes.length > 0 ? Math.max(...closes) : null,
+  };
+}
+
 /** Keyboard: 1 / 5 / F pick the timeframe (spec §2.2). Ignored while typing in a field. */
 export function timeframeForKey(key: string): Timeframe | null {
   if (key === '1') return 1;
@@ -219,6 +235,7 @@ export function ChartWorkspace({
     onMove: trading.modify,
   });
   const { full, toggleFull, rootRef } = useFullScreen();
+  const back = useMemo(() => stepBackRule(trading.orders), [trading.orders]);
   // Once the chart has settled, warm the cache for the other timeframes and instruments at the same cursor,
   // so switching is instant (same request as the chart would make; nothing past the cursor).
   const instrumentCodes = instruments.map((i) => i.code).join(',');
@@ -286,6 +303,11 @@ export function ChartWorkspace({
         removeSelected();
         return;
       }
+      if (cursor !== null && event.key === 'ArrowLeft') {
+        event.preventDefault();
+        replay.stepBack(event.shiftKey ? 'minute' : 'bar', back);
+        return;
+      }
       if (cursor !== null && event.key === 'ArrowRight') {
         event.preventDefault();
         void step(event.shiftKey ? 'minute' : 'bar');
@@ -301,7 +323,19 @@ export function ChartWorkspace({
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [setTfParam, cursor, step, setPlaying, playing, startTool, cancelTool, removeSelected, toggleFull]);
+  }, [
+    setTfParam,
+    cursor,
+    step,
+    setPlaying,
+    playing,
+    startTool,
+    cancelTool,
+    removeSelected,
+    toggleFull,
+    back,
+    replay.stepBack,
+  ]);
 
   if (!instrument) {
     return <p className="p-4 text-muted-foreground text-sm">No instruments are set up yet.</p>;
@@ -434,7 +468,7 @@ export function ChartWorkspace({
           <FullScreenButton full={full} onToggle={toggleFull} />
         </div>
       </div>
-      <ReplayControls replay={replay} timezone={prefs.timezone} picking={picking} onPick={setPicking} />
+      <ReplayControls replay={replay} timezone={prefs.timezone} picking={picking} onPick={setPicking} back={back} />
       <div className="flex min-h-[60dvh] flex-1 flex-col-reverse md:min-h-0 md:flex-row">
         <DrawingToolbar drawings={drawings} />
         <div

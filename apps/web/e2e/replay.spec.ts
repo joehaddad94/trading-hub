@@ -84,6 +84,16 @@ test.describe('replay (M16)', () => {
     await expect(cursor(page)).toHaveAttribute('data-cursor', String(Date.parse('2026-10-07T17:29:00Z')));
     await expect.poll(async () => (await lastBar(page))?.ts).toBe(Date.parse('2026-10-07T17:25:00Z'));
 
+    // One bar back (no trades open): the forming 17:25 bar disappears, then forward again.
+    await page.keyboard.press('ArrowLeft');
+    await expect(cursor(page)).toHaveAttribute('data-cursor', String(Date.parse('2026-10-07T17:24:00Z')));
+    await expect.poll(async () => (await lastBar(page))?.ts).toBe(Date.parse('2026-10-07T17:20:00Z'));
+    // A step pressed while the previous one is loading is ignored, so wait for each.
+    for (const minute of [25, 26, 27, 28, 29]) {
+      await page.keyboard.press('Shift+ArrowRight');
+      await expect(cursor(page)).toHaveAttribute('data-cursor', String(Date.parse(`2026-10-07T17:${minute}:00Z`)));
+    }
+
     await page.keyboard.press('f');
     await expect(page).toHaveURL(/tf=15/);
     await expect.poll(async () => (await lastBar(page))?.ts).toBe(Date.parse('2026-10-07T17:15:00Z'));

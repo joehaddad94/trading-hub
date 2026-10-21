@@ -75,7 +75,7 @@
 - **Play / pause** (`Space`) with speeds: 1, 2, 5, 10, 20 bars/second (configurable).
 - **Jump to next session open** (Asia / London / NY AM / NY PM) and **jump to next day**.
 - **Exit replay** returns to the latest data.
-- No step backward in v1 (avoids peeking). Restarting at an earlier point is allowed.
+- **Step back** one bar (`←`, button) or one minute (`Shift + ←`) — Joe's rule (21 Oct 2026): only when no trade is open or pending, and never before the last closed trade's exit, so a run can't be re-traded with hindsight. Restarting at an earlier point is allowed.
 
 ### 3.2 No lookahead — non-negotiable
 - The replay cursor is stored at **1-minute resolution**.

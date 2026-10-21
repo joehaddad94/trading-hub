@@ -10,6 +10,7 @@ import {
   playIntervalMs,
   type Speed,
   type StepMode,
+  stepBackTarget,
   stepTargetBy,
   type Timeframe,
 } from '@trading/backtest-engine';
@@ -70,6 +71,33 @@ export function useReplay({ instrument, tf, initialCursor, onCursor }: Options) 
     setMessage(null);
     moveTo(null, true);
   }, [moveTo]);
+
+  /**
+   * One bar (or minute) back. Nothing new is revealed, so no lookahead; the chart reloads up to the earlier
+   * cursor. The workspace only allows it with no live order, and never before `floor` (the last closed trade),
+   * so a run's results can't be re-traded with hindsight.
+   */
+  const stepBack = useCallback(
+    (mode: StepMode, rule: { blocked: string | null; floor: number | null }): StepResult => {
+      const from = cursorRef.current;
+      if (from === null || busy.current) return 'busy';
+      if (rule.blocked) {
+        setMessage(rule.blocked);
+        return 'busy';
+      }
+      const { floor } = rule;
+      const target = stepBackTarget(from, tf, mode);
+      if (floor !== null && target < floor) {
+        setMessage('You can’t go back past your last closed trade.');
+        return 'end';
+      }
+      setPlaying(false);
+      setMessage(null);
+      moveTo(target, true);
+      return 'ok';
+    },
+    [tf, moveTo],
+  );
 
   const step = useCallback(
     async (mode: StepMode, count = 1): Promise<StepResult> => {
@@ -199,6 +227,7 @@ export function useReplay({ instrument, tf, initialCursor, onCursor }: Options) 
     startAtBar,
     exit,
     step,
+    stepBack,
     jump,
     onChartReady,
   };

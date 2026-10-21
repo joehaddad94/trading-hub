@@ -8,6 +8,7 @@ import {
   nextSessionOpen,
   nextSessionWindow,
   playIntervalMs,
+  stepBackTarget,
   stepTarget,
   stepTargetBy,
 } from './replay';
@@ -105,5 +106,15 @@ describe('nextSessionWindow', () => {
     // Fri 9 Oct 2026 16:30 ET → Asia opens 20:00 ET, closes midnight.
     const w = nextSessionWindow(at('2026-10-09T20:30:00Z'));
     expect([w.name, iso(w.at), iso(w.end)]).toEqual(['asia', '2026-10-10T00:00:00.000Z', '2026-10-10T04:00:00.000Z']);
+  });
+});
+
+describe('stepBackTarget', () => {
+  it('goes back one whole bar or one minute', () => {
+    expect(iso(stepBackTarget(at('2026-10-07T14:49:00Z'), 5, 'bar'))).toBe('2026-10-07T14:44:00.000Z');
+    // Mid-bar: the forming bar disappears.
+    expect(iso(stepBackTarget(at('2026-10-07T14:47:00Z'), 5, 'bar'))).toBe('2026-10-07T14:44:00.000Z');
+    expect(iso(stepBackTarget(at('2026-10-07T14:47:00Z'), 5, 'minute'))).toBe('2026-10-07T14:46:00.000Z');
+    expect(iso(stepBackTarget(at('2026-10-07T14:47:00Z'), 1, 'bar'))).toBe('2026-10-07T14:46:00.000Z');
   });
 });
