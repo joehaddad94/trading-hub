@@ -161,6 +161,12 @@
   html {
     background-color: var(--background);
   }
+  /* Phones: the fixed bottom tab bar is 4rem tall, so scrolling to a control (focus, find, links) stops above it. */
+  @media (width < 48rem) {
+    html {
+      scroll-padding-bottom: calc(4rem + env(safe-area-inset-bottom, 0px));
+    }
+  }
   /* Tailwind v4 dropped the pointer cursor on buttons; anything clickable shows the hand again. */
   button:not(:disabled),
   [role="button"]:not([aria-disabled="true"]),

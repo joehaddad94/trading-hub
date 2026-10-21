@@ -1,8 +1,18 @@
 import { describe, expect, it } from 'vitest';
-import { timeframeForKey } from './chart-workspace';
+import { atMarket, timeframeForKey } from './chart-workspace';
 import { barsUrl, toKLine } from './loader';
 
 describe('chart helpers', () => {
+  it('moves a market position to the price on screen, keeping stop and target distances', () => {
+    const box = [
+      { ts: 1, price: 100 },
+      { ts: 2, price: 90 },
+      { ts: 2, price: 120 },
+    ];
+    expect(atMarket(box, 104).map((p) => p.price)).toEqual([104, 94, 124]);
+    expect(atMarket(box, null)).toBe(box);
+  });
+
   it('maps the timeframe shortcuts', () => {
     expect([timeframeForKey('1'), timeframeForKey('5'), timeframeForKey('f'), timeframeForKey('F')]).toEqual([
       1, 5, 15, 15,

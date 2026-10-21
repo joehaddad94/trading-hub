@@ -74,6 +74,17 @@ function defaultInstrument(list: WorkspaceInstrument[]): string {
   return list.find((i) => i.code === 'US30')?.code ?? list[0]?.code ?? 'US30';
 }
 
+/**
+ * A position's [entry, stop, target] moved so the entry sits at `price` (the last close), keeping the stop and
+ * target distances; unchanged when there is no price.
+ */
+export function atMarket<P extends { price: number }>(points: P[], price: number | null): P[] {
+  const entry = points[0];
+  if (price === null || !entry) return points;
+  const shift = price - entry.price;
+  return points.map((p) => ({ ...p, price: p.price + shift }));
+}
+
 /** Keyboard: 1 / 5 / F pick the timeframe (spec §2.2). Ignored while typing in a field. */
 export function timeframeForKey(key: string): Timeframe | null {
   if (key === '1') return 1;
@@ -235,7 +246,12 @@ export function ChartWorkspace({
     const placed = await trading.place(
       {
         side: selected.tool,
-        points: selected.points.map((p) => ({ ts: p.ts, price: p.price })),
+        // A market order fills at the next candle's open, not where the box was drawn: move the box to the
+        // price on screen first (stop and target keep their distances), so the trade doesn't jump on the fill.
+        points: atMarket(
+          selected.points.map((p) => ({ ts: p.ts, price: p.price })),
+          kind === 'market' ? (chartApi?.lastBar()?.close ?? null) : null,
+        ),
         sizing: selected.style.sizing,
       },
       kind,

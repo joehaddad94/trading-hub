@@ -6,6 +6,7 @@ import { format } from 'date-fns';
 import Decimal from 'decimal.js';
 import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { cn } from '@/lib/utils';
 import type { Trading } from './use-trading';
 
@@ -68,17 +69,20 @@ export function TradePanel({ trading, timezone }: { trading: Trading; timezone: 
           </ul>
         </div>
       )}
-      {trading.undo && (
-        <div
-          role="status"
-          className="fixed bottom-4 left-1/2 z-50 flex -translate-x-1/2 items-center gap-3 rounded-md border bg-popover px-4 py-2 shadow-lg"
-        >
-          Trade deleted.
-          <button type="button" onClick={() => void trading.restore()} className="font-medium underline">
-            Undo
-          </button>
-        </div>
-      )}
+      {trading.undo &&
+        // On <body>, above the phone tab bar: inside the chart workspace (its own stacking context) the bar covers it.
+        createPortal(
+          <div
+            role="status"
+            className="fixed bottom-[calc(5rem+env(safe-area-inset-bottom,0px))] left-1/2 z-50 flex -translate-x-1/2 items-center gap-3 rounded-md border bg-popover px-4 py-2 shadow-lg md:bottom-4"
+          >
+            Trade deleted.
+            <button type="button" onClick={() => void trading.restore()} className="font-medium underline">
+              Undo
+            </button>
+          </div>,
+          document.body,
+        )}
     </section>
   );
 }
