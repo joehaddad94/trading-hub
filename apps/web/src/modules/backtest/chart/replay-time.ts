@@ -22,6 +22,11 @@ export function formatCursor(ms: number, timezone: string): string {
   return format(new TZDate(ms, timezone), 'EEE d MMM yyyy HH:mm');
 }
 
+/** Phone readout, e.g. "7 Oct 17:37". */
+export function formatCursorShort(ms: number, timezone: string): string {
+  return format(new TZDate(ms, timezone), 'd MMM HH:mm');
+}
+
 /** Default replay start: one week back, on the hour, so a bare Start press has something to replay. */
 export function defaultReplayStart(now: number): number {
   const HOUR = 3_600_000;

@@ -11,6 +11,7 @@ import { DrawingProperties, DrawingToolbar } from './drawing-toolbar';
 import { IndicatorMenu } from './indicator-menu';
 import { activeIndicators, type IndicatorPrefs, normalisePrefs } from './indicators';
 import { type ChartApi, KLineChart } from './kline-chart';
+import { BARS_PAGE, liveUntil, prefetchBars } from './loader';
 import { NewsPanel } from './news-panel';
 import { useOrderHandles } from './order-handles';
 import { orderMarks } from './order-lines';
@@ -23,6 +24,9 @@ import { useReplay } from './use-replay';
 import { type TradingActions, useTrading } from './use-trading';
 
 export type WorkspaceInstrument = { code: string; displayName: string; priceDigits: number; pointValue: string };
+
+/** How long the chart must sit still before other timeframes/instruments are prefetched. */
+const PREFETCH_DELAY_MS = 1200;
 
 /** Position sizing balance until backtest sessions carry their own (M21). */
 const DEFAULT_BALANCE = '25000';
@@ -204,6 +208,23 @@ export function ChartWorkspace({
     onMove: trading.modify,
   });
   const { full, toggleFull, rootRef } = useFullScreen();
+  // Once the chart has settled, warm the cache for the other timeframes and instruments at the same cursor,
+  // so switching is instant (same request as the chart would make; nothing past the cursor).
+  const instrumentCodes = instruments.map((i) => i.code).join(',');
+  useEffect(() => {
+    if (playing) return;
+    const t = window.setTimeout(() => {
+      const until = cursor === null ? liveUntil(Date.now()) : new Date(cursor);
+      const current = instrument?.code;
+      for (const other of TIMEFRAMES) {
+        if (other !== tf && current) prefetchBars({ instrument: current, tf: other, until, count: BARS_PAGE });
+      }
+      for (const code of instrumentCodes.split(',')) {
+        if (code && code !== current) prefetchBars({ instrument: code, tf, until, count: BARS_PAGE });
+      }
+    }, PREFETCH_DELAY_MS);
+    return () => window.clearTimeout(t);
+  }, [cursor, playing, tf, instrument?.code, instrumentCodes]);
   const marks = useMemo(
     () => orderMarks(trading.orders, instrument?.code ?? '', tf),
     [trading.orders, instrument?.code, tf],
@@ -273,7 +294,7 @@ export function ChartWorkspace({
   return (
     <div
       ref={rootRef}
-      className={cn('tv-dark flex flex-1 flex-col md:h-full', full && 'fixed inset-0 z-50 h-dvh bg-background')}
+      className={cn('tv-dark isolate flex flex-1 flex-col md:h-full', full && 'fixed inset-0 z-50 h-dvh bg-background')}
       data-full-screen={full ? 'true' : 'false'}
     >
       <div

@@ -1,6 +1,6 @@
 'use server';
 
-import { cursorSchema, modifyOrderSchema, type OrderView, placeOrderSchema } from '@trading/backtest';
+import { closeOrderSchema, cursorSchema, modifyOrderSchema, type OrderView, placeOrderSchema } from '@trading/backtest';
 import type { DeletedTrade } from '@trading/backtest/server';
 import { z } from 'zod';
 import type { ActionResult } from '@/lib/action-result';
@@ -59,9 +59,11 @@ export async function closeOrderAction(
   orderId: string,
   input: unknown,
 ): Promise<ActionResult<OrderView[]>> {
-  const parsed = z.object({ sessionId: id, orderId: id, input: cursorSchema }).safeParse({ sessionId, orderId, input });
+  const parsed = z
+    .object({ sessionId: id, orderId: id, input: closeOrderSchema })
+    .safeParse({ sessionId, orderId, input });
   if (!parsed.success) return invalid(parsed.error);
-  return closeSimOrder(parsed.data.sessionId, parsed.data.orderId, parsed.data.input.at);
+  return closeSimOrder(parsed.data.sessionId, parsed.data.orderId, parsed.data.input.at, parsed.data.input.lots);
 }
 
 /** Spec §6.4: deletes a backtest trade (never a live one) and returns what Undo needs. */

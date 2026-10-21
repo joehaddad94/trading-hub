@@ -7,6 +7,12 @@ requireAuth();
 const AT = '2026-10-07T14:00:00.000Z';
 const rows = (page: Page) => page.getByTestId('order-row');
 
+/** Draggable order lines as the chart reports them: key "<orderId>:<level>", price and pixel row. */
+async function orderLines(page: Page): Promise<{ key: string; price: number; y: number | null }[]> {
+  const raw = await page.locator('[data-order-lines]').first().getAttribute('data-order-lines');
+  return JSON.parse(raw ?? '[]');
+}
+
 async function clickChart(page: Page, fx: number, fy: number) {
   await page.getByTestId('kline-chart').scrollIntoViewIfNeeded();
   const box = await page.getByTestId('kline-chart').boundingBox();
@@ -43,7 +49,7 @@ test.describe('simulated trading (M20)', () => {
     await page.keyboard.press('Alt+KeyL');
     await clickChart(page, 0.7, 0.5);
     await page.getByRole('button', { name: 'Buy market' }).click();
-    await page.getByRole('button', { name: /Run \d+/ }).click();
+    // The trade list opens by itself on a new order.
     await expect(rows(page)).toHaveCount(1);
     await expect(rows(page).first()).toHaveAttribute('data-status', 'pending');
     // The tool became the order.
@@ -95,8 +101,9 @@ test.describe('simulated trading (M20)', () => {
     await page.keyboard.press('Alt+KeyS');
     await clickChart(page, 0.7, 0.15);
     await page.getByRole('button', { name: 'Place pending' }).click();
-    await page.getByRole('button', { name: /Run \d+/ }).click();
     await expect(rows(page).first()).toHaveAttribute('data-status', 'pending');
+    // A pending order shows draggable entry, SL and TP lines.
+    await expect.poll(async () => (await orderLines(page)).length).toBe(3);
     await rows(page).first().getByRole('button', { name: 'Cancel' }).click();
     await expect(rows(page)).toHaveCount(0);
 
@@ -109,8 +116,29 @@ test.describe('simulated trading (M20)', () => {
     await expect(rows(page).first()).toContainText(/SL (\S+) · TP/);
     const fill = (await rows(page).first().textContent())?.match(/@ ([\d.]+)/)?.[1];
     await expect(rows(page).first()).toContainText(`SL ${fill}`);
-    await rows(page).first().getByRole('button', { name: 'Close' }).click();
-    await expect(rows(page).first()).toHaveAttribute('data-status', 'closed');
-    await expect(rows(page).first()).toContainText('Closed');
+
+    // Drag the TP line up: the order's target moves with it.
+    const tpBefore = (await rows(page).first().textContent())?.match(/TP ([\d.]+)/)?.[1];
+    const tp = (await orderLines(page)).find((l) => l.key.endsWith(':tp'));
+    const box = await page.getByTestId('kline-chart').boundingBox();
+    if (!tp?.y || !box) throw new Error('no TP line');
+    await page.mouse.move(box.x + box.width * 0.3, box.y + tp.y);
+    await page.mouse.down();
+    await page.mouse.move(box.x + box.width * 0.3, box.y + tp.y - 25, { steps: 5 });
+    await page.mouse.up();
+    await expect(rows(page).first()).not.toContainText(`TP ${tpBefore}`);
+    const tpAfter = Number((await rows(page).first().textContent())?.match(/TP ([\d.]+)/)?.[1]);
+    expect(tpAfter).toBeGreaterThan(Number(tpBefore));
+
+    // Close half, then the rest.
+    const lots = Number((await rows(page).first().textContent())?.match(/US30 ([\d.]+)/)?.[1]);
+    await rows(page).first().getByRole('button', { name: 'Part' }).click();
+    await page.getByRole('form', { name: 'Partial close' }).getByRole('button', { name: 'Close part' }).click();
+    await expect(rows(page)).toHaveCount(2);
+    await expect(page.locator('[data-testid="order-row"][data-status="open"]')).toContainText(
+      `US30 ${(lots - Math.floor((lots * 100) / 2) / 100).toFixed(2)}`,
+    );
+    await page.locator('[data-testid="order-row"][data-status="open"]').getByRole('button', { name: 'Close' }).click();
+    await expect(page.locator('[data-testid="order-row"][data-status="closed"]')).toHaveCount(2);
   });
 });

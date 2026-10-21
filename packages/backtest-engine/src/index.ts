@@ -42,13 +42,16 @@ export {
 } from './position';
 export {
   applyMinutes,
+  barsPerTick,
   cursorForBar,
   DAY_OPEN_MINUTE_ET,
   nextDayOpen,
   nextSessionOpen,
+  nextSessionWindow,
   playIntervalMs,
   SPEEDS,
   type Speed,
   type StepMode,
   stepTarget,
+  stepTargetBy,
 } from './replay';

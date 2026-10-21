@@ -61,8 +61,8 @@ export const modifySimOrder = (sessionId: string, id: string, input: ModifyOrder
 
 export const cancelSimOrder = (sessionId: string, id: string) => withOrders(sessionId, (db) => cancelOrder(db, id));
 
-export const closeSimOrder = (sessionId: string, id: string, at: Date) =>
-  withOrders(sessionId, (db) => closeOrder(db, id, at));
+export const closeSimOrder = (sessionId: string, id: string, at: Date, lots?: string) =>
+  withOrders(sessionId, (db) => closeOrder(db, id, at, lots));
 
 export const deleteSimTrade = (tradeId: string) => run((db) => deleteBacktestTrade(db, tradeId));
 

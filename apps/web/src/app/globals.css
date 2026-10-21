@@ -171,6 +171,12 @@
   input[type="checkbox"]:not(:disabled) {
     cursor: pointer;
   }
+  /* Hovering or dragging an order's SL/TP/entry line: KLineCharts sets an inline pointer, this wins over it. */
+  .chart-ns-resize,
+  .chart-ns-resize * {
+    /* biome-ignore lint/complexity/noImportantStyles: only !important beats the chart's inline cursor. */
+    cursor: ns-resize !important;
+  }
   body {
     @apply bg-background font-sans text-foreground antialiased;
     background-image:

@@ -121,10 +121,11 @@ export function useTrading(opts: {
     [session, cursor, instrument, actions, apply],
   );
 
+  /** Closes at market; `lots` below the position size closes only that part. */
   const close = useCallback(
-    async (id: string) => {
+    async (id: string, lots?: string) => {
       if (!session || cursor === null) return;
-      apply(await actions.close(session.id, id, { at: cursor }));
+      apply(await actions.close(session.id, id, { at: cursor, ...(lots ? { lots } : {}) }));
     },
     [session, cursor, actions, apply],
   );
@@ -136,10 +137,11 @@ export function useTrading(opts: {
     [session, actions, apply],
   );
 
+  /** New stop/target, and for a pending order optionally a new entry. */
   const modify = useCallback(
-    async (id: string, sl: string, tp: string) => {
+    async (id: string, levels: { sl: string; tp: string; entry?: string }) => {
       if (!session || cursor === null) return;
-      apply(await actions.modify(session.id, id, { sl, tp, at: cursor }));
+      apply(await actions.modify(session.id, id, { ...levels, at: cursor }));
     },
     [session, cursor, actions, apply],
   );

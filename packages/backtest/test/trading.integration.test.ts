@@ -146,6 +146,47 @@ describe.skipIf(!url)('simulated trading', () => {
     });
   });
 
+  it('moves a pending entry and re-types it against the cursor bar', async () => {
+    await inTx(async (tx) => {
+      await seedBars(tx, [
+        [100, 101, 99, 100],
+        [100, 101, 99, 100],
+      ]);
+      const session = await createSession(tx, { name: 'E' });
+      const limit = await placeOrder(tx, session.id, order({ kind: 'pending', entry: '95', sl: '90', tp: '105' }));
+      // Dragged above the price: a buy limit becomes a buy stop.
+      await modifyOrder(tx, limit.id, { entry: '103', sl: '98', tp: '110', at: at(1) });
+      const [row] = await tx.select().from(backtestOrders).where(eq(backtestOrders.id, limit.id));
+      expect(row).toMatchObject({ type: 'stop', entry: '103.00000' });
+      expect(row?.modifications).toEqual([{ at: at(1).toISOString(), sl: '98', tp: '110', entry: '103' }]);
+      await expect(modifyOrder(tx, limit.id, { entry: '89', sl: '98', tp: '110', at: at(1) })).rejects.toThrow(
+        TradingError,
+      );
+    });
+  });
+
+  it('a partial close books part of the position and keeps the rest open', async () => {
+    await inTx(async (tx) => {
+      await seedBars(tx, [
+        [100, 101, 99, 100],
+        [100, 101, 99, 100],
+        [100, 106, 99, 105],
+      ]);
+      const session = await createSession(tx, { name: 'P' });
+      const placed = await placeOrder(tx, session.id, order({}));
+      await expect(closeOrder(tx, placed.id, at(2), '0.60')).rejects.toThrow(/only 0.50 lots/);
+      await closeOrder(tx, placed.id, at(2), '0.20');
+      const list = await listOrders(tx, session.id);
+      const open = list.find((o) => o.status === 'open');
+      const closed = list.find((o) => o.status === 'closed');
+      expect(open).toMatchObject({ id: placed.id, lots: '0.30' });
+      // 0.2 lots filled at 102, out at 105.
+      expect(closed).toMatchObject({ lots: '0.20', exitReason: 'manual', net: '6.00' });
+      await closeOrder(tx, placed.id, at(2));
+      expect((await listOrders(tx, session.id)).every((o) => o.status === 'closed')).toBe(true);
+    });
+  });
+
   it('close at market, delete with undo, delete the session', async () => {
     await inTx(async (tx) => {
       await seedBars(tx, [
@@ -192,7 +233,7 @@ describe.skipIf(!url)('simulated trading', () => {
       const a = await currentSession(tx);
       const b = await currentSession(tx);
       expect(a.id).toBe(b.id);
-      expect(a.name).toMatch(/^Session \d+$/);
+      expect(a.name).toMatch(/^Run \d+$/);
     });
   });
 

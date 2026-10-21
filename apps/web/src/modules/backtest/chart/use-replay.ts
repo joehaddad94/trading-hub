@@ -2,19 +2,20 @@
 
 import {
   applyMinutes,
+  barsPerTick,
   cursorForBar,
   MINUTE_MS,
   nextDayOpen,
-  nextSessionOpen,
+  nextSessionWindow,
   playIntervalMs,
   type Speed,
   type StepMode,
-  stepTarget,
+  stepTargetBy,
   type Timeframe,
 } from '@trading/backtest-engine';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { ChartApi } from './kline-chart';
-import { fetchBars, fetchNextMinute } from './loader';
+import { fetchBarsFresh, fetchNextMinute } from './loader';
 
 type Options = {
   instrument: string;
@@ -25,6 +26,9 @@ type Options = {
 };
 
 export type StepResult = 'ok' | 'end' | 'busy';
+
+/** Empty kill zones a jump may skip (weekends, holidays) before giving up. */
+const MAX_EMPTY_ZONES = 40;
 
 /**
  * Replay state machine (backtester spec §3). Every request carries `until` ≤ the new cursor, so no price
@@ -68,14 +72,14 @@ export function useReplay({ instrument, tf, initialCursor, onCursor }: Options) 
   }, [moveTo]);
 
   const step = useCallback(
-    async (mode: StepMode): Promise<StepResult> => {
+    async (mode: StepMode, count = 1): Promise<StepResult> => {
       const from = cursorRef.current;
       const api = chartApi.current;
       if (from === null || !api || busy.current) return 'busy';
       busy.current = true;
       try {
-        let target = stepTarget(from, tf, mode);
-        let page = await fetchBars({
+        let target = stepTargetBy(from, tf, mode, count);
+        let page = await fetchBarsFresh({
           instrument,
           tf: 1,
           after: new Date(from + MINUTE_MS),
@@ -89,8 +93,14 @@ export function useReplay({ instrument, tf, initialCursor, onCursor }: Options) 
             setMessage('End of the available data.');
             return 'end';
           }
-          target = stepTarget(next - MINUTE_MS, tf, mode);
-          page = await fetchBars({ instrument, tf: 1, after: new Date(next), until: new Date(target), count: 1500 });
+          target = stepTargetBy(next - MINUTE_MS, tf, mode, count);
+          page = await fetchBarsFresh({
+            instrument,
+            tf: 1,
+            after: new Date(next),
+            until: new Date(target),
+            count: 1500,
+          });
         }
         api.upsert(applyMinutes(api.lastBar(), page.bars, tf));
         moveTo(target, false);
@@ -105,33 +115,67 @@ export function useReplay({ instrument, tf, initialCursor, onCursor }: Options) 
     [instrument, tf, moveTo],
   );
 
+  /**
+   * Next session / next day. Lands just before the first candle at or after the open, so a weekend or holiday
+   * never leaves the chart parked on an empty zone: a kill zone with no candles is skipped (asks times only,
+   * never prices). Open trades are replayed over everything skipped once the cursor moves.
+   */
   const jump = useCallback(
-    (kind: 'session' | 'day') => {
+    async (kind: 'session' | 'day') => {
       const from = cursorRef.current;
-      if (from === null) return;
+      if (from === null || busy.current) return;
+      busy.current = true;
       setMessage(null);
-      const at = kind === 'session' ? nextSessionOpen(from).at : nextDayOpen(from);
-      // The open itself is the next bar to appear.
-      moveTo(at - MINUTE_MS, true);
+      setPlaying(false);
+      try {
+        let probe = from;
+        for (let i = 0; i < MAX_EMPTY_ZONES; i += 1) {
+          const zone = kind === 'session' ? nextSessionWindow(probe) : { at: nextDayOpen(probe), end: Infinity };
+          const next = await fetchNextMinute(instrument, new Date(zone.at));
+          if (next === null) {
+            setMessage('End of the available data.');
+            return;
+          }
+          if (next < zone.end) {
+            // The first candle of the zone is the next bar to appear.
+            moveTo(next - MINUTE_MS, true);
+            return;
+          }
+          probe = next - MINUTE_MS;
+        }
+        setMessage('No session with candles found in the next two weeks.');
+      } catch (e) {
+        setMessage((e as Error).message);
+      } finally {
+        busy.current = false;
+      }
     },
-    [moveTo],
+    [instrument, moveTo],
   );
 
   useEffect(() => {
     if (!playing) return;
     let stopped = false;
     let timer: ReturnType<typeof setTimeout> | undefined;
+    const interval = playIntervalMs(speed);
+    // How long the last step's request took. When it is slower than the tick, each tick reveals several bars
+    // in one request, so playback keeps its speed instead of crawling (still never past the cursor).
+    let lastStepMs = 0;
     const tick = async () => {
       if (stopped) return;
-      const result = await step('bar');
+      const bars = barsPerTick(lastStepMs, interval);
+      const started = performance.now();
+      const result = await step('bar', bars);
+      lastStepMs = performance.now() - started;
       if (stopped) return;
       if (result === 'end') {
         setPlaying(false);
         return;
       }
-      timer = setTimeout(tick, playIntervalMs(speed));
+      // The request time counts towards the tick.
+      timer = setTimeout(tick, Math.max(0, interval * bars - lastStepMs));
     };
-    timer = setTimeout(tick, playIntervalMs(speed));
+    timer = setTimeout(tick, interval);
     return () => {
       stopped = true;
       clearTimeout(timer);

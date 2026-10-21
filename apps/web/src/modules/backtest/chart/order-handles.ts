@@ -3,11 +3,12 @@
 import type { OrderView } from '@trading/backtest';
 import Decimal from 'decimal.js';
 import type { Chart, OverlayCreate, OverlayEvent, OverlayTemplate } from 'klinecharts';
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 export const ORDER_LEVEL_OVERLAY = 'ord_level';
 
-type Level = 'sl' | 'tp';
+/** Stop, target, and a pending order's entry. */
+type Level = 'sl' | 'tp' | 'entry';
 
 /** What a draggable stop/target line knows about its order. */
 export type LevelData = {
@@ -21,8 +22,14 @@ export type LevelData = {
   priceDigits: number;
 };
 
-const COLOUR: Record<Level, string> = { sl: '#f87171', tp: '#4ade80' };
-const LABEL_BG: Record<Level, string> = { sl: 'rgba(153, 27, 27, 0.92)', tp: 'rgba(22, 101, 52, 0.92)' };
+const COLOUR: Record<Level, string> = { sl: '#f87171', tp: '#4ade80', entry: '#60a5fa' };
+const LABEL_BG: Record<Level, string> = {
+  sl: 'rgba(153, 27, 27, 0.92)',
+  tp: 'rgba(22, 101, 52, 0.92)',
+  entry: 'rgba(30, 64, 175, 0.92)',
+};
+/** Class on the chart root while the pointer is on a line: an up/down cursor, as on TradingView. */
+export const RESIZE_CLASS = 'chart-ns-resize';
 
 /** Money at `price` if the order exits there: (price − entry) × direction × lots × point value. */
 export function pnlAt(data: Pick<LevelData, 'entry' | 'long' | 'lots' | 'pointValue'>, price: number): string {
@@ -34,8 +41,9 @@ export function pnlAt(data: Pick<LevelData, 'entry' | 'long' | 'lots' | 'pointVa
     .toFixed(2);
 }
 
-/** Label on a stop/target line, e.g. "SL 42,100.00 · −$250.00". */
+/** Label on a line, e.g. "SL 42100.00 · −$250.00" or "Entry 42010.00 · 0.50 lots". */
 export function levelLabel(data: LevelData, price: number): string {
+  if (data.level === 'entry') return `Entry ${price.toFixed(data.priceDigits)} · ${data.lots} lots`;
   const pnl = pnlAt(data, price);
   const money = pnl.startsWith('-') ? `−$${pnl.slice(1)}` : `+$${pnl}`;
   return `${data.level.toUpperCase()} ${price.toFixed(data.priceDigits)} · ${money}`;
@@ -93,9 +101,23 @@ export const orderLevelOverlay: OverlayTemplate<LevelData> = {
 
 const keyOf = (orderId: string, level: Level) => `${orderId}:${level}`;
 
+/** New levels after dragging one line: the others keep their saved values. */
+export function movedLevels(
+  order: Pick<OrderView, 'sl' | 'tp' | 'entry' | 'status'>,
+  level: Level,
+  value: string,
+): { sl: string; tp: string; entry?: string } {
+  return {
+    sl: level === 'sl' ? value : order.sl,
+    tp: level === 'tp' ? value : order.tp,
+    ...(level === 'entry' && order.status === 'pending' ? { entry: value } : {}),
+  };
+}
+
 /**
- * Keeps one draggable SL and TP line per live order of the shown instrument. Lines follow the orders as replay
- * moves them; a line being dragged is left alone; a rejected move snaps the line back to the saved level.
+ * Keeps one draggable SL and TP line per live order of the shown instrument, plus the entry of a pending one.
+ * Lines follow the orders as replay moves them; a line being dragged is left alone; a rejected move snaps the
+ * line back to the saved level.
  */
 export function useOrderHandles(opts: {
   chart: Chart | null;
@@ -103,7 +125,7 @@ export function useOrderHandles(opts: {
   instrument: { code: string; pointValue: string; priceDigits: number };
   /** False outside replay: levels can only change at a cursor. */
   editable: boolean;
-  onMove: (orderId: string, sl: string, tp: string) => Promise<unknown>;
+  onMove: (orderId: string, levels: { sl: string; tp: string; entry?: string }) => Promise<unknown>;
 }) {
   const { chart, orders, instrument, editable, onMove } = opts;
   const ids = useRef(new Map<string, string>());
@@ -114,6 +136,10 @@ export function useOrderHandles(opts: {
   moveRef.current = onMove;
   // Bumped after a move settles, so a rejected move re-syncs the line to the saved level.
   const [revision, setRevision] = useState(0);
+  const hover = useRef(false);
+  const setResize = useCallback(() => {
+    chart?.getDom()?.classList.toggle(RESIZE_CLASS, hover.current || dragging.current !== null);
+  }, [chart]);
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: revision forces a re-sync after a rejected move.
   useEffect(() => {
@@ -123,7 +149,8 @@ export function useOrderHandles(opts: {
     );
     const wanted = new Set<string>();
     for (const o of live) {
-      for (const level of ['sl', 'tp'] as const) {
+      const levels: Level[] = o.status === 'pending' ? ['entry', 'sl', 'tp'] : ['sl', 'tp'];
+      for (const level of levels) {
         const key = keyOf(o.id, level);
         wanted.add(key);
         if (dragging.current === key) continue;
@@ -136,7 +163,7 @@ export function useOrderHandles(opts: {
           pointValue: instrument.pointValue,
           priceDigits: instrument.priceDigits,
         };
-        const point = { timestamp: o.filledAt ?? o.placedAt, value: Number(level === 'sl' ? o.sl : o.tp) };
+        const point = { timestamp: o.filledAt ?? o.placedAt, value: Number(o[level]) };
         const existing = ids.current.get(key);
         if (existing && chart.getOverlays({ id: existing }).length > 0) {
           chart.overrideOverlay({ id: existing, points: [point], extendData: data, lock: !editable });
@@ -148,18 +175,26 @@ export function useOrderHandles(opts: {
           lock: !editable,
           extendData: data,
           zLevel: 10,
+          onMouseEnter: () => {
+            hover.current = true;
+            setResize();
+          },
+          onMouseLeave: () => {
+            hover.current = false;
+            setResize();
+          },
           onPressedMoveStart: () => {
             dragging.current = key;
+            setResize();
           },
           onPressedMoveEnd: (event: OverlayEvent<LevelData>) => {
             dragging.current = null;
+            setResize();
             const order = ordersRef.current.find((x) => x.id === o.id);
             const price = event.overlay.points[0]?.value;
             if (!order || price === undefined) return;
-            const value = price.toFixed(instrument.priceDigits);
-            const sl = level === 'sl' ? value : order.sl;
-            const tp = level === 'tp' ? value : order.tp;
-            void moveRef.current(order.id, sl, tp).finally(() => setRevision((r) => r + 1));
+            const levels = movedLevels(order, level, price.toFixed(instrument.priceDigits));
+            void moveRef.current(order.id, levels).finally(() => setRevision((r) => r + 1));
           },
         } as OverlayCreate) as string | null;
         if (id) ids.current.set(key, id);
@@ -170,7 +205,15 @@ export function useOrderHandles(opts: {
       chart.removeOverlay({ id });
       ids.current.delete(key);
     }
-  }, [chart, orders, instrument.code, instrument.pointValue, instrument.priceDigits, editable, revision]);
+    // For the e2e tests: each line's price and pixel row on the chart.
+    const lines = [...ids.current].flatMap(([key, id]) => {
+      const point = chart.getOverlays({ id })[0]?.points[0];
+      if (point?.value === undefined) return [];
+      const px = chart.convertToPixel(point, { paneId: 'candle_pane' }) as { y?: number };
+      return [{ key, price: point.value, y: px.y ?? null }];
+    });
+    chart.getDom()?.setAttribute('data-order-lines', JSON.stringify(lines));
+  }, [chart, orders, instrument.code, instrument.pointValue, instrument.priceDigits, editable, revision, setResize]);
 
   // Unmount: take the lines off the chart.
   useEffect(

@@ -34,10 +34,20 @@ export const placeOrderSchema = z.object({
 });
 export type PlaceOrderInput = z.infer<typeof placeOrderSchema>;
 
-export const modifyOrderSchema = z.object({ sl: priceString, tp: priceString, at: instant });
+export const modifyOrderSchema = z.object({
+  sl: priceString,
+  tp: priceString,
+  /** Pending orders only: a new entry level (re-typed as limit or stop against the cursor bar). */
+  entry: priceString.optional(),
+  at: instant,
+});
 export type ModifyOrderInput = z.infer<typeof modifyOrderSchema>;
 
 export const cursorSchema = z.object({ at: instant });
+
+/** "Close at market"; `lots` below the position size closes only that part (the rest stays open). */
+export const closeOrderSchema = z.object({ at: instant, lots: lotsString.optional() });
+export type CloseOrderInput = z.infer<typeof closeOrderSchema>;
 
 export const costsSchema = z.object({
   spreadPoints: z.string().regex(/^\d+(\.\d+)?$/),

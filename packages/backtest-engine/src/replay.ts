@@ -44,6 +44,22 @@ export function applyMinutes(last: Bar | null, minutes: Bar[], tf: Timeframe): B
   return out;
 }
 
+/** Where `count` steps in a row land: lets playback reveal several bars per request when the network lags. */
+export function stepTargetBy(cursor: number, tf: Timeframe, mode: StepMode, count: number): number {
+  let target = cursor;
+  for (let i = 0; i < Math.max(1, Math.floor(count)); i += 1) target = stepTarget(target, tf, mode);
+  return target;
+}
+
+/**
+ * Bars to reveal per playback tick so the average speed holds when a step takes `stepMs` (its request time)
+ * at an `intervalMs` tick: 1 while requests are faster than the tick, more as they slow down, at most `max`.
+ */
+export function barsPerTick(stepMs: number, intervalMs: number, max = 10): number {
+  if (stepMs <= intervalMs) return 1;
+  return Math.min(max, Math.ceil(stepMs / intervalMs));
+}
+
 /** Milliseconds between automatic steps at `speed` bars per second. */
 export function playIntervalMs(speed: Speed): number {
   return Math.round(1000 / speed);
@@ -75,6 +91,13 @@ export function nextSessionOpen(cursor: number, name?: Exclude<SessionName, 'out
     }
   }
   return best as { name: string; at: number };
+}
+
+/** The next kill zone after the cursor with its close: replay uses the close to skip zones with no candles. */
+export function nextSessionWindow(cursor: number): { name: string; at: number; end: number } {
+  const open = nextSessionOpen(cursor);
+  const zone = SESSIONS.find((s) => s.name === open.name);
+  return { ...open, end: open.at + ((zone?.end ?? 0) - (zone?.start ?? 0)) * MINUTE_MS };
 }
 
 /** The index futures trading day starts 18:00 ET (the daily reopen); "next day" jumps to the next one. */

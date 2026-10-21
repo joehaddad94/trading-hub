@@ -5,7 +5,7 @@ import { INDICATORS } from '@trading/indicators';
 import type { Chart, DataLoaderGetBarsParams, KLineData, Point } from 'klinecharts';
 import { type RefObject, useEffect, useRef, useState } from 'react';
 import { type ActiveIndicator, INDICATOR_TEMPLATES, indicatorName, indicatorPane } from './indicators';
-import { fetchBars, toKLine } from './loader';
+import { BARS_PAGE, fetchBars, liveUntil, toKLine } from './loader';
 import { type Marker, NEWS_INDICATOR, newsMarkers } from './news-markers';
 import { ORDER_LEVEL_OVERLAY, orderLevelOverlay } from './order-handles';
 import { ORDERS_INDICATOR, type OrderMark, orderLines } from './order-lines';
@@ -13,8 +13,7 @@ import { SESSION_INDICATOR, sessionShading } from './session-shading';
 import { chartStyles } from './styles';
 import { TOOLS } from './tools/registry';
 
-/** Bars per lazy-load request (spec §2.2: windows, never the whole year). */
-const PAGE = 500;
+const PAGE = BARS_PAGE;
 /** Bars kept to the right of the anchor when a timeframe switch reloads around it. */
 const RIGHT_OF_ANCHOR = 60;
 
@@ -216,7 +215,7 @@ export function KLineChart(props: ChartProps) {
     };
     chart.setDataLoader({
       getBars: async ({ type, timestamp, callback }: DataLoaderGetBarsParams) => {
-        const until = new Date(cursorRef.current ?? Date.now());
+        const until = cursorRef.current === null ? liveUntil(Date.now()) : new Date(cursorRef.current);
         const anchor = anchorRef.current;
         try {
           if (type === 'init') {

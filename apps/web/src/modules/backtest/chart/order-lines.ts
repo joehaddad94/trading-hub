@@ -64,13 +64,12 @@ export const orderLines: IndicatorTemplate<unknown, unknown, { marks: OrderMark[
     for (const m of marks) {
       if (m.kind === 'live') {
         const left = Math.max(0, x(m.from));
-        // Stop and target are draggable overlays (order-handles.ts); the entry line stays here.
-        const lines: [number, string, string][] = [
-          [m.entry, COLOURS.entry, m.pending ? 'Pending' : m.long ? 'Long' : 'Short'],
-        ];
+        // Stop, target and a pending entry are draggable overlays (order-handles.ts); a filled entry stays here.
+        if (m.pending) continue;
+        const lines: [number, string, string][] = [[m.entry, COLOURS.entry, m.long ? 'Long' : 'Short']];
         for (const [price, colour, label] of lines) {
           ctx.strokeStyle = colour;
-          ctx.setLineDash(m.pending ? [6, 4] : []);
+          ctx.setLineDash([]);
           ctx.beginPath();
           ctx.moveTo(left, y(price));
           ctx.lineTo(bounding.width, y(price));

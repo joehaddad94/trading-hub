@@ -127,7 +127,7 @@ All drawings are anchored in **(time, price)** coordinates, never pixels, so the
 - Order types v1:
   - **Market:** fills at the **open of the next 1m bar** after the cursor, plus spread (for buys) — entry level on the tool snaps to the fill price, SL/TP keep their distances.
   - **Limit / stop:** fills when price reaches the entry level, using 1m bars.
-- While open or pending: drag the SL/TP lines on the chart to modify (each line shows its price and the money at that level; a rejected move snaps back); every modification is logged with the replay time. Manual **Close at market** button.
+- While open or pending: drag the SL/TP lines (and a pending order's entry, re-typed limit/stop against the cursor) on the chart to modify (each line shows its price and the money at that level; a rejected move snaps back); every modification is logged with the replay time. Manual **Close at market** button; **Part** closes only some lots (split off as its own closed order and trade; the rest stays open).
 
 ### 6.2 Fill and exit rules (deterministic, conservative)
 - All fills and exits are evaluated on **1m bars**, regardless of chart timeframe.
