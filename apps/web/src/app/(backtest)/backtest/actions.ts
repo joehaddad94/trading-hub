@@ -87,7 +87,7 @@ export async function sessionStatusAction(
   if (!result.ok) return result;
   revalidatePath('/backtest');
   revalidatePath(`/backtest/sessions/${parsed.data.id}`);
-  return { ok: true, data: parsed.data.status === 'completed' ? 'Session completed.' : 'Session reopened.' };
+  return { ok: true, data: parsed.data.status === 'completed' ? 'Run completed.' : 'Run reopened.' };
 }
 
 /** Spec §6.4: deletes a session with its synthetic account, trades, orders and drawings (never live data). */

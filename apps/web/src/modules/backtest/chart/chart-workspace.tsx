@@ -2,16 +2,18 @@
 
 import type { Drawing, OrderView, SessionView } from '@trading/backtest';
 import { parseTimeframe, TIMEFRAMES, type Timeframe } from '@trading/backtest-engine';
-import { Newspaper } from 'lucide-react';
+import { Maximize2, Minimize2, Newspaper } from 'lucide-react';
 import { parseAsString, useQueryState } from 'nuqs';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { symbolWithAlias } from '@/lib/symbols';
 import { cn } from '@/lib/utils';
 import { DrawingProperties, DrawingToolbar } from './drawing-toolbar';
 import { IndicatorMenu } from './indicator-menu';
 import { activeIndicators, type IndicatorPrefs, normalisePrefs } from './indicators';
 import { type ChartApi, KLineChart } from './kline-chart';
+import { BARS_PAGE, liveUntil, prefetchBars } from './loader';
 import { NewsPanel } from './news-panel';
+import { useOrderHandles } from './order-handles';
 import { orderMarks } from './order-lines';
 import { ReplayControls } from './replay-controls';
 import { toolForKey } from './tools/registry';
@@ -22,6 +24,9 @@ import { useReplay } from './use-replay';
 import { type TradingActions, useTrading } from './use-trading';
 
 export type WorkspaceInstrument = { code: string; displayName: string; priceDigits: number; pointValue: string };
+
+/** How long the chart must sit still before other timeframes/instruments are prefetched. */
+const PREFETCH_DELAY_MS = 1200;
 
 /** Position sizing balance until backtest sessions carry their own (M21). */
 const DEFAULT_BALANCE = '25000';
@@ -191,6 +196,35 @@ export function ChartWorkspace({
       priceDigits: instrument?.priceDigits ?? 2,
     },
   });
+  useOrderHandles({
+    chart: chartApi?.chart ?? null,
+    orders: trading.orders,
+    instrument: {
+      code: instrument?.code ?? 'US30',
+      pointValue: instrument?.pointValue ?? '10',
+      priceDigits: instrument?.priceDigits ?? 2,
+    },
+    editable: cursor !== null,
+    onMove: trading.modify,
+  });
+  const { full, toggleFull, rootRef } = useFullScreen();
+  // Once the chart has settled, warm the cache for the other timeframes and instruments at the same cursor,
+  // so switching is instant (same request as the chart would make; nothing past the cursor).
+  const instrumentCodes = instruments.map((i) => i.code).join(',');
+  useEffect(() => {
+    if (playing) return;
+    const t = window.setTimeout(() => {
+      const until = cursor === null ? liveUntil(Date.now()) : new Date(cursor);
+      const current = instrument?.code;
+      for (const other of TIMEFRAMES) {
+        if (other !== tf && current) prefetchBars({ instrument: current, tf: other, until, count: BARS_PAGE });
+      }
+      for (const code of instrumentCodes.split(',')) {
+        if (code && code !== current) prefetchBars({ instrument: code, tf, until, count: BARS_PAGE });
+      }
+    }, PREFETCH_DELAY_MS);
+    return () => window.clearTimeout(t);
+  }, [cursor, playing, tf, instrument?.code, instrumentCodes]);
   const marks = useMemo(
     () => orderMarks(trading.orders, instrument?.code ?? '', tf),
     [trading.orders, instrument?.code, tf],
@@ -227,6 +261,11 @@ export function ChartWorkspace({
         cancelTool();
         return;
       }
+      if (event.shiftKey && (event.key === 'F' || event.key === 'f')) {
+        event.preventDefault();
+        toggleFull();
+        return;
+      }
       if (event.key === 'Delete' || event.key === 'Backspace') {
         removeSelected();
         return;
@@ -246,15 +285,24 @@ export function ChartWorkspace({
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [setTfParam, cursor, step, setPlaying, playing, startTool, cancelTool, removeSelected]);
+  }, [setTfParam, cursor, step, setPlaying, playing, startTool, cancelTool, removeSelected, toggleFull]);
 
   if (!instrument) {
     return <p className="p-4 text-muted-foreground text-sm">No instruments are set up yet.</p>;
   }
 
   return (
-    <div className="tv-dark flex flex-1 flex-col md:h-full">
-      <div className="relative z-30 flex flex-wrap items-center gap-1.5 border-b px-2 py-1 text-sm md:px-3">
+    <div
+      ref={rootRef}
+      className={cn('tv-dark isolate flex flex-1 flex-col md:h-full', full && 'fixed inset-0 z-50 h-dvh bg-background')}
+      data-full-screen={full ? 'true' : 'false'}
+    >
+      <div
+        className={cn(
+          'relative z-30 flex flex-wrap items-center gap-1.5 border-b px-2 py-1 text-sm md:px-3',
+          full && 'hidden',
+        )}
+      >
         <fieldset className="flex items-center gap-1">
           <legend className="sr-only">Instrument</legend>
           {instruments.map((i) => (
@@ -367,6 +415,7 @@ export function ChartWorkspace({
               ))}
             </select>
           </label>
+          <FullScreenButton full={full} onToggle={toggleFull} />
         </div>
       </div>
       <ReplayControls replay={replay} timezone={prefs.timezone} picking={picking} onPick={setPicking} />
@@ -386,6 +435,11 @@ export function ChartWorkspace({
             {instrument.code}
           </div>
           <NewsPanel events={hovered} timezone={prefs.timezone} />
+          {full && (
+            <div className="absolute top-2 right-16 z-20">
+              <FullScreenButton full={full} onToggle={toggleFull} />
+            </div>
+          )}
           {picking && (
             <p
               role="status"
@@ -428,27 +482,33 @@ export function ChartWorkspace({
             </>
           )}
           <DrawingProperties drawings={drawings}>
-            {cursor !== null && selected && (selected.tool === 'long' || selected.tool === 'short') && (
-              <>
-                <button
-                  type="button"
-                  onClick={() => void placeFromSelected('market')}
-                  className={cn(
-                    'h-8 rounded-md px-2 font-medium',
-                    selected.tool === 'long' ? 'bg-profit/20 text-profit' : 'bg-loss/20 text-loss',
-                  )}
-                >
-                  {selected.tool === 'long' ? 'Buy market' : 'Sell market'}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => void placeFromSelected('pending')}
-                  className="h-8 rounded-md px-2 hover:bg-accent/60"
-                >
-                  Place pending
-                </button>
-              </>
+            {cursor === null && (selected?.tool === 'long' || selected?.tool === 'short') && (
+              <span className="px-1 text-muted-foreground text-xs">Start replay to place it</span>
             )}
+            {trading.session &&
+              cursor !== null &&
+              selected &&
+              (selected.tool === 'long' || selected.tool === 'short') && (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => void placeFromSelected('market')}
+                    className={cn(
+                      'h-8 rounded-md px-2 font-medium',
+                      selected.tool === 'long' ? 'bg-profit/20 text-profit' : 'bg-loss/20 text-loss',
+                    )}
+                  >
+                    {selected.tool === 'long' ? 'Buy market' : 'Sell market'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void placeFromSelected('pending')}
+                    className="h-8 rounded-md px-2 hover:bg-accent/60"
+                  >
+                    Place pending
+                  </button>
+                </>
+              )}
           </DrawingProperties>
           {drawings.error && (
             <p role="alert" className="absolute top-2 left-2 z-10 rounded-md bg-loss/20 px-3 py-1 text-sm">
@@ -472,8 +532,13 @@ export function ChartWorkspace({
           />
         </div>
       </div>
-      <TradePanel trading={trading} timezone={prefs.timezone} />
-      <p className="border-t px-4 py-1 text-muted-foreground text-xs">
+      {!full && <TradePanel trading={trading} timezone={prefs.timezone} />}
+      {full && trading.error && (
+        <p role="alert" className="border-t px-4 py-1 text-loss text-sm">
+          {trading.error}
+        </p>
+      )}
+      <p className={cn('border-t px-4 py-1 text-muted-foreground text-xs', full && 'hidden')}>
         Historical data from Dukascopy; prices may differ slightly from your broker.
       </p>
     </div>
@@ -483,4 +548,50 @@ export function ChartWorkspace({
 /** Vertical separator between toolbar groups, as on TradingView's top bar. */
 function Divider() {
   return <span aria-hidden className="mx-1 hidden h-6 w-px bg-border md:block" />;
+}
+
+/**
+ * Chart-only view (Shift+F, as on TradingView): the workspace covers the app and, where the browser allows,
+ * goes truly full screen. Leaving browser full screen (Esc) leaves the mode too.
+ */
+function useFullScreen() {
+  const rootRef = useRef<HTMLDivElement>(null);
+  const [full, setFull] = useState(false);
+  useEffect(() => {
+    const onChange = () => {
+      if (!document.fullscreenElement) setFull(false);
+    };
+    document.addEventListener('fullscreenchange', onChange);
+    return () => document.removeEventListener('fullscreenchange', onChange);
+  }, []);
+  const fullRef = useRef(full);
+  fullRef.current = full;
+  const toggleFull = useCallback(() => {
+    const next = !fullRef.current;
+    setFull(next);
+    try {
+      if (next) void rootRef.current?.requestFullscreen?.().catch(() => undefined);
+      else if (document.fullscreenElement) void document.exitFullscreen().catch(() => undefined);
+    } catch {
+      // iPhone Safari has no element full screen: the fixed layout still hides the app around the chart.
+    }
+  }, []);
+  return { full, toggleFull, rootRef };
+}
+
+function FullScreenButton({ full, onToggle }: { full: boolean; onToggle: () => void }) {
+  const Icon = full ? Minimize2 : Maximize2;
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      aria-pressed={full}
+      aria-keyshortcuts="Shift+F"
+      title={full ? 'Exit full screen (Shift+F)' : 'Full screen (Shift+F)'}
+      className="flex size-9 items-center justify-center rounded-md bg-popover/80 text-muted-foreground hover:bg-accent hover:text-foreground"
+    >
+      <Icon className="size-4" aria-hidden />
+      <span className="sr-only">{full ? 'Exit full screen' : 'Full screen'}</span>
+    </button>
+  );
 }

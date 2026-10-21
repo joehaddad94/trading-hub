@@ -3,8 +3,9 @@
 import { TZDate } from '@date-fns/tz';
 import type { OrderView } from '@trading/backtest';
 import { format } from 'date-fns';
+import Decimal from 'decimal.js';
 import Link from 'next/link';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { cn } from '@/lib/utils';
 import type { Trading } from './use-trading';
 
@@ -19,6 +20,12 @@ export function TradePanel({ trading, timezone }: { trading: Trading; timezone: 
   const [open, setOpen] = useState(false);
   const live = trading.orders.filter((o) => o.status === 'pending' || o.status === 'open');
   const closed = trading.orders.filter((o) => o.status === 'closed');
+  // A newly placed order opens the list, so the trade you just made is in view.
+  const seen = useRef(trading.orders.length);
+  useEffect(() => {
+    if (trading.orders.length > seen.current) setOpen(true);
+    seen.current = trading.orders.length;
+  }, [trading.orders.length]);
   if (!trading.session) return null;
   return (
     <section className="border-t text-sm" aria-label="Simulated trades">
@@ -78,6 +85,8 @@ export function TradePanel({ trading, timezone }: { trading: Trading; timezone: 
 
 function OrderRow({ order: o, trading, timezone }: { order: OrderView; trading: Trading; timezone: string }) {
   const [editing, setEditing] = useState(false);
+  const [partial, setPartial] = useState(false);
+  const [part, setPart] = useState(() => halfLots(o.lots));
   const [sl, setSl] = useState(o.sl);
   const [tp, setTp] = useState(o.tp);
   const num = (v: string | null) => (v === null ? '—' : Number(v).toFixed(2));
@@ -123,7 +132,7 @@ function OrderRow({ order: o, trading, timezone }: { order: OrderView; trading: 
               type="button"
               className="h-8 rounded-md px-2 hover:bg-accent/60"
               title="Move the stop to the fill price"
-              onClick={() => void trading.modify(o.id, o.fillPrice ?? o.sl, o.tp)}
+              onClick={() => void trading.modify(o.id, { sl: o.fillPrice ?? o.sl, tp: o.tp })}
             >
               BE
             </button>
@@ -131,6 +140,20 @@ function OrderRow({ order: o, trading, timezone }: { order: OrderView; trading: 
           <button type="button" className="h-8 rounded-md px-2 hover:bg-accent/60" onClick={() => setEditing(!editing)}>
             SL/TP
           </button>
+          {o.status === 'open' && Number(o.lots) > 0.01 && (
+            <button
+              type="button"
+              className="h-8 rounded-md px-2 hover:bg-accent/60"
+              aria-expanded={partial}
+              title="Close part of the position"
+              onClick={() => {
+                setPart(halfLots(o.lots));
+                setPartial(!partial);
+              }}
+            >
+              Part
+            </button>
+          )}
           <button
             type="button"
             className="h-8 rounded-md px-2 hover:bg-accent/60"
@@ -140,13 +163,38 @@ function OrderRow({ order: o, trading, timezone }: { order: OrderView; trading: 
           </button>
         </span>
       )}
+      {partial && o.status === 'open' && (
+        <form
+          className="flex w-full items-center gap-2"
+          aria-label="Partial close"
+          onSubmit={(e) => {
+            e.preventDefault();
+            setPartial(false);
+            void trading.close(o.id, part.trim());
+          }}
+        >
+          <label className="flex items-center gap-1">
+            Lots
+            <input
+              value={part}
+              onChange={(e) => setPart(e.target.value)}
+              inputMode="decimal"
+              className="h-8 w-20 rounded-md border bg-background px-2 num"
+            />
+          </label>
+          <span className="text-muted-foreground">of {o.lots}</span>
+          <button type="submit" className="h-8 rounded-md bg-accent px-3">
+            Close part
+          </button>
+        </form>
+      )}
       {editing && o.status !== 'closed' && (
         <form
           className="flex w-full items-center gap-2"
           onSubmit={(e) => {
             e.preventDefault();
             setEditing(false);
-            void trading.modify(o.id, sl, tp);
+            void trading.modify(o.id, { sl, tp });
           }}
         >
           <label className="flex items-center gap-1">
@@ -174,4 +222,9 @@ function OrderRow({ order: o, trading, timezone }: { order: OrderView; trading: 
       )}
     </li>
   );
+}
+
+/** Half a position, rounded down to 0.01 lots (never below 0.01): the default partial close. */
+export function halfLots(lots: string): string {
+  return Decimal.max(new Decimal(lots).div(2).toDecimalPlaces(2, Decimal.ROUND_DOWN), '0.01').toFixed(2);
 }

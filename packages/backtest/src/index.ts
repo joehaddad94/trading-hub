@@ -10,6 +10,8 @@ export {
   TOOL_POINTS,
 } from './drawings';
 export {
+  type CloseOrderInput,
+  closeOrderSchema,
   costsSchema,
   cursorSchema,
   type ModifyOrderInput,

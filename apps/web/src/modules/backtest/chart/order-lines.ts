@@ -43,9 +43,9 @@ export function orderMarks(orders: OrderView[], instrument: string, tf: Timefram
     });
 }
 
-const COLOURS = { entry: '#60a5fa', sl: '#f87171', tp: '#4ade80', win: '#4ade80', loss: '#f87171' };
+const COLOURS = { entry: '#60a5fa', win: '#4ade80', loss: '#f87171' };
 
-/** Simulated orders on the price pane: entry/SL/TP lines for live orders, entry→exit for closed trades. */
+/** Simulated orders on the price pane: the entry line for live orders, entry→exit for closed trades. */
 export const orderLines: IndicatorTemplate<unknown, unknown, { marks: OrderMark[] }> = {
   name: ORDERS_INDICATOR,
   shortName: 'Orders',
@@ -64,14 +64,12 @@ export const orderLines: IndicatorTemplate<unknown, unknown, { marks: OrderMark[
     for (const m of marks) {
       if (m.kind === 'live') {
         const left = Math.max(0, x(m.from));
-        const lines: [number, string, string][] = [
-          [m.entry, COLOURS.entry, m.pending ? 'Pending' : m.long ? 'Long' : 'Short'],
-          [m.sl, COLOURS.sl, 'SL'],
-          [m.tp, COLOURS.tp, 'TP'],
-        ];
+        // Stop, target and a pending entry are draggable overlays (order-handles.ts); a filled entry stays here.
+        if (m.pending) continue;
+        const lines: [number, string, string][] = [[m.entry, COLOURS.entry, m.long ? 'Long' : 'Short']];
         for (const [price, colour, label] of lines) {
           ctx.strokeStyle = colour;
-          ctx.setLineDash(m.pending || label !== (m.long ? 'Long' : 'Short') ? [6, 4] : []);
+          ctx.setLineDash([]);
           ctx.beginPath();
           ctx.moveTo(left, y(price));
           ctx.lineTo(bounding.width, y(price));

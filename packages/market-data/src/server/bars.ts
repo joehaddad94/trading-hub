@@ -26,12 +26,21 @@ const DEFAULT_BARS = 500;
  * after `until`, so the newest bar is the forming bar when the cursor sits inside it. When the window is cut
  * by the row limit the oldest (possibly partial) bucket is dropped; the next page starts at the oldest bar kept.
  */
+/** Instrument ids never change, so each warm function looks one up once instead of on every candle page. */
+const instrumentIds = new Map<string, string>();
+
+async function instrumentId(db: Executor, code: string): Promise<string | null> {
+  const known = instrumentIds.get(code);
+  if (known) return known;
+  const [row] = await db.select({ id: instruments.id }).from(instruments).where(eq(instruments.code, code));
+  if (row) instrumentIds.set(code, row.id);
+  return row?.id ?? null;
+}
+
 export async function loadBars(db: Executor, request: BarsRequest): Promise<BarsPage | null> {
-  const [instrument] = await db
-    .select({ id: instruments.id })
-    .from(instruments)
-    .where(eq(instruments.code, request.code));
-  if (!instrument) return null;
+  const id = await instrumentId(db, request.code);
+  if (!id) return null;
+  const instrument = { id };
   const count = Math.min(Math.max(request.count ?? DEFAULT_BARS, 1), MAX_BARS);
   const limit = count * request.tf + request.tf;
   const conditions = [eq(candles1m.instrumentId, instrument.id), lte(candles1m.ts, request.until)];

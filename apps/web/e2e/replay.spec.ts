@@ -108,6 +108,11 @@ test.describe('replay (M16)', () => {
     await page.getByRole('button', { name: 'Start', exact: true }).click();
     // 17:00 Beirut = 14:00 UTC.
     await expect(cursor(page)).toHaveAttribute('data-cursor', String(Date.parse('2026-10-06T14:00:00Z')));
+    // A new start date without leaving replay.
+    await page.getByRole('button', { name: 'Change replay date' }).click();
+    await page.getByLabel('New replay start').fill('2026-10-05T18:30');
+    await page.getByRole('button', { name: 'Go', exact: true }).click();
+    await expect(cursor(page)).toHaveAttribute('data-cursor', String(Date.parse('2026-10-05T15:30:00Z')));
     await page.getByRole('button', { name: 'Exit replay' }).click();
 
     await page.getByRole('button', { name: 'Start replay here' }).click();

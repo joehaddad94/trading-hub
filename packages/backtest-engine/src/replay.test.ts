@@ -1,6 +1,16 @@
 import { describe, expect, it } from 'vitest';
 import { aggregate, type Bar } from './bars';
-import { applyMinutes, cursorForBar, nextDayOpen, nextSessionOpen, playIntervalMs, stepTarget } from './replay';
+import {
+  applyMinutes,
+  barsPerTick,
+  cursorForBar,
+  nextDayOpen,
+  nextSessionOpen,
+  nextSessionWindow,
+  playIntervalMs,
+  stepTarget,
+  stepTargetBy,
+} from './replay';
 
 const at = (iso: string) => Date.parse(iso);
 const iso = (ms: number) => new Date(ms).toISOString();
@@ -74,5 +84,26 @@ describe('jumps', () => {
 
   it('paces play', () => {
     expect([1, 2, 5, 10, 20].map((s) => playIntervalMs(s as 1))).toEqual([1000, 500, 200, 100, 50]);
+  });
+});
+
+describe('playback under lag', () => {
+  it('steps several bars at once', () => {
+    expect(iso(stepTargetBy(at('2026-10-07T14:44:00Z'), 5, 'bar', 3))).toBe('2026-10-07T14:59:00.000Z');
+    expect(iso(stepTargetBy(at('2026-10-07T14:44:00Z'), 5, 'bar', 0))).toBe('2026-10-07T14:49:00.000Z');
+  });
+
+  it('reveals more bars per tick only when a step is slower than the tick', () => {
+    expect(barsPerTick(40, 50)).toBe(1);
+    expect(barsPerTick(120, 50)).toBe(3);
+    expect(barsPerTick(5000, 50)).toBe(10);
+  });
+});
+
+describe('nextSessionWindow', () => {
+  it('gives the next kill zone with its close', () => {
+    // Fri 9 Oct 2026 16:30 ET → Asia opens 20:00 ET, closes midnight.
+    const w = nextSessionWindow(at('2026-10-09T20:30:00Z'));
+    expect([w.name, iso(w.at), iso(w.end)]).toEqual(['asia', '2026-10-10T00:00:00.000Z', '2026-10-10T04:00:00.000Z']);
   });
 });

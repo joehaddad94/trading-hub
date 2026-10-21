@@ -61,6 +61,8 @@
 - **Session shading** (optional toggle): Asia, London, NY AM, NY PM kill zones, defined once in the tracker spec §6 (ET) — do not redefine here.
 - Lazy loading: fetch candles in windows (e.g. 3 trading days around the view) as the user scrolls back; never load the full year into the browser.
 - **Module placement:** Backtest Lab is a separate module reached from the hub (tracker spec §8.0), with its own full-screen layout and no app sidebar.
+- **Full screen** (button or `Shift+F`): only the chart, replay bar and drawing tools; browser full screen where supported.
+- Switching instrument or timeframe shows a loading bar and dims the chart until the new window arrives.
 - Mobile: chart must be usable on a phone (pinch zoom, pan, tap to select drawings), but **desktop is the primary target** for backtesting.
 
 ---
@@ -125,7 +127,7 @@ All drawings are anchored in **(time, price)** coordinates, never pixels, so the
 - Order types v1:
   - **Market:** fills at the **open of the next 1m bar** after the cursor, plus spread (for buys) — entry level on the tool snaps to the fill price, SL/TP keep their distances.
   - **Limit / stop:** fills when price reaches the entry level, using 1m bars.
-- While open: drag SL/TP to modify (e.g. move to breakeven); every modification is logged with the replay time. Manual **Close at market** button.
+- While open or pending: drag the SL/TP lines (and a pending order's entry, re-typed limit/stop against the cursor) on the chart to modify (each line shows its price and the money at that level; a rejected move snaps back); every modification is logged with the replay time. Manual **Close at market** button; **Part** closes only some lots (split off as its own closed order and trade; the rest stays open).
 
 ### 6.2 Fill and exit rules (deterministic, conservative)
 - All fills and exits are evaluated on **1m bars**, regardless of chart timeframe.
@@ -150,7 +152,7 @@ All drawings are anchored in **(time, price)** coordinates, never pixels, so the
 
 ---
 
-## 7. Backtest sessions
+## 7. Backtest sessions (shown as **Runs** in the UI, 21 Oct 2026: "session" in the UI means kill zones only)
 
 - A **session** = one backtesting run: name, instrument(s), date range, strategy/setup tag, starting balance (default 25,000), risk per trade, cost settings, notes.
 - Each session creates a synthetic tracker account (`phase = 'other'`, `is_demo = true`, label "Backtest – <session name>") so all tracker features (scope selector, calendar, stats) work unchanged. The scope selector's **Backtest** option covers these.

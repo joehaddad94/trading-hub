@@ -135,6 +135,16 @@
   animation: green-glow 3.2s ease-in-out 0.4s 2;
 }
 
+/* Chart loading bar: a third-width bar sliding across the top of the chart. */
+@keyframes chart-load {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(300%);
+  }
+}
+
 @keyframes shimmer {
   from {
     background-position: 200% 0;
@@ -150,6 +160,22 @@
   }
   html {
     background-color: var(--background);
+  }
+  /* Tailwind v4 dropped the pointer cursor on buttons; anything clickable shows the hand again. */
+  button:not(:disabled),
+  [role="button"]:not([aria-disabled="true"]),
+  [role="menuitem"],
+  select:not(:disabled),
+  summary,
+  label:has(> input[type="checkbox"]:not(:disabled)),
+  input[type="checkbox"]:not(:disabled) {
+    cursor: pointer;
+  }
+  /* Hovering or dragging an order's SL/TP/entry line: KLineCharts sets an inline pointer, this wins over it. */
+  .chart-ns-resize,
+  .chart-ns-resize * {
+    /* biome-ignore lint/complexity/noImportantStyles: only !important beats the chart's inline cursor. */
+    cursor: ns-resize !important;
   }
   body {
     @apply bg-background font-sans text-foreground antialiased;

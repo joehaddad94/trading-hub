@@ -128,12 +128,12 @@ export async function currentSession(db: Executor, id?: string | null): Promise<
     .limit(1);
   if (row) return toSession(row);
   const [{ n } = { n: 0 }] = await db.select({ n: sql<number>`count(*)::int` }).from(backtestSessions);
-  return createSession(db, { name: `Session ${n + 1}` });
+  return createSession(db, { name: `Run ${n + 1}` });
 }
 
 async function getSession(db: Executor, id: string): Promise<SessionRow> {
   const [row] = await db.select().from(backtestSessions).where(eq(backtestSessions.id, id));
-  if (!row) throw new TradingError('That backtest session no longer exists.');
+  if (!row) throw new TradingError('That backtest run no longer exists.');
   return row;
 }
 
@@ -185,7 +185,7 @@ const side = (s: 'buy' | 'sell') => (s === 'buy' ? 'long' : 'short') as 'long' |
  */
 export async function placeOrder(db: Executor, sessionId: string, input: PlaceOrderInput): Promise<OrderView> {
   const session = await getSession(db, sessionId);
-  if (session.status !== 'in_progress') throw new TradingError('This session is completed.');
+  if (session.status !== 'in_progress') throw new TradingError('This run is completed. Reopen it to trade.');
   const instrument = await instrumentBy(db, { code: input.instrument });
   if (!validLevels(input.side, input.entry, input.sl, input.tp)) {
     throw new TradingError(
@@ -419,19 +419,34 @@ async function liveOrder(db: Executor, id: string): Promise<OrderRow> {
   return o;
 }
 
-/** Moves SL/TP (e.g. to breakeven); every change is logged with the replay time (spec §6.1). */
+/**
+ * Moves SL/TP (e.g. to breakeven) and, for a pending order, its entry; every change is logged with the replay
+ * time (spec §6.1). A moved entry is re-typed against the cursor bar's close, as when it was placed.
+ */
 export async function modifyOrder(db: Executor, id: string, input: ModifyOrderInput): Promise<void> {
   const o = await liveOrder(db, id);
   const s = side(o.side);
+  if (input.entry !== undefined && o.status !== 'pending') {
+    throw new TradingError('Only a pending order can move its entry; this one has filled.');
+  }
+  const entry = input.entry ?? o.entry;
   const ok = s === 'long' ? new Decimal(input.sl).lt(input.tp) : new Decimal(input.sl).gt(input.tp);
   if (!ok) throw new TradingError('The stop must stay on the losing side of the target.');
-  if (o.status === 'pending' && !validLevels(s, o.entry, input.sl, input.tp)) {
+  if (o.status === 'pending' && !validLevels(s, entry, input.sl, input.tp)) {
     throw new TradingError('A pending order needs its stop and target on either side of the entry.');
   }
-  const log = [...((o.modifications as unknown[]) ?? []), { at: input.at.toISOString(), sl: input.sl, tp: input.tp }];
+  let type = o.type;
+  if (input.entry !== undefined) {
+    const now = await barAt(db, o.instrumentId, input.at);
+    if (!now) throw new TradingError('No candle at the replay cursor.');
+    const below = new Decimal(entry).lt(String(now.close));
+    type = s === 'long' ? (below ? 'limit' : 'stop') : below ? 'stop' : 'limit';
+  }
+  const change = { at: input.at.toISOString(), sl: input.sl, tp: input.tp, ...(input.entry ? { entry } : {}) };
+  const log = [...((o.modifications as unknown[]) ?? []), change];
   await db
     .update(backtestOrders)
-    .set({ sl: input.sl, tp: input.tp, modifications: log })
+    .set({ sl: input.sl, tp: input.tp, entry, type, modifications: log })
     .where(eq(backtestOrders.id, id));
 }
 
@@ -441,8 +456,12 @@ export async function cancelOrder(db: Executor, id: string): Promise<void> {
   await db.update(backtestOrders).set({ status: 'cancelled' }).where(eq(backtestOrders.id, id));
 }
 
-/** "Close at market" at the cursor bar's close, after replaying the order up to the cursor. */
-export async function closeOrder(db: Executor, id: string, at: Date): Promise<void> {
+/**
+ * "Close at market" at the cursor bar's close, after replaying the order up to the cursor. With `lots` below
+ * the position size only that part closes: it is split off as its own closed order (and trade), and the rest
+ * stays open on the original order with the same fill, stop and target.
+ */
+export async function closeOrder(db: Executor, id: string, at: Date, lots?: string): Promise<void> {
   const first = await liveOrder(db, id);
   await advanceSession(db, first.sessionId, at);
   const o = await liveOrder(db, id).catch(() => null);
@@ -459,8 +478,26 @@ export async function closeOrder(db: Executor, id: string, at: Date): Promise<vo
   const state = simState(o);
   if (state.status !== 'open') return;
   const exit = closeAtMarket(state.position, bar, costs);
+  const part = lots === undefined ? null : new Decimal(lots);
+  if (part?.gt(o.lots)) throw new TradingError(`This position is only ${o.lots} lots.`);
+  if (!part || part.eq(o.lots)) {
+    await db.transaction(async (tx) => {
+      await saveState(tx, o, { ...state, status: 'closed', exit }, at, session, instrument, costs);
+    });
+    return;
+  }
   await db.transaction(async (tx) => {
-    await saveState(tx, o, { ...state, status: 'closed', exit }, at, session, instrument, costs);
+    const { id: _id, tradeId: _trade, drawingId: _drawing, ...rest } = o;
+    const [piece] = await tx
+      .insert(backtestOrders)
+      .values({ ...rest, lots: part.toFixed(2), drawingId: null, tradeId: null })
+      .returning();
+    if (!piece) throw new Error('Could not split the position');
+    await saveState(tx, piece, { ...state, status: 'closed', exit }, at, session, instrument, costs);
+    await tx
+      .update(backtestOrders)
+      .set({ lots: new Decimal(o.lots).minus(part).toFixed(2), processedUntil: at })
+      .where(eq(backtestOrders.id, o.id));
   });
 }
 

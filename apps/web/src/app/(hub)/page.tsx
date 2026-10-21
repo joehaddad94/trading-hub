@@ -71,11 +71,11 @@ export default async function HubPage() {
           index={4}
         >
           {sessions.length === 0 ? (
-            <p className="text-muted-foreground">No sessions yet. Replay US30 or NAS100 bar by bar.</p>
+            <p className="text-muted-foreground">No runs yet. Replay US30 or NAS100 bar by bar.</p>
           ) : (
             <p>
               <span className="num block font-semibold text-4xl">{sessions.length}</span>
-              <span className="text-muted-foreground">{sessions.length === 1 ? 'session' : 'sessions'}</span>
+              <span className="text-muted-foreground">{sessions.length === 1 ? 'run' : 'runs'}</span>
             </p>
           )}
           <p className="mt-2 text-muted-foreground text-xs md:hidden">Best on desktop.</p>
