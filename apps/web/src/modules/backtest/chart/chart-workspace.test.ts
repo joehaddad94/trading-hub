@@ -1,8 +1,29 @@
 import { describe, expect, it } from 'vitest';
-import { timeframeForKey } from './chart-workspace';
+import { atMarket, stepBackRule, timeframeForKey } from './chart-workspace';
 import { barsUrl, toKLine } from './loader';
 
 describe('chart helpers', () => {
+  it('allows stepping back only with no live order, and not past the last closed trade', () => {
+    expect(stepBackRule([])).toEqual({ blocked: null, floor: null });
+    expect(stepBackRule([{ status: 'open', closedAt: null }]).blocked).toMatch(/Close or cancel/);
+    expect(
+      stepBackRule([
+        { status: 'closed', closedAt: 100 },
+        { status: 'closed', closedAt: 300 },
+      ]),
+    ).toEqual({ blocked: null, floor: 300 });
+  });
+
+  it('moves a market position to the price on screen, keeping stop and target distances', () => {
+    const box = [
+      { ts: 1, price: 100 },
+      { ts: 2, price: 90 },
+      { ts: 2, price: 120 },
+    ];
+    expect(atMarket(box, 104).map((p) => p.price)).toEqual([104, 94, 124]);
+    expect(atMarket(box, null)).toBe(box);
+  });
+
   it('maps the timeframe shortcuts', () => {
     expect([timeframeForKey('1'), timeframeForKey('5'), timeframeForKey('f'), timeframeForKey('F')]).toEqual([
       1, 5, 15, 15,

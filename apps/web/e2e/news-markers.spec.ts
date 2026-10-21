@@ -1,6 +1,7 @@
 import { expect, test } from '@playwright/test';
 import { importFixture, requireAuth, signIn } from './support/auth';
 import { seedCandles } from './support/candles';
+import { openChartSettings } from './support/chart-settings';
 
 requireAuth();
 
@@ -36,6 +37,7 @@ test.describe('news markers on replay (M17)', () => {
     expect(responses[0]?.titles).toContain('FOMC Meeting Minutes');
     expect(responses.flatMap((r) => r.actuals).every((a) => a === null)).toBe(true);
 
+    await openChartSettings(page);
     await page.getByRole('button', { name: 'Med impact news' }).click();
     await expect.poll(async () => Number(await chart.getAttribute('data-markers'))).toBeGreaterThan(1);
     await page.getByRole('button', { name: 'High impact news' }).click();

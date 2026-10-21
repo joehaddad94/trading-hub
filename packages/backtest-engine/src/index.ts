@@ -52,6 +52,7 @@ export {
   SPEEDS,
   type Speed,
   type StepMode,
+  stepBackTarget,
   stepTarget,
   stepTargetBy,
 } from './replay';

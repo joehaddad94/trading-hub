@@ -61,6 +61,11 @@ test.describe('simulated trading (M20)', () => {
     // Next bar: filled at its open plus the spread.
     await page.keyboard.press('ArrowRight');
     await expect(rows(page).first()).toHaveAttribute('data-status', 'open');
+    // No stepping back with a trade open.
+    const before = await page.getByTestId('replay-cursor').getAttribute('data-cursor');
+    await page.keyboard.press('ArrowLeft');
+    await expect(page.getByText('Close or cancel your open trades to step back.')).toBeVisible();
+    await expect(page.getByTestId('replay-cursor')).toHaveAttribute('data-cursor', before ?? '');
 
     // A day later the stop or target has been hit.
     await page.getByRole('button', { name: 'Next day' }).click();

@@ -2,7 +2,7 @@
 
 import type { Drawing, OrderView, SessionView } from '@trading/backtest';
 import { parseTimeframe, TIMEFRAMES, type Timeframe } from '@trading/backtest-engine';
-import { Maximize2, Minimize2, Newspaper } from 'lucide-react';
+import { Maximize2, Minimize2, Newspaper, SlidersHorizontal } from 'lucide-react';
 import { parseAsString, useQueryState } from 'nuqs';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { symbolWithAlias } from '@/lib/symbols';
@@ -74,6 +74,33 @@ function defaultInstrument(list: WorkspaceInstrument[]): string {
   return list.find((i) => i.code === 'US30')?.code ?? list[0]?.code ?? 'US30';
 }
 
+/**
+ * A position's [entry, stop, target] moved so the entry sits at `price` (the last close), keeping the stop and
+ * target distances; unchanged when there is no price.
+ */
+export function atMarket<P extends { price: number }>(points: P[], price: number | null): P[] {
+  const entry = points[0];
+  if (price === null || !entry) return points;
+  const shift = price - entry.price;
+  return points.map((p) => ({ ...p, price: p.price + shift }));
+}
+
+/**
+ * Joe's rule for stepping back (21 Oct 2026): only with no open trade or pending order, and never before the
+ * last closed trade's exit, so a run can't be re-traded with hindsight.
+ */
+export function stepBackRule(orders: Pick<OrderView, 'status' | 'closedAt'>[]): {
+  blocked: string | null;
+  floor: number | null;
+} {
+  const live = orders.some((o) => o.status === 'open' || o.status === 'pending');
+  const closes = orders.flatMap((o) => (o.status === 'closed' && o.closedAt !== null ? [o.closedAt] : []));
+  return {
+    blocked: live ? 'Close or cancel your open trades to step back.' : null,
+    floor: closes.length > 0 ? Math.max(...closes) : null,
+  };
+}
+
 /** Keyboard: 1 / 5 / F pick the timeframe (spec §2.2). Ignored while typing in a field. */
 export function timeframeForKey(key: string): Timeframe | null {
   if (key === '1') return 1;
@@ -106,6 +133,7 @@ export function ChartWorkspace({
   const instrument = instruments.find((i) => i.code === code) ?? instruments[0];
   const [at, setAt] = useQueryState('at', parseAsString.withOptions({ throttleMs: 500 }));
   const [picking, setPicking] = useState(false);
+  const [moreOpen, setMoreOpen] = useState(false);
   const onCursor = useCallback(
     (cursor: number | null) => void setAt(cursor === null ? null : new Date(cursor).toISOString()),
     [setAt],
@@ -208,6 +236,7 @@ export function ChartWorkspace({
     onMove: trading.modify,
   });
   const { full, toggleFull, rootRef } = useFullScreen();
+  const back = useMemo(() => stepBackRule(trading.orders), [trading.orders]);
   // Once the chart has settled, warm the cache for the other timeframes and instruments at the same cursor,
   // so switching is instant (same request as the chart would make; nothing past the cursor).
   const instrumentCodes = instruments.map((i) => i.code).join(',');
@@ -235,7 +264,12 @@ export function ChartWorkspace({
     const placed = await trading.place(
       {
         side: selected.tool,
-        points: selected.points.map((p) => ({ ts: p.ts, price: p.price })),
+        // A market order fills at the next candle's open, not where the box was drawn: move the box to the
+        // price on screen first (stop and target keep their distances), so the trade doesn't jump on the fill.
+        points: atMarket(
+          selected.points.map((p) => ({ ts: p.ts, price: p.price })),
+          kind === 'market' ? (chartApi?.lastBar()?.close ?? null) : null,
+        ),
         sizing: selected.style.sizing,
       },
       kind,
@@ -270,6 +304,11 @@ export function ChartWorkspace({
         removeSelected();
         return;
       }
+      if (cursor !== null && event.key === 'ArrowLeft') {
+        event.preventDefault();
+        replay.stepBack(event.shiftKey ? 'minute' : 'bar', back);
+        return;
+      }
       if (cursor !== null && event.key === 'ArrowRight') {
         event.preventDefault();
         void step(event.shiftKey ? 'minute' : 'bar');
@@ -285,7 +324,19 @@ export function ChartWorkspace({
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [setTfParam, cursor, step, setPlaying, playing, startTool, cancelTool, removeSelected, toggleFull]);
+  }, [
+    setTfParam,
+    cursor,
+    step,
+    setPlaying,
+    playing,
+    startTool,
+    cancelTool,
+    removeSelected,
+    toggleFull,
+    back,
+    replay.stepBack,
+  ]);
 
   if (!instrument) {
     return <p className="p-4 text-muted-foreground text-sm">No instruments are set up yet.</p>;
@@ -342,83 +393,105 @@ export function ChartWorkspace({
             </button>
           ))}
         </fieldset>
-        <Divider />
-        <IndicatorMenu
-          prefs={prefs.indicators}
-          onChange={(id, next) => {
-            const merged = { ...prefs.indicators, [id]: { ...prefs.indicators[id], ...next } };
-            updatePrefs({ indicators: normalisePrefs(merged) });
-          }}
-        />
-        <Divider />
-        <fieldset className="flex items-center gap-1">
-          <legend className="sr-only">News markers</legend>
-          <span className="flex items-center gap-1 px-1 text-muted-foreground" title="News markers">
-            <Newspaper className="size-4" aria-hidden />
-            <span className="sr-only md:not-sr-only">News</span>
-          </span>
-          {IMPACT_TOGGLES.map((t) => (
-            <button
-              key={t.id}
-              type="button"
-              aria-pressed={prefs.impacts.includes(t.id)}
-              aria-label={`${t.label} impact news`}
-              onClick={() =>
-                updatePrefs({
-                  impacts: prefs.impacts.includes(t.id)
-                    ? prefs.impacts.filter((i) => i !== t.id)
-                    : [...prefs.impacts, t.id],
-                })
-              }
-              className={cn(
-                'h-9 rounded-md px-2',
-                prefs.impacts.includes(t.id)
-                  ? 'bg-accent text-accent-foreground'
-                  : 'text-muted-foreground hover:bg-accent/60',
-              )}
-            >
-              {t.label}
-            </button>
-          ))}
-          <select
-            value={prefs.allCurrencies ? 'all' : 'counted'}
-            onChange={(e) => updatePrefs({ allCurrencies: e.target.value === 'all' })}
-            className="h-9 rounded-md border bg-background px-1 text-foreground"
-            aria-label="News currencies"
-          >
-            <option value="counted">{currencies.join(', ') || 'Counted'}</option>
-            <option value="all">All currencies</option>
-          </select>
-        </fieldset>
-        <div className="ml-auto flex items-center gap-2">
-          <label className="flex h-9 items-center gap-2 text-muted-foreground">
-            <input
-              type="checkbox"
-              checked={prefs.sessions}
-              onChange={(e) => updatePrefs({ sessions: e.target.checked })}
-              className="size-4"
-            />
-            Sessions
-          </label>
-          <label className="flex items-center gap-1 text-muted-foreground">
-            <span className="sr-only md:not-sr-only">Time</span>
+        <button
+          type="button"
+          className="ml-auto flex h-9 items-center gap-1 rounded-md px-2 text-muted-foreground hover:bg-accent/60 md:hidden"
+          aria-expanded={moreOpen}
+          aria-controls="chart-more"
+          onClick={() => setMoreOpen(!moreOpen)}
+        >
+          <SlidersHorizontal className="size-4" aria-hidden />
+          <span className="sr-only">Chart settings</span>
+        </button>
+        {/* Phones: indicators, news, sessions, time and full screen fold into a panel behind the button above, so
+            the toolbar stays one row. Desktop shows them inline. */}
+        <div
+          id="chart-more"
+          className={cn(
+            'md:contents',
+            moreOpen
+              ? 'absolute inset-x-0 top-full z-40 flex flex-wrap items-center gap-2 border-b bg-popover p-2 shadow-lg md:static md:border-0 md:bg-transparent md:p-0 md:shadow-none'
+              : 'hidden',
+          )}
+        >
+          <Divider />
+          <IndicatorMenu
+            prefs={prefs.indicators}
+            onChange={(id, next) => {
+              const merged = { ...prefs.indicators, [id]: { ...prefs.indicators[id], ...next } };
+              updatePrefs({ indicators: normalisePrefs(merged) });
+            }}
+          />
+          <Divider />
+          <fieldset className="flex items-center gap-1">
+            <legend className="sr-only">News markers</legend>
+            <span className="flex items-center gap-1 px-1 text-muted-foreground" title="News markers">
+              <Newspaper className="size-4" aria-hidden />
+              <span className="sr-only md:not-sr-only">News</span>
+            </span>
+            {IMPACT_TOGGLES.map((t) => (
+              <button
+                key={t.id}
+                type="button"
+                aria-pressed={prefs.impacts.includes(t.id)}
+                aria-label={`${t.label} impact news`}
+                onClick={() =>
+                  updatePrefs({
+                    impacts: prefs.impacts.includes(t.id)
+                      ? prefs.impacts.filter((i) => i !== t.id)
+                      : [...prefs.impacts, t.id],
+                  })
+                }
+                className={cn(
+                  'h-9 rounded-md px-2',
+                  prefs.impacts.includes(t.id)
+                    ? 'bg-accent text-accent-foreground'
+                    : 'text-muted-foreground hover:bg-accent/60',
+                )}
+              >
+                {t.label}
+              </button>
+            ))}
             <select
-              value={prefs.timezone}
-              onChange={(e) => updatePrefs({ timezone: e.target.value })}
-              className="h-9 rounded-md border bg-background px-2 text-foreground"
-              aria-label="Chart time zone"
+              value={prefs.allCurrencies ? 'all' : 'counted'}
+              onChange={(e) => updatePrefs({ allCurrencies: e.target.value === 'all' })}
+              className="h-9 rounded-md border bg-background px-1 text-foreground"
+              aria-label="News currencies"
             >
-              {TIMEZONES.map((z) => (
-                <option key={z.id} value={z.id}>
-                  {z.label}
-                </option>
-              ))}
+              <option value="counted">{currencies.join(', ') || 'Counted'}</option>
+              <option value="all">All currencies</option>
             </select>
-          </label>
-          <FullScreenButton full={full} onToggle={toggleFull} />
+          </fieldset>
+          <div className="ml-auto flex items-center gap-2">
+            <label className="flex h-9 items-center gap-2 text-muted-foreground">
+              <input
+                type="checkbox"
+                checked={prefs.sessions}
+                onChange={(e) => updatePrefs({ sessions: e.target.checked })}
+                className="size-4"
+              />
+              Sessions
+            </label>
+            <label className="flex items-center gap-1 text-muted-foreground">
+              <span className="sr-only md:not-sr-only">Time</span>
+              <select
+                value={prefs.timezone}
+                onChange={(e) => updatePrefs({ timezone: e.target.value })}
+                className="h-9 rounded-md border bg-background px-2 text-foreground"
+                aria-label="Chart time zone"
+              >
+                {TIMEZONES.map((z) => (
+                  <option key={z.id} value={z.id}>
+                    {z.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <FullScreenButton full={full} onToggle={toggleFull} />
+          </div>
         </div>
       </div>
-      <ReplayControls replay={replay} timezone={prefs.timezone} picking={picking} onPick={setPicking} />
+      <ReplayControls replay={replay} timezone={prefs.timezone} picking={picking} onPick={setPicking} back={back} />
       <div className="flex min-h-[60dvh] flex-1 flex-col-reverse md:min-h-0 md:flex-row">
         <DrawingToolbar drawings={drawings} />
         <div

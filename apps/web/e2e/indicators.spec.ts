@@ -2,6 +2,7 @@ import { expect, type Page, test } from '@playwright/test';
 import { atr, type Ohlc, rsi } from '@trading/indicators';
 import { requireAuth, signIn } from './support/auth';
 import { seedCandles } from './support/candles';
+import { openChartSettings } from './support/chart-settings';
 
 requireAuth();
 
@@ -37,6 +38,7 @@ test.describe('indicators (M19)', () => {
     await page.reload();
     await expect.poll(async () => (await chart(page).getAttribute('data-last-bar')) ?? '').not.toBe('');
 
+    await openChartSettings(page);
     await page.getByRole('button', { name: 'ATR', exact: true }).click();
     await page.getByRole('button', { name: 'RSI', exact: true }).click();
     const window1 = await bars(page, AT);
@@ -68,6 +70,7 @@ test.describe('indicators (M19)', () => {
 
     // Settings and toggles persist; turning ATR off removes it.
     await page.reload();
+    await openChartSettings(page);
     await expect(page.getByRole('button', { name: 'RSI', exact: true })).toHaveAttribute('aria-pressed', 'true');
     await expect.poll(() => shown(page, 'rsi')).not.toBeNull();
     await page.getByRole('button', { name: 'ATR', exact: true }).click();
