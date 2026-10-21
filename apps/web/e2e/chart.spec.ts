@@ -1,6 +1,7 @@
 import { expect, test } from '@playwright/test';
 import { requireAuth, signIn } from './support/auth';
 import { seedCandles } from './support/candles';
+import { openChartSettings } from './support/chart-settings';
 
 requireAuth();
 
@@ -45,6 +46,7 @@ test.describe('backtest chart (M15)', () => {
     await page.getByRole('button', { name: 'NAS100' }).click();
     await expect(page).toHaveURL(/i=NAS100/);
     await expect(page.getByRole('button', { name: 'NAS100' })).toHaveAttribute('aria-pressed', 'true');
+    await openChartSettings(page);
     await page.getByLabel('Chart time zone').selectOption('America/New_York');
     await page.reload();
     await expect(page.getByLabel('Chart time zone')).toHaveValue('America/New_York');

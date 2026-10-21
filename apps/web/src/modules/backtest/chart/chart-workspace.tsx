@@ -2,7 +2,7 @@
 
 import type { Drawing, OrderView, SessionView } from '@trading/backtest';
 import { parseTimeframe, TIMEFRAMES, type Timeframe } from '@trading/backtest-engine';
-import { Maximize2, Minimize2, Newspaper } from 'lucide-react';
+import { Maximize2, Minimize2, Newspaper, SlidersHorizontal } from 'lucide-react';
 import { parseAsString, useQueryState } from 'nuqs';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { symbolWithAlias } from '@/lib/symbols';
@@ -133,6 +133,7 @@ export function ChartWorkspace({
   const instrument = instruments.find((i) => i.code === code) ?? instruments[0];
   const [at, setAt] = useQueryState('at', parseAsString.withOptions({ throttleMs: 500 }));
   const [picking, setPicking] = useState(false);
+  const [moreOpen, setMoreOpen] = useState(false);
   const onCursor = useCallback(
     (cursor: number | null) => void setAt(cursor === null ? null : new Date(cursor).toISOString()),
     [setAt],
@@ -392,80 +393,102 @@ export function ChartWorkspace({
             </button>
           ))}
         </fieldset>
-        <Divider />
-        <IndicatorMenu
-          prefs={prefs.indicators}
-          onChange={(id, next) => {
-            const merged = { ...prefs.indicators, [id]: { ...prefs.indicators[id], ...next } };
-            updatePrefs({ indicators: normalisePrefs(merged) });
-          }}
-        />
-        <Divider />
-        <fieldset className="flex items-center gap-1">
-          <legend className="sr-only">News markers</legend>
-          <span className="flex items-center gap-1 px-1 text-muted-foreground" title="News markers">
-            <Newspaper className="size-4" aria-hidden />
-            <span className="sr-only md:not-sr-only">News</span>
-          </span>
-          {IMPACT_TOGGLES.map((t) => (
-            <button
-              key={t.id}
-              type="button"
-              aria-pressed={prefs.impacts.includes(t.id)}
-              aria-label={`${t.label} impact news`}
-              onClick={() =>
-                updatePrefs({
-                  impacts: prefs.impacts.includes(t.id)
-                    ? prefs.impacts.filter((i) => i !== t.id)
-                    : [...prefs.impacts, t.id],
-                })
-              }
-              className={cn(
-                'h-9 rounded-md px-2',
-                prefs.impacts.includes(t.id)
-                  ? 'bg-accent text-accent-foreground'
-                  : 'text-muted-foreground hover:bg-accent/60',
-              )}
-            >
-              {t.label}
-            </button>
-          ))}
-          <select
-            value={prefs.allCurrencies ? 'all' : 'counted'}
-            onChange={(e) => updatePrefs({ allCurrencies: e.target.value === 'all' })}
-            className="h-9 rounded-md border bg-background px-1 text-foreground"
-            aria-label="News currencies"
-          >
-            <option value="counted">{currencies.join(', ') || 'Counted'}</option>
-            <option value="all">All currencies</option>
-          </select>
-        </fieldset>
-        <div className="ml-auto flex items-center gap-2">
-          <label className="flex h-9 items-center gap-2 text-muted-foreground">
-            <input
-              type="checkbox"
-              checked={prefs.sessions}
-              onChange={(e) => updatePrefs({ sessions: e.target.checked })}
-              className="size-4"
-            />
-            Sessions
-          </label>
-          <label className="flex items-center gap-1 text-muted-foreground">
-            <span className="sr-only md:not-sr-only">Time</span>
+        <button
+          type="button"
+          className="ml-auto flex h-9 items-center gap-1 rounded-md px-2 text-muted-foreground hover:bg-accent/60 md:hidden"
+          aria-expanded={moreOpen}
+          aria-controls="chart-more"
+          onClick={() => setMoreOpen(!moreOpen)}
+        >
+          <SlidersHorizontal className="size-4" aria-hidden />
+          <span className="sr-only">Chart settings</span>
+        </button>
+        {/* Phones: indicators, news, sessions, time and full screen fold into a panel behind the button above, so
+            the toolbar stays one row. Desktop shows them inline. */}
+        <div
+          id="chart-more"
+          className={cn(
+            'md:contents',
+            moreOpen
+              ? 'absolute inset-x-0 top-full z-40 flex flex-wrap items-center gap-2 border-b bg-popover p-2 shadow-lg md:static md:border-0 md:bg-transparent md:p-0 md:shadow-none'
+              : 'hidden',
+          )}
+        >
+          <Divider />
+          <IndicatorMenu
+            prefs={prefs.indicators}
+            onChange={(id, next) => {
+              const merged = { ...prefs.indicators, [id]: { ...prefs.indicators[id], ...next } };
+              updatePrefs({ indicators: normalisePrefs(merged) });
+            }}
+          />
+          <Divider />
+          <fieldset className="flex items-center gap-1">
+            <legend className="sr-only">News markers</legend>
+            <span className="flex items-center gap-1 px-1 text-muted-foreground" title="News markers">
+              <Newspaper className="size-4" aria-hidden />
+              <span className="sr-only md:not-sr-only">News</span>
+            </span>
+            {IMPACT_TOGGLES.map((t) => (
+              <button
+                key={t.id}
+                type="button"
+                aria-pressed={prefs.impacts.includes(t.id)}
+                aria-label={`${t.label} impact news`}
+                onClick={() =>
+                  updatePrefs({
+                    impacts: prefs.impacts.includes(t.id)
+                      ? prefs.impacts.filter((i) => i !== t.id)
+                      : [...prefs.impacts, t.id],
+                  })
+                }
+                className={cn(
+                  'h-9 rounded-md px-2',
+                  prefs.impacts.includes(t.id)
+                    ? 'bg-accent text-accent-foreground'
+                    : 'text-muted-foreground hover:bg-accent/60',
+                )}
+              >
+                {t.label}
+              </button>
+            ))}
             <select
-              value={prefs.timezone}
-              onChange={(e) => updatePrefs({ timezone: e.target.value })}
-              className="h-9 rounded-md border bg-background px-2 text-foreground"
-              aria-label="Chart time zone"
+              value={prefs.allCurrencies ? 'all' : 'counted'}
+              onChange={(e) => updatePrefs({ allCurrencies: e.target.value === 'all' })}
+              className="h-9 rounded-md border bg-background px-1 text-foreground"
+              aria-label="News currencies"
             >
-              {TIMEZONES.map((z) => (
-                <option key={z.id} value={z.id}>
-                  {z.label}
-                </option>
-              ))}
+              <option value="counted">{currencies.join(', ') || 'Counted'}</option>
+              <option value="all">All currencies</option>
             </select>
-          </label>
-          <FullScreenButton full={full} onToggle={toggleFull} />
+          </fieldset>
+          <div className="ml-auto flex items-center gap-2">
+            <label className="flex h-9 items-center gap-2 text-muted-foreground">
+              <input
+                type="checkbox"
+                checked={prefs.sessions}
+                onChange={(e) => updatePrefs({ sessions: e.target.checked })}
+                className="size-4"
+              />
+              Sessions
+            </label>
+            <label className="flex items-center gap-1 text-muted-foreground">
+              <span className="sr-only md:not-sr-only">Time</span>
+              <select
+                value={prefs.timezone}
+                onChange={(e) => updatePrefs({ timezone: e.target.value })}
+                className="h-9 rounded-md border bg-background px-2 text-foreground"
+                aria-label="Chart time zone"
+              >
+                {TIMEZONES.map((z) => (
+                  <option key={z.id} value={z.id}>
+                    {z.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <FullScreenButton full={full} onToggle={toggleFull} />
+          </div>
         </div>
       </div>
       <ReplayControls replay={replay} timezone={prefs.timezone} picking={picking} onPick={setPicking} back={back} />
