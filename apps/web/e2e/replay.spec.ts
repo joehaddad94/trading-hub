@@ -52,7 +52,7 @@ test.describe('replay (M16)', () => {
     expect((await lastBar(page))?.close).toBe(await minuteClose(page, '2026-10-07T14:37:00Z'));
 
     for (const minute of ['38', '39', '40']) {
-      await page.keyboard.press('Shift+ArrowRight');
+      await page.keyboard.press('Alt+ArrowRight');
       const at = `2026-10-07T14:${minute}:00Z`;
       await expect(cursor(page)).toHaveAttribute('data-cursor', String(Date.parse(at)));
       const expected = await minuteClose(page, at);
@@ -125,7 +125,7 @@ test.describe('replay (M16)', () => {
     await expect.poll(async () => (await lastBar(page))?.ts).toBe(Date.parse('2026-10-07T17:20:00Z'));
     // A step pressed while the previous one is loading is ignored, so wait for each.
     for (const minute of [25, 26, 27, 28, 29]) {
-      await page.keyboard.press('Shift+ArrowRight');
+      await page.keyboard.press('Alt+ArrowRight');
       await expect(cursor(page)).toHaveAttribute('data-cursor', String(Date.parse(`2026-10-07T17:${minute}:00Z`)));
     }
 

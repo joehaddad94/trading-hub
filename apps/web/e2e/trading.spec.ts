@@ -87,7 +87,7 @@ test.describe('simulated trading (M20)', () => {
     });
     await rows(page).first().getByRole('button', { name: 'Delete' }).click();
     await expect(rows(page)).toHaveCount(0);
-    await page.getByRole('button', { name: 'Undo' }).click();
+    await page.getByRole('button', { name: 'Undo', exact: true }).click();
     await expect(rows(page)).toHaveCount(1);
     page.once('dialog', (d) => void d.accept());
     await rows(page).first().getByRole('button', { name: 'Delete' }).click();
