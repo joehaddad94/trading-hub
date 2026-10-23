@@ -80,6 +80,37 @@ test.describe('replay (M16)', () => {
     expect(seen.filter((s) => s.tf === 1).length).toBeLessThanOrEqual(2);
   });
 
+  test('stepping keeps a panned chart where it is, like TradingView', async ({ page }) => {
+    await page.goto('/backtest/chart?i=US30&tf=5&at=2026-10-07T14:37:00.000Z');
+    const chart = page.getByTestId('kline-chart');
+    await expect(chart).toHaveAttribute('data-ready', 'true');
+    await expect.poll(async () => (await lastBar(page))?.ts).toBe(Date.parse('2026-10-07T14:35:00Z'));
+    // Drag the candles left so the newest bar sits mid-chart with room on its right.
+    const box = await chart.boundingBox();
+    if (!box) throw new Error('no chart');
+    const y = box.y + box.height * 0.4;
+    await page.mouse.move(box.x + box.width * 0.6, y);
+    await page.mouse.down();
+    await page.mouse.move(box.x + box.width * 0.3, y, { steps: 8 });
+    await page.mouse.up();
+    const lastX = async () => Number(await chart.getAttribute('data-last-x'));
+
+    await page.keyboard.press('ArrowRight');
+    await expect(cursor(page)).toHaveAttribute('data-cursor', String(Date.parse('2026-10-07T14:39:00Z')));
+    const x1 = await lastX();
+    await page.keyboard.press('ArrowRight');
+    await expect(cursor(page)).toHaveAttribute('data-cursor', String(Date.parse('2026-10-07T14:44:00Z')));
+    const x2 = await lastX();
+    // The new bar appears one bar to the right; the chart didn't scroll to put it at the edge.
+    expect(x2 - x1).toBeGreaterThan(2);
+    expect(x2).toBeLessThan(box.width * 0.8);
+
+    await page.keyboard.press('ArrowLeft');
+    await expect(cursor(page)).toHaveAttribute('data-cursor', String(Date.parse('2026-10-07T14:39:00Z')));
+    // Back puts the bars where they were (to a pixel; bar spacing can be fractional).
+    await expect.poll(async () => Math.abs((await lastX()) - x1)).toBeLessThan(2);
+  });
+
   test('jumps to the next session, plays, keeps the cursor across timeframes and exits', async ({ page }) => {
     await page.goto('/backtest/chart?i=US30&tf=5&at=2026-10-07T14:37:00.000Z');
     await expect(cursor(page)).toBeVisible();
