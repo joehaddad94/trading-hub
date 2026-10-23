@@ -12,6 +12,7 @@ import { ORDERS_INDICATOR, type OrderMark, orderLines } from './order-lines';
 import { SESSION_INDICATOR, sessionShading } from './session-shading';
 import { chartStyles } from './styles';
 import { TOOLS } from './tools/registry';
+import { barX, keepViewShift, rightLimit } from './view';
 
 const PAGE = BARS_PAGE;
 /** Bars kept to the right of the anchor when a timeframe switch reloads around it. */
@@ -56,6 +57,13 @@ export type ChartProps = {
   /** Simulated orders and trades of this instrument. */
   orderMarks?: OrderMark[];
 };
+
+/** For the e2e tests: where the newest bar sits on screen, to check that replay keeps the view. */
+function markLastX(chart: Chart, node: HTMLElement | null) {
+  const last = chart.getDataList().at(-1);
+  const x = last ? barX(chart, last.timestamp) : null;
+  node?.setAttribute('data-last-x', x === null ? '' : x.toFixed(1));
+}
 
 /** Height of an indicator pane in px: smaller when the chart is short (phones), so prices keep most room. */
 const indicatorPaneHeight = (chartHeight: number) => (chartHeight < 520 ? 70 : 110);
@@ -111,7 +119,7 @@ export function KLineChart(props: ChartProps) {
   crosshairRef.current = onCrosshair;
   const generation = useRef(0);
   /** Bars the next 'init' load uses instead of fetching (set by `rewind`). */
-  const localRef = useRef<Bar[] | null>(null);
+  const localRef = useRef<{ bars: Bar[]; keep: { ts: number; x: number } | null } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [ready, setReady] = useState(false);
   /** 'init' while a switch or replay jump reloads the window; 'page' while older bars load on scroll. */
@@ -186,10 +194,22 @@ export function KLineChart(props: ChartProps) {
     const sync = () => {
       const last = chart.getDataList().at(-1);
       setLastBar(last ? toBar(last) : null);
+      markLastX(chart, el.current);
     };
     const api: ChartApi = {
       upsert: (bars) => {
+        // Stay where the user scrolled or zoomed to: measure the last bar, add the new ones, scroll back.
+        const last = chart.getDataList().at(-1);
+        const before = last ? barX(chart, last.timestamp) : null;
         for (const bar of bars) pushRef.current?.(toKLine(bar));
+        const newest = chart.getDataList().at(-1);
+        const after = last ? barX(chart, last.timestamp) : null;
+        const newestX = newest ? barX(chart, newest.timestamp) : null;
+        const limit = rightLimit(chart);
+        if (before !== null && after !== null && newestX !== null && limit !== null) {
+          const shift = keepViewShift({ before, after, newest: newestX, limit });
+          if (shift !== 0) chart.scrollByDistance(shift);
+        }
         sync();
       },
       lastBar: () => {
@@ -198,7 +218,10 @@ export function KLineChart(props: ChartProps) {
       },
       bars: () => chart.getDataList().map(toBar),
       rewind: (bars) => {
-        localRef.current = bars;
+        // The last bar kept stays at the same x, so stepping back never moves the view.
+        const ref = bars.at(-1);
+        const x = ref ? barX(chart, ref.ts) : null;
+        localRef.current = { bars, keep: ref && x !== null ? { ts: ref.ts, x } : null };
         chart.resetData();
       },
       chart,
@@ -226,6 +249,7 @@ export function KLineChart(props: ChartProps) {
     const syncLast = () => {
       const last = chart.getDataList().at(-1);
       setLastBar(last ? toBar(last) : null);
+      markLastX(chart, el.current);
     };
     chart.setDataLoader({
       getBars: async ({ type, timestamp, callback }: DataLoaderGetBarsParams) => {
@@ -235,7 +259,9 @@ export function KLineChart(props: ChartProps) {
           const local = localRef.current;
           if (type === 'init' && local) {
             localRef.current = null;
-            callback(local.map(toKLine), { forward: true, backward: false });
+            callback(local.bars.map(toKLine), { forward: true, backward: false });
+            const x = local.keep ? barX(chart, local.keep.ts) : null;
+            if (local.keep && x !== null && x !== local.keep.x) chart.scrollByDistance(local.keep.x - x);
             syncLast();
             setLoading(null);
           } else if (type === 'init') {
