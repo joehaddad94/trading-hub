@@ -10,6 +10,7 @@ import { cn } from '@/lib/utils';
 import { DrawingProperties, DrawingToolbar } from './drawing-toolbar';
 import { IndicatorMenu } from './indicator-menu';
 import { activeIndicators, type IndicatorPrefs, normalisePrefs } from './indicators';
+import { chartKeyFor } from './keys';
 import { type ChartApi, KLineChart } from './kline-chart';
 import { BARS_PAGE, liveUntil, prefetchBars } from './loader';
 import { NewsPanel } from './news-panel';
@@ -203,7 +204,7 @@ export function ChartWorkspace({
   };
 
   const { cursor, step, setPlaying, playing } = replay;
-  const { start: startTool, cancel: cancelTool, removeSelected } = drawings;
+  const { start: startTool, cancel: cancelTool, removeSelected, undo, redo } = drawings;
   const [hoverBar, setHoverBar] = useState<number | null>(null);
   const filter = useMemo<NewsFilter>(
     () => ({ impacts: prefs.impacts, currencies: prefs.allCurrencies ? [] : currencies }),
@@ -282,6 +283,21 @@ export function ChartWorkspace({
     const onKey = (event: KeyboardEvent) => {
       const target = event.target as HTMLElement | null;
       if (target && (target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName))) return;
+      const key = chartKeyFor(event, cursor !== null);
+      if (key) {
+        event.preventDefault();
+        // A focused button (Play, Bar…) would also react to Space on key up and undo the toggle.
+        if (target?.tagName === 'BUTTON') target.blur();
+        if (key.type === 'step') void step(key.mode);
+        else if (key.type === 'back') void replay.stepBack(key.mode, back);
+        else if (key.type === 'play') setPlaying(!playing);
+        else if (key.type === 'scroll') chartApi?.scrollBars(key.bars);
+        else if (key.type === 'zoom') chartApi?.zoom(key.in);
+        else if (key.type === 'reset') chartApi?.reset();
+        else if (key.type === 'undo') undo();
+        else redo();
+        return;
+      }
       if (event.altKey && !event.metaKey && !event.ctrlKey) {
         const tool = toolForKey(event.code);
         if (tool) {
@@ -304,21 +320,6 @@ export function ChartWorkspace({
         removeSelected();
         return;
       }
-      if (cursor !== null && event.key === 'ArrowLeft') {
-        event.preventDefault();
-        void replay.stepBack(event.shiftKey ? 'minute' : 'bar', back);
-        return;
-      }
-      if (cursor !== null && event.key === 'ArrowRight') {
-        event.preventDefault();
-        void step(event.shiftKey ? 'minute' : 'bar');
-        return;
-      }
-      if (cursor !== null && event.key === ' ') {
-        event.preventDefault();
-        setPlaying(!playing);
-        return;
-      }
       const next = timeframeForKey(event.key);
       if (next) void setTfParam(String(next));
     };
@@ -336,6 +337,9 @@ export function ChartWorkspace({
     toggleFull,
     back,
     replay.stepBack,
+    chartApi,
+    undo,
+    redo,
   ]);
 
   if (!instrument) {
@@ -551,6 +555,17 @@ export function ChartWorkspace({
                 >
                   Replay from here
                 </button>
+                <button
+                  type="button"
+                  role="menuitem"
+                  className="flex h-8 w-full items-center justify-between gap-4 rounded px-2 text-left hover:bg-accent"
+                  onClick={() => {
+                    chartApi?.reset();
+                    setMenu(null);
+                  }}
+                >
+                  Reset chart <span className="text-muted-foreground text-xs">Alt+R</span>
+                </button>
               </div>
             </>
           )}
@@ -602,6 +617,7 @@ export function ChartWorkspace({
             onCrosshair={setHoverBar}
             indicators={indicators}
             orderMarks={marks}
+            picking={picking}
           />
         </div>
       </div>

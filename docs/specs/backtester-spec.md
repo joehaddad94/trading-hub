@@ -71,11 +71,13 @@
 
 ### 3.1 Controls
 - **Start point:** pick a date + time, or click a candle with a "Start replay here" tool.
-- **Step forward** one bar of the current timeframe (`→` key) and **step forward one minute** (`Shift + →`).
-- **Play / pause** (`Space`) with speeds: 1, 2, 5, 10, 20 bars/second (configurable).
+- **Step forward** one bar of the current timeframe (`Shift + →` as on TradingView, or `→`) and **step forward one minute** (`Alt + →`; Joe, 23 Oct 2026).
+- **Play / pause** (`Shift + ↓` as on TradingView, or `Space`) with speeds: 1, 2, 5, 10, 20 bars/second (configurable).
 - **Jump to next session open** (Asia / London / NY AM / NY PM) and **jump to next day**.
 - **Exit replay** returns to the latest data.
-- **Step back** one bar (`←`, button) or one minute (`Shift + ←`) — Joe's rule (21 Oct 2026): only when no trade is open or pending, and never before the last closed trade's exit, so a run can't be re-traded with hindsight. Restarting at an earlier point is allowed.
+- **Step back** one bar (`←`, button) or one minute (`Alt + ←`) — Joe's rule (21 Oct 2026): only when no trade is open or pending, and never before the last closed trade's exit, so a run can't be re-traded with hindsight. Restarting at an earlier point is allowed.
+
+- **Chart navigation like TradingView** (audit 23 Oct 2026): KLineCharts' own hotkeys are off; outside replay `←`/`→` scroll a bar and `↑`/`↓` zoom; `Alt + R` (or right-click › Reset chart) resets zoom, auto scale and scroll; a » button appears when the newest bar is off screen; an **A** button on the price axis shows and restores auto scale; switching timeframe keeps the visible time range, replay included; a drag never counts as a click; on phones the crosshair needs a long press.
 
 ### 3.2 No lookahead — non-negotiable
 - The replay cursor is stored at **1-minute resolution**.
@@ -100,6 +102,7 @@ All drawings are anchored in **(time, price)** coordinates, never pixels, so the
 
 **Common to all tools**
 - Toolbar (left side on desktop, bottom sheet on mobile) + keyboard shortcuts (`Alt+H` horizontal, `Alt+T` trend, `Alt+L` long, `Alt+S` short, `Alt+M` measure — avoid clashes with browser shortcuts; adjust if needed).
+- Undo / redo (`Ctrl/⌘ + Z`, `Ctrl/⌘ + Y`) for create, move, restyle and delete, per instrument; a magnet (off / weak / strong, hold `Ctrl` for strong) snaps points to candle prices.
 - Select, move, delete (`Delete` key), colour, line width, lock, hide/show all, delete all.
 - Drawings **persist** per instrument (and optionally per backtest session) in the DB — table `drawings`: `id`, `instrument_id`, `session_id` (nullable), `tool`, `points` jsonb (`[{ts, price}]`), `style` jsonb, `label`, `created_at`, `updated_at`.
 - Architecture: each tool is a self-contained module registered in a tool registry, so new tools (Fibonacci, rectangle, ray, text) can be added later without touching existing ones.

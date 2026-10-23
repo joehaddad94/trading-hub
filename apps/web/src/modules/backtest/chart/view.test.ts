@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { keepViewShift } from './view';
+import { isAtLatest, isClick, keepViewShift } from './view';
 
 describe('keepViewShift', () => {
   it('keeps the bars in place while the new bar fits', () => {
@@ -17,5 +17,21 @@ describe('keepViewShift', () => {
 
   it('does nothing when the chart already kept its place (last bar off screen)', () => {
     expect(keepViewShift({ before: 900, after: 900, newest: 910, limit: 700 })).toBe(0);
+  });
+});
+
+describe('isClick', () => {
+  it('treats a press and release in place as a click, and a pan as no click', () => {
+    expect(isClick({ x: 10, y: 10 }, { x: 13, y: 12 })).toBe(true);
+    expect(isClick({ x: 10, y: 10 }, { x: 60, y: 10 })).toBe(false);
+  });
+});
+
+describe('isAtLatest', () => {
+  it('is true while the newest bar is in the visible range', () => {
+    expect(isAtLatest({ realTo: 500 }, 500)).toBe(true);
+    expect(isAtLatest({ realTo: 520 }, 500)).toBe(true);
+    expect(isAtLatest({ realTo: 420 }, 500)).toBe(false);
+    expect(isAtLatest({ realTo: 0 }, 0)).toBe(true);
   });
 });

@@ -3,7 +3,9 @@
 import { type Bar, MINUTE_MS, type Timeframe } from '@trading/backtest-engine';
 import { INDICATORS } from '@trading/indicators';
 import type { Chart, DataLoaderGetBarsParams, KLineData, Point } from 'klinecharts';
-import { type RefObject, useEffect, useRef, useState } from 'react';
+import { ChevronsRight } from 'lucide-react';
+import { type RefObject, useCallback, useEffect, useRef, useState } from 'react';
+import { cn } from '@/lib/utils';
 import { type ActiveIndicator, INDICATOR_TEMPLATES, indicatorName, indicatorPane } from './indicators';
 import { BARS_PAGE, fetchBars, liveUntil, toKLine } from './loader';
 import { type Marker, NEWS_INDICATOR, newsMarkers } from './news-markers';
@@ -12,7 +14,17 @@ import { ORDERS_INDICATOR, type OrderMark, orderLines } from './order-lines';
 import { SESSION_INDICATOR, sessionShading } from './session-shading';
 import { chartStyles } from './styles';
 import { TOOLS } from './tools/registry';
-import { barX, keepViewShift, rightLimit } from './view';
+import {
+  barX,
+  crosshairOnLongPressOnly,
+  isAtLatest,
+  isAutoScale,
+  isClick,
+  keepViewShift,
+  resetView,
+  rightLimit,
+  setAutoScale,
+} from './view';
 
 const PAGE = BARS_PAGE;
 /** Bars kept to the right of the anchor when a timeframe switch reloads around it. */
@@ -30,6 +42,13 @@ export type ChartApi = {
    * newest bars without reloading the window.
    */
   rewind(bars: Bar[]): void;
+  /** TradingView's Alt+R: default zoom, auto scale, newest bar in view. */
+  reset(): void;
+  /** Scrolls so the newest bar is in view (the » button). */
+  scrollToLatest(): void;
+  /** Scrolls by whole bars; positive shows newer bars. */
+  scrollBars(bars: number): void;
+  zoom(zoomIn: boolean): void;
   /** The KLineCharts instance, for the drawing controller. */
   chart: Chart;
 };
@@ -56,6 +75,8 @@ export type ChartProps = {
   indicators?: ActiveIndicator[];
   /** Simulated orders and trades of this instrument. */
   orderMarks?: OrderMark[];
+  /** Choosing a replay start: a line follows the pointer and the bars right of it are dimmed. */
+  picking?: boolean;
 };
 
 /** For the e2e tests: where the newest bar sits on screen, to check that replay keeps the view. */
@@ -106,6 +127,7 @@ export function KLineChart(props: ChartProps) {
     onCrosshair,
     indicators,
     orderMarks,
+    picking,
   } = props;
   const el = useRef<HTMLDivElement>(null);
   const chartRef = useRef<Chart | null>(null);
@@ -125,6 +147,31 @@ export function KLineChart(props: ChartProps) {
   /** 'init' while a switch or replay jump reloads the window; 'page' while older bars load on scroll. */
   const [loading, setLoading] = useState<'init' | 'page' | null>('init');
   const [lastBar, setLastBar] = useState<Bar | null>(null);
+  /** Newest bar on screen; when false the » button shows. */
+  const [atLatest, setAtLatest] = useState(true);
+  /** Price axis fits the candles (TradingView's "A"). */
+  const [auto, setAuto] = useState(true);
+  /** Price axis width and price pane height, to place the buttons on the chart. */
+  const [frame, setFrame] = useState<{ axis: number; pane: number } | null>(null);
+  /** x of the bar under the pointer while picking a replay start. */
+  const [pickX, setPickX] = useState<number | null>(null);
+  const pickingRef = useRef(picking);
+  pickingRef.current = picking;
+  const lastReloadKey = useRef(reloadKey);
+  /** Re-reads what the buttons on the chart depend on (after scrolls, zooms, axis drags, new bars). */
+  const measure = useCallback(() => {
+    const chart = chartRef.current;
+    if (!chart) return;
+    setAtLatest(isAtLatest(chart.getVisibleRange(), chart.getDataList().length));
+    setAuto(isAutoScale(chart));
+    const axis = chart.getSize('candle_pane', 'yAxis')?.width;
+    const pane = chart.getSize('candle_pane', 'main')?.height;
+    if (typeof axis === 'number' && typeof pane === 'number') {
+      setFrame((f) => (f && f.axis === axis && f.pane === pane ? f : { axis, pane }));
+    }
+  }, []);
+  const measureRef = useRef(measure);
+  measureRef.current = measure;
 
   // The chart is created once; prop changes are applied by the effects below.
   // biome-ignore lint/correctness/useExhaustiveDependencies: timezone and styles are applied by their own effects.
@@ -133,12 +180,36 @@ export function KLineChart(props: ChartProps) {
     let lib: Klinecharts | null = null;
     let observer: ResizeObserver | null = null;
     const node = el.current;
-    const onLeave = () => crosshairRef.current?.(null);
-    const onClick = (event: MouseEvent) => {
+    const onLeave = () => {
+      crosshairRef.current?.(null);
+      setPickX(null);
+    };
+    // A click is a press and release in about the same place: letting go after a pan is not a bar click
+    // (audit #06). Pointer events also reach us on phones, where the chart cancels touch clicks.
+    let down: { x: number; y: number; id: number } | null = null;
+    const onDown = (event: PointerEvent) => {
+      down = event.button === 0 ? { x: event.clientX, y: event.clientY, id: event.pointerId } : null;
+    };
+    const onUp = (event: PointerEvent) => {
+      const start = down;
+      down = null;
       const chart = chartRef.current;
-      if (!chart || !node || !clickRef.current) return;
+      if (!chart || !node || !start || start.id !== event.pointerId) return;
+      if (!isClick(start, { x: event.clientX, y: event.clientY })) return;
       const ts = barAt(chart, event.clientX - node.getBoundingClientRect().left);
-      if (ts !== null) clickRef.current(ts);
+      if (ts !== null) clickRef.current?.(ts);
+    };
+    // Scrolls, zooms and axis drags all end in one of these; read the view after the chart has applied them.
+    let frameId = 0;
+    const remeasure = () => {
+      cancelAnimationFrame(frameId);
+      frameId = requestAnimationFrame(() => measureRef.current());
+    };
+    const onMove = (event: PointerEvent) => {
+      const chart = chartRef.current;
+      if (!pickingRef.current || !chart || !node) return;
+      const ts = barAt(chart, event.clientX - node.getBoundingClientRect().left);
+      setPickX(ts === null ? null : barX(chart, ts));
     };
     const onMenu = (event: MouseEvent) => {
       const chart = chartRef.current;
@@ -162,25 +233,44 @@ export function KLineChart(props: ChartProps) {
       const chart = k.init(node, {
         styles: chartStyles({ label: `${instrument.code} · ${tf}m`, digits: instrument.priceDigits }),
         timezone,
+        // The library's own Shift+←/→ (scroll) and Shift+= / Shift+- (zoom) fired alongside our replay keys
+        // (audit #01); the workspace handles every key.
+        hotkey: { enabled: false },
       });
       if (!chart) return;
       chartRef.current = chart;
+      crosshairOnLongPressOnly(chart);
+      chart.subscribeAction('onVisibleRangeChange', remeasure);
       chart.subscribeAction('onCrosshairChange', (data) => {
         // The payload is the pointer position only; map it to the bar like a click.
         const x = (data as { x?: number } | undefined)?.x;
         crosshairRef.current?.(typeof x === 'number' ? barAt(chart, x) : null);
       });
-      node.addEventListener('click', onClick, true);
+      node.addEventListener('pointerdown', onDown, true);
+      node.addEventListener('pointerup', onUp, true);
+      node.addEventListener('pointerup', remeasure);
+      node.addEventListener('pointermove', onMove);
+      node.addEventListener('wheel', remeasure, { passive: true });
+      node.addEventListener('dblclick', remeasure);
       node.addEventListener('contextmenu', onMenu);
       node.addEventListener('mouseleave', onLeave);
-      observer = new ResizeObserver(() => chart.resize());
+      observer = new ResizeObserver(() => {
+        chart.resize();
+        remeasure();
+      });
       observer.observe(node);
       setReady(true);
     });
     return () => {
       disposed = true;
       observer?.disconnect();
-      node?.removeEventListener('click', onClick, true);
+      cancelAnimationFrame(frameId);
+      node?.removeEventListener('pointerdown', onDown, true);
+      node?.removeEventListener('pointerup', onUp, true);
+      node?.removeEventListener('pointerup', remeasure);
+      node?.removeEventListener('pointermove', onMove);
+      node?.removeEventListener('wheel', remeasure);
+      node?.removeEventListener('dblclick', remeasure);
       node?.removeEventListener('contextmenu', onMenu);
       node?.removeEventListener('mouseleave', onLeave);
       if (lib && node) lib.dispose(node);
@@ -195,6 +285,7 @@ export function KLineChart(props: ChartProps) {
       const last = chart.getDataList().at(-1);
       setLastBar(last ? toBar(last) : null);
       markLastX(chart, el.current);
+      measure();
     };
     const api: ChartApi = {
       upsert: (bars) => {
@@ -224,25 +315,42 @@ export function KLineChart(props: ChartProps) {
         localRef.current = { bars, keep: ref && x !== null ? { ts: ref.ts, x } : null };
         chart.resetData();
       },
+      reset: () => {
+        resetView(chart);
+        measure();
+      },
+      scrollToLatest: () => {
+        chart.scrollToRealTime(200);
+        window.setTimeout(measure, 250);
+      },
+      scrollBars: (bars) => {
+        chart.scrollByDistance(-bars * chart.getBarSpace().bar);
+        measure();
+      },
+      zoom: (zoomIn) => {
+        // Holds the right edge of the view, as TradingView's keyboard zoom does.
+        const width = chart.getSize('candle_pane', 'main')?.width;
+        chart.zoomAtCoordinate(zoomIn ? 1.1 : 1 / 1.1, width ? { x: width, y: 0 } : undefined);
+        measure();
+      },
       chart,
     };
     onReady?.(api);
     return () => onReady?.(null);
-  }, [ready, onReady]);
+  }, [ready, onReady, measure]);
 
-  // biome-ignore lint/correctness/useExhaustiveDependencies: reloadKey forces a reload around the cursor.
   useEffect(() => {
     const chart = chartRef.current;
     if (!ready || !chart) return;
     const list = chart.getDataList();
     const range = chart.getVisibleRange();
-    const cursor = cursorRef.current;
-    // Keep the visible time range: the bar at the right edge, unless the view is at the newest bar.
-    // A replay (re)start anchors on the cursor itself.
+    // A replay start, jump or exit (reloadKey) shows the cursor itself. A timeframe or instrument switch keeps
+    // the visible time range, replay included (audit #03): the bar at the right edge, unless the view is at the
+    // newest bar.
+    const restarted = lastReloadKey.current !== reloadKey;
+    lastReloadKey.current = reloadKey;
     anchorRef.current =
-      cursor === null && list.length > 0 && range.realTo < list.length
-        ? (list[range.realTo - 1]?.timestamp ?? null)
-        : null;
+      !restarted && list.length > 0 && range.realTo < list.length ? (list[range.realTo - 1]?.timestamp ?? null) : null;
     const gen = ++generation.current;
     setError(null);
     setLoading('init');
@@ -262,6 +370,16 @@ export function KLineChart(props: ChartProps) {
             callback(local.bars.map(toKLine), { forward: true, backward: false });
             const x = local.keep ? barX(chart, local.keep.ts) : null;
             if (local.keep && x !== null && x !== local.keep.x) chart.scrollByDistance(local.keep.x - x);
+            syncLast();
+            setLoading(null);
+          } else if (type === 'init' && cursorRef.current !== null) {
+            // Replay: always the newest page up to the cursor, so new bars join the chart without a gap; the
+            // anchor, when it falls inside that page, is scrolled back into view.
+            const page = await fetchBars({ instrument: instrument.code, tf, until, count: PAGE });
+            if (gen !== generation.current) return;
+            callback(page.bars.map(toKLine), { forward: page.hasMore, backward: false });
+            const first = page.bars[0]?.ts;
+            if (anchor && first !== undefined && anchor >= first) chart.scrollToTimestamp(anchor);
             syncLast();
             setLoading(null);
           } else if (type === 'init') {
@@ -403,6 +521,54 @@ export function KLineChart(props: ChartProps) {
         data-order-marks={orderMarks?.length ?? 0}
         data-loading={loading ?? ''}
       />
+      {picking && pickX !== null && frame && (
+        // TradingView's "Select bar": a line on the bar under the pointer, the bars after it dimmed.
+        <div aria-hidden className="pointer-events-none absolute inset-x-0 top-0" style={{ height: frame.pane }}>
+          <div className="absolute top-0 h-full bg-background/55" style={{ left: pickX, right: frame.axis }} />
+          <div
+            className="absolute top-0 h-full w-px bg-primary"
+            style={{ left: pickX }}
+            data-testid="replay-pick-line"
+          />
+        </div>
+      )}
+      {frame && !atLatest && (
+        <button
+          type="button"
+          onClick={() => {
+            chartRef.current?.scrollToRealTime(200);
+            window.setTimeout(measure, 250);
+          }}
+          className="absolute z-10 flex size-8 items-center justify-center rounded-md border bg-popover/90 text-muted-foreground shadow hover:bg-accent hover:text-foreground"
+          style={{ right: frame.axis + 8, top: frame.pane - 40 }}
+          title="Scroll to the most recent bar"
+          data-testid="chart-latest"
+        >
+          <ChevronsRight className="size-4" aria-hidden />
+          <span className="sr-only">Scroll to the most recent bar</span>
+        </button>
+      )}
+      {frame && (
+        <button
+          type="button"
+          aria-pressed={auto}
+          onClick={() => {
+            const chart = chartRef.current;
+            if (!chart || auto) return;
+            setAutoScale(chart);
+            measure();
+          }}
+          className={cn(
+            'absolute z-10 flex h-5 w-6 items-center justify-center rounded font-semibold text-[11px]',
+            auto ? 'bg-primary/20 text-primary' : 'bg-popover/90 text-muted-foreground hover:text-foreground',
+          )}
+          style={{ right: Math.max(4, (frame.axis - 24) / 2), top: frame.pane - 24 }}
+          title={auto ? 'Auto scale is on' : 'Auto scale (fit the candles on screen)'}
+          data-testid="chart-auto-scale"
+        >
+          A<span className="sr-only"> auto scale</span>
+        </button>
+      )}
       {loading && <ChartLoading full={loading === 'init'} label={`${instrument.code} · ${tf}m`} />}
       {error && (
         <p role="alert" className="absolute top-2 left-2 rounded-md bg-loss/20 px-3 py-1 text-sm">

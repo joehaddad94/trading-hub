@@ -7,13 +7,16 @@ import {
   Lock,
   LockOpen,
   type LucideIcon,
+  Magnet,
   Minus,
   MousePointer2,
+  Redo2,
   Ruler,
   Slash,
   Trash2,
   TrendingDown,
   TrendingUp,
+  Undo2,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { TOOLS } from './tools/registry';
@@ -32,8 +35,11 @@ const ICONS: Record<string, LucideIcon> = {
   measure: Ruler,
 };
 
+const MAGNET_LABEL = { normal: 'Magnet off', weak_magnet: 'Weak magnet', strong_magnet: 'Strong magnet' } as const;
+const NEXT_MAGNET = { normal: 'weak_magnet', weak_magnet: 'strong_magnet', strong_magnet: 'normal' } as const;
+
 const tile =
-  'flex size-10 shrink-0 items-center justify-center rounded-md text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-foreground aria-pressed:bg-primary/15 aria-pressed:text-primary';
+  'flex size-10 shrink-0 items-center justify-center rounded-md text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-foreground aria-pressed:bg-primary/15 aria-pressed:text-primary disabled:pointer-events-none disabled:opacity-40';
 
 /** Left toolbar on desktop, a bottom row on phones (spec §4). */
 export function DrawingToolbar({ drawings }: { drawings: Drawings }) {
@@ -42,7 +48,7 @@ export function DrawingToolbar({ drawings }: { drawings: Drawings }) {
       role="toolbar"
       aria-label="Drawing tools"
       aria-orientation="vertical"
-      className="flex shrink-0 gap-1 overflow-x-auto border-t p-1 md:w-12 md:flex-col md:items-center md:overflow-x-hidden md:overflow-y-auto md:border-t-0 md:border-r"
+      className="relative flex shrink-0 gap-1 overflow-x-auto border-t p-1 md:w-12 md:flex-col md:items-center md:overflow-x-hidden md:overflow-y-auto md:border-t-0 md:border-r"
     >
       <button
         type="button"
@@ -69,6 +75,39 @@ export function DrawingToolbar({ drawings }: { drawings: Drawings }) {
         </button>
       ))}
       <div className="mx-1 w-px bg-border md:mx-0 md:my-1 md:h-px md:w-auto" />
+      <button
+        type="button"
+        className={cn(tile, drawings.magnet === 'strong_magnet' && 'text-primary')}
+        aria-pressed={drawings.magnet !== 'normal'}
+        data-magnet={drawings.magnet}
+        onClick={() => drawings.setMagnet(NEXT_MAGNET[drawings.magnet])}
+        title={`${MAGNET_LABEL[drawings.magnet]} (click to change; hold Ctrl for a strong magnet)`}
+      >
+        <Magnet className="size-4" aria-hidden />
+        <span className="sr-only">{MAGNET_LABEL[drawings.magnet]}</span>
+      </button>
+      <button
+        type="button"
+        className={tile}
+        disabled={!drawings.canUndo}
+        onClick={drawings.undo}
+        aria-keyshortcuts="Control+Z"
+        title="Undo drawing (Ctrl+Z)"
+      >
+        <Undo2 className="size-4" aria-hidden />
+        <span className="sr-only">Undo drawing</span>
+      </button>
+      <button
+        type="button"
+        className={tile}
+        disabled={!drawings.canRedo}
+        onClick={drawings.redo}
+        aria-keyshortcuts="Control+Y"
+        title="Redo drawing (Ctrl+Y)"
+      >
+        <Redo2 className="size-4" aria-hidden />
+        <span className="sr-only">Redo drawing</span>
+      </button>
       <button
         type="button"
         className={tile}

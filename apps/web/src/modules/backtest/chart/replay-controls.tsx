@@ -149,8 +149,9 @@ export function ReplayControls({
           type="button"
           className={button}
           onClick={() => replay.setPlaying(!replay.playing)}
-          aria-keyshortcuts="Space"
+          aria-keyshortcuts="Shift+ArrowDown Space"
           aria-label={replay.playing ? 'Pause' : 'Play'}
+          title={`${replay.playing ? 'Pause' : 'Play'} (Shift+↓ or Space)`}
         >
           {replay.playing ? <Pause className="size-4" aria-hidden /> : <Play className="size-4" aria-hidden />}
           <Label>{replay.playing ? 'Pause' : 'Play'}</Label>
@@ -176,7 +177,7 @@ export function ReplayControls({
           onClick={() => void replay.stepBack('bar', back)}
           aria-keyshortcuts="ArrowLeft"
           aria-label="Bar back"
-          title={back.blocked ?? 'One bar back (←, Shift+← one minute)'}
+          title={back.blocked ?? 'One bar back (←, Alt+← one minute)'}
         >
           <StepBack className="size-4" aria-hidden />
         </button>
@@ -184,8 +185,9 @@ export function ReplayControls({
           type="button"
           className={button}
           onClick={() => void replay.step('bar')}
-          aria-keyshortcuts="ArrowRight"
+          aria-keyshortcuts="Shift+ArrowRight ArrowRight"
           aria-label="Bar"
+          title="One bar forward (Shift+→ or →)"
         >
           <StepForward className="size-4" aria-hidden /> <Label>Bar</Label>
         </button>
@@ -193,7 +195,8 @@ export function ReplayControls({
           type="button"
           className={button}
           onClick={() => void replay.step('minute')}
-          aria-keyshortcuts="Shift+ArrowRight"
+          aria-keyshortcuts="Alt+ArrowRight"
+          title="One minute forward (Alt+→)"
         >
           +1m
         </button>
