@@ -1,24 +1,44 @@
 import 'server-only';
 import * as Sentry from '@sentry/nextjs';
-import { listInstruments, loadBars, nextMinuteAt } from '@trading/market-data/server';
+import { candleCoverage, listInstruments, loadBars, nextMinuteAt } from '@trading/market-data/server';
 import { chartEvents, getNewsSettings } from '@trading/news/server';
 import { connection } from 'next/server';
 import { getDb } from '@/lib/server/db';
 import type { BarsQuery, ChartEvent, EventsQuery } from '../lib/bars-query';
 
-export type ChartInstrument = { code: string; displayName: string; priceDigits: number; pointValue: string };
+export type ChartInstrument = {
+  code: string;
+  displayName: string;
+  priceDigits: number;
+  pointValue: string;
+  /** First and last 1m candle (ms), or null when there are none: the replay start panel blocks days outside. */
+  dataFrom: number | null;
+  dataTo: number | null;
+};
 
 export async function getChartInstruments(): Promise<ChartInstrument[]> {
   await connection();
   const db = getDb();
   if (!db) return [];
-  const list = await listInstruments(db);
-  return list.map((i) => ({
-    code: i.code,
-    displayName: i.displayName,
-    priceDigits: i.priceDigits,
-    pointValue: i.pointValuePerLot,
-  }));
+  // Coverage is two index probes per instrument; without it the panel just doesn't block days.
+  const [list, coverage] = await Promise.all([
+    listInstruments(db),
+    candleCoverage(db).catch((error: unknown) => {
+      Sentry.captureException(error);
+      return [];
+    }),
+  ]);
+  return list.map((i) => {
+    const range = coverage.find((c) => c.code === i.code);
+    return {
+      code: i.code,
+      displayName: i.displayName,
+      priceDigits: i.priceDigits,
+      pointValue: i.pointValuePerLot,
+      dataFrom: range?.first ? range.first.getTime() : null,
+      dataTo: range?.last ? range.last.getTime() : null,
+    };
+  });
 }
 
 /** Candle window for the chart. `until` is clamped to now: the chart never asks for the future either. */

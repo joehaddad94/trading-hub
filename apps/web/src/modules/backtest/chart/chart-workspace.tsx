@@ -24,7 +24,14 @@ import { eventsInBar, type NewsFilter, toMarkers, useNewsEvents } from './use-ne
 import { useReplay } from './use-replay';
 import { type TradingActions, useTrading } from './use-trading';
 
-export type WorkspaceInstrument = { code: string; displayName: string; priceDigits: number; pointValue: string };
+export type WorkspaceInstrument = {
+  code: string;
+  displayName: string;
+  priceDigits: number;
+  pointValue: string;
+  dataFrom?: number | null;
+  dataTo?: number | null;
+};
 
 /** How long the chart must sit still before other timeframes/instruments are prefetched. */
 const PREFETCH_DELAY_MS = 1200;
@@ -495,7 +502,18 @@ export function ChartWorkspace({
           </div>
         </div>
       </div>
-      <ReplayControls replay={replay} timezone={prefs.timezone} picking={picking} onPick={setPicking} back={back} />
+      <ReplayControls
+        replay={replay}
+        timezone={prefs.timezone}
+        data={
+          instrument.dataFrom != null && instrument.dataTo != null
+            ? { from: instrument.dataFrom, to: instrument.dataTo }
+            : null
+        }
+        picking={picking}
+        onPick={setPicking}
+        back={back}
+      />
       <div className="flex min-h-[60dvh] flex-1 flex-col-reverse md:min-h-0 md:flex-row">
         <DrawingToolbar drawings={drawings} />
         <div

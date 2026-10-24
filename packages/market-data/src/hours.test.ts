@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { expectedMinutes, goodFriday, isMarketOpen, isReducedDay } from './hours';
+import { expectedMinutes, goodFriday, isMarketOpen, isReducedDay, isTradingHours } from './hours';
 
 const at = (iso: string) => new Date(iso);
 
@@ -48,6 +48,17 @@ describe('holidays', () => {
     expect(isReducedDay(2026, 8, 7)).toBe(true); // Labor
     expect(isReducedDay(2026, 10, 27)).toBe(true); // Black Friday
     expect(isReducedDay(2026, 9, 7)).toBe(false);
+  });
+});
+
+describe('isTradingHours', () => {
+  it('follows the weekly schedule but keeps holidays open', () => {
+    // Thanksgiving 2026 (Thu 26 Nov), 10:00 ET.
+    const thanksgiving = new Date('2026-11-26T15:00:00Z');
+    expect(isMarketOpen(thanksgiving)).toBe(false);
+    expect(isTradingHours(thanksgiving)).toBe(true);
+    expect(isTradingHours(new Date('2026-10-10T15:00:00Z'))).toBe(false); // Saturday
+    expect(isTradingHours(new Date('2026-10-07T20:30:00Z'))).toBe(false); // 16:30 ET break
   });
 });
 

@@ -13,5 +13,13 @@ export {
   type IngestStatus,
   ingestStatus,
 } from './health';
-export { expectedMinutes, goodFriday, isMarketOpen, isReducedDay, MARKET_TZ, reducedDays } from './hours';
+export {
+  expectedMinutes,
+  goodFriday,
+  isMarketOpen,
+  isReducedDay,
+  isTradingHours,
+  MARKET_TZ,
+  reducedDays,
+} from './hours';
 export type { MarketDataProvider } from './provider';
