@@ -80,8 +80,11 @@ export function clearBarsCache(): void {
 /** A request with no answer by then has stalled (a dropped connection): it fails instead of loading forever. */
 export const REQUEST_TIMEOUT_MS = 15_000;
 
-export const TIMEOUT_MESSAGE = 'The candles took too long to load. Check your connection and retry.';
-export const OFFLINE_MESSAGE = 'Could not reach the server. Check your connection and retry.';
+// An ad blocker can cut these requests (seen 24 Oct 2026): Chrome then shows "(failed)" with no reply at all.
+export const TIMEOUT_MESSAGE =
+  'The candles took too long to load. Check your connection, or turn off your ad blocker for this site, and retry.';
+export const OFFLINE_MESSAGE =
+  'Could not reach the server. An ad blocker or your connection blocked the candles: allow this site and retry.';
 
 /**
  * GET an `{ ok, data }` route. Fails with a plain message on a timeout, a network error or a reply that isn't
