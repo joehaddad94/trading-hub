@@ -42,6 +42,8 @@ export type ChartApi = {
    * newest bars without reloading the window.
    */
   rewind(bars: Bar[]): void;
+  /** True while a replay start, jump or switch reloads the window, or that load failed: steps wait for it. */
+  reloading(): boolean;
   /** TradingView's Alt+R: default zoom, auto scale, newest bar in view. */
   reset(): void;
   /** Scrolls so the newest bar is in view (the » button). */
@@ -146,6 +148,10 @@ export function KLineChart(props: ChartProps) {
   const [ready, setReady] = useState(false);
   /** 'init' while a switch or replay jump reloads the window; 'page' while older bars load on scroll. */
   const [loading, setLoading] = useState<'init' | 'page' | null>('init');
+  /** Mirrors "the window isn't loaded" for the replay API: loading it, or the load failed. */
+  const reloadingRef = useRef(true);
+  /** Bumped by Retry after a failed load. */
+  const [attempt, setAttempt] = useState(0);
   const [lastBar, setLastBar] = useState<Bar | null>(null);
   /** Newest bar on screen; when false the » button shows. */
   const [atLatest, setAtLatest] = useState(true);
@@ -308,6 +314,7 @@ export function KLineChart(props: ChartProps) {
         return last ? toBar(last) : null;
       },
       bars: () => chart.getDataList().map(toBar),
+      reloading: () => reloadingRef.current,
       rewind: (bars) => {
         // The last bar kept stays at the same x, so stepping back never moves the view.
         const ref = bars.at(-1);
@@ -339,6 +346,7 @@ export function KLineChart(props: ChartProps) {
     return () => onReady?.(null);
   }, [ready, onReady, measure]);
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: attempt marks a Retry.
   useEffect(() => {
     const chart = chartRef.current;
     if (!ready || !chart) return;
@@ -354,6 +362,7 @@ export function KLineChart(props: ChartProps) {
     const gen = ++generation.current;
     setError(null);
     setLoading('init');
+    reloadingRef.current = true;
     const syncLast = () => {
       const last = chart.getDataList().at(-1);
       setLastBar(last ? toBar(last) : null);
@@ -372,6 +381,7 @@ export function KLineChart(props: ChartProps) {
             if (local.keep && x !== null && x !== local.keep.x) chart.scrollByDistance(local.keep.x - x);
             syncLast();
             setLoading(null);
+            reloadingRef.current = false;
           } else if (type === 'init' && cursorRef.current !== null) {
             // Replay: always the newest page up to the cursor, so new bars join the chart without a gap; the
             // anchor, when it falls inside that page, is scrolled back into view.
@@ -382,6 +392,7 @@ export function KLineChart(props: ChartProps) {
             if (anchor && first !== undefined && anchor >= first) chart.scrollToTimestamp(anchor);
             syncLast();
             setLoading(null);
+            reloadingRef.current = false;
           } else if (type === 'init') {
             const before = anchor ? new Date(anchor + RIGHT_OF_ANCHOR * tf * MINUTE_MS) : undefined;
             const page = await fetchBars({ instrument: instrument.code, tf, until, before, count: PAGE });
@@ -390,6 +401,7 @@ export function KLineChart(props: ChartProps) {
             if (anchor) chart.scrollToTimestamp(anchor);
             syncLast();
             setLoading(null);
+            reloadingRef.current = false;
           } else if (type === 'forward' && timestamp) {
             setLoading('page');
             const page = await fetchBars({
@@ -429,7 +441,7 @@ export function KLineChart(props: ChartProps) {
     });
     chart.setSymbol({ ticker: instrument.code, pricePrecision: instrument.priceDigits, volumePrecision: 2 });
     chart.setPeriod({ type: 'minute', span: tf });
-  }, [ready, instrument.code, instrument.priceDigits, tf, reloadKey, cursorRef]);
+  }, [ready, instrument.code, instrument.priceDigits, tf, reloadKey, cursorRef, attempt]);
 
   useEffect(() => {
     if (ready) chartRef.current?.setTimezone(timezone);
@@ -571,9 +583,19 @@ export function KLineChart(props: ChartProps) {
       )}
       {loading && <ChartLoading full={loading === 'init'} label={`${instrument.code} · ${tf}m`} />}
       {error && (
-        <p role="alert" className="absolute top-2 left-2 rounded-md bg-loss/20 px-3 py-1 text-sm">
-          {error}
-        </p>
+        <div
+          role="alert"
+          className="absolute top-2 left-2 z-20 flex max-w-[calc(100%-1rem)] items-center gap-2 rounded-md bg-loss/20 px-3 py-1 text-sm backdrop-blur"
+        >
+          <span>{error}</span>
+          <button
+            type="button"
+            onClick={() => setAttempt((n) => n + 1)}
+            className="shrink-0 rounded px-2 py-0.5 font-medium underline-offset-2 hover:underline"
+          >
+            Retry
+          </button>
+        </div>
       )}
     </div>
   );

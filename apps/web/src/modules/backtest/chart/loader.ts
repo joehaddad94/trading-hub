@@ -53,7 +53,7 @@ export function fetchBars(params: BarsParams, signal: AbortSignal | null = null,
     cache.set(url, hit);
     return hit.page;
   }
-  const page = load(url, signal);
+  const page = getJson<BarsPage>(url, signal);
   cache.set(url, { page, at: now, recent: params.until.getTime() > now - RECENT_MS });
   page.catch(() => {
     if (cache.get(url)?.page === page) cache.delete(url);
@@ -69,7 +69,7 @@ export function prefetchBars(params: BarsParams): void {
 
 /** Uncached page, for replay steps: each is asked once, and caching them would push out the pages worth keeping. */
 export function fetchBarsFresh(params: BarsParams, signal: AbortSignal | null = null): Promise<BarsPage> {
-  return load(barsUrl(params), signal);
+  return getJson<BarsPage>(barsUrl(params), signal);
 }
 
 /** Test hook: forget every cached page. */
@@ -77,9 +77,39 @@ export function clearBarsCache(): void {
   cache.clear();
 }
 
-async function load(url: string, signal: AbortSignal | null): Promise<BarsPage> {
-  const response = await fetch(url, { signal, cache: 'no-store' });
-  const body = (await response.json()) as { ok: true; data: BarsPage } | { ok: false; error: string };
+/** A request with no answer by then has stalled (a dropped connection): it fails instead of loading forever. */
+export const REQUEST_TIMEOUT_MS = 15_000;
+
+export const TIMEOUT_MESSAGE = 'The candles took too long to load. Check your connection and retry.';
+export const OFFLINE_MESSAGE = 'Could not reach the server. Check your connection and retry.';
+
+/**
+ * GET an `{ ok, data }` route. Fails with a plain message on a timeout, a network error or a reply that isn't
+ * the route's JSON (a gateway error page), so the chart can say what happened and offer Retry. An abort by the
+ * caller's own signal is passed through as is.
+ */
+export async function getJson<T>(
+  url: string,
+  signal: AbortSignal | null = null,
+  timeoutMs = REQUEST_TIMEOUT_MS,
+): Promise<T> {
+  const timeout = AbortSignal.timeout(timeoutMs);
+  const both = signal ? AbortSignal.any([signal, timeout]) : timeout;
+  let response: Response;
+  let body: { ok: true; data: T } | { ok: false; error: string };
+  try {
+    response = await fetch(url, { signal: both, cache: 'no-store' });
+  } catch (e) {
+    if (signal?.aborted) throw e;
+    throw new Error(timeout.aborted ? TIMEOUT_MESSAGE : OFFLINE_MESSAGE);
+  }
+  try {
+    body = (await response.json()) as typeof body;
+  } catch (e) {
+    if (signal?.aborted) throw e;
+    if (timeout.aborted) throw new Error(TIMEOUT_MESSAGE);
+    throw new Error(`The server answered ${response.status} instead of candles. Retry, or reload the page.`);
+  }
   if (!body.ok) throw new Error(body.error);
   return body.data;
 }
@@ -99,8 +129,6 @@ export function toKLine(bar: Bar) {
 /** First 1m candle time at or after `after` (replay over a closed market), or null at the end of the data. */
 export async function fetchNextMinute(instrument: string, after: Date): Promise<number | null> {
   const q = new URLSearchParams({ instrument, after: after.toISOString() });
-  const response = await fetch(`/api/backtest/candles/next?${q}`, { cache: 'no-store' });
-  const body = (await response.json()) as { ok: true; data: { ts: string | null } } | { ok: false; error: string };
-  if (!body.ok) throw new Error(body.error);
-  return body.data.ts ? Date.parse(body.data.ts) : null;
+  const data = await getJson<{ ts: string | null }>(`/api/backtest/candles/next?${q}`);
+  return data.ts ? Date.parse(data.ts) : null;
 }
