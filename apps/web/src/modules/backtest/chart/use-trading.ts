@@ -130,6 +130,19 @@ export function useTrading(opts: {
     [session, cursor, actions, apply],
   );
 
+  /** Closes every open position and cancels every pending order, one after the other (one replay engine). */
+  const closeAll = useCallback(async () => {
+    if (!session || cursor === null) return;
+    for (const o of orders.filter((x) => x.status === 'open' || x.status === 'pending')) {
+      const ok = apply(
+        o.status === 'open'
+          ? await actions.close(session.id, o.id, { at: cursor })
+          : await actions.cancel(session.id, o.id),
+      );
+      if (!ok) return;
+    }
+  }, [session, cursor, orders, actions, apply]);
+
   const cancel = useCallback(
     async (id: string) => {
       if (session) apply(await actions.cancel(session.id, id));
@@ -178,7 +191,7 @@ export function useTrading(opts: {
     return () => window.clearTimeout(t);
   }, [undo]);
 
-  return { session, orders, error, place, close, cancel, modify, remove, undo, restore };
+  return { session, orders, error, place, close, closeAll, cancel, modify, remove, undo, restore };
 }
 
 export type Trading = ReturnType<typeof useTrading>;

@@ -5,6 +5,7 @@ import {
   closeAtMarket,
   type Exit,
   type PendingOrder,
+  pendingType,
   type SimState,
   tradeResult,
   validLevels,
@@ -198,8 +199,7 @@ export async function placeOrder(db: Executor, sessionId: string, input: PlaceOr
   if (!now) throw new TradingError('No candles at the replay cursor yet.');
   let type: 'market' | 'limit' | 'stop' = 'market';
   if (input.kind === 'pending') {
-    const below = new Decimal(input.entry).lt(String(now.close));
-    type = input.side === 'long' ? (below ? 'limit' : 'stop') : below ? 'stop' : 'limit';
+    type = pendingType(input.side, input.entry, now.close);
   }
   const [row] = await db
     .insert(backtestOrders)
@@ -429,6 +429,9 @@ export async function modifyOrder(db: Executor, id: string, input: ModifyOrderIn
   if (input.entry !== undefined && o.status !== 'pending') {
     throw new TradingError('Only a pending order can move its entry; this one has filled.');
   }
+  if (input.entry !== undefined && o.type === 'market') {
+    throw new TradingError('A market order fills at the next open; cancel it to pick another entry.');
+  }
   const entry = input.entry ?? o.entry;
   const ok = s === 'long' ? new Decimal(input.sl).lt(input.tp) : new Decimal(input.sl).gt(input.tp);
   if (!ok) throw new TradingError('The stop must stay on the losing side of the target.');
@@ -439,8 +442,7 @@ export async function modifyOrder(db: Executor, id: string, input: ModifyOrderIn
   if (input.entry !== undefined) {
     const now = await barAt(db, o.instrumentId, input.at);
     if (!now) throw new TradingError('No candle at the replay cursor.');
-    const below = new Decimal(entry).lt(String(now.close));
-    type = s === 'long' ? (below ? 'limit' : 'stop') : below ? 'stop' : 'limit';
+    type = pendingType(s, entry, now.close);
   }
   const change = { at: input.at.toISOString(), sl: input.sl, tp: input.tp, ...(input.entry ? { entry } : {}) };
   const log = [...((o.modifications as unknown[]) ?? []), change];

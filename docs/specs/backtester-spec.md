@@ -126,7 +126,9 @@ All drawings are anchored in **(time, price)** coordinates, never pixels, so the
 ## 6. Simulated trading
 
 ### 6.1 Placing a trade
-- Drawing a **long/short position tool** during replay shows a **"Place trade"** button on the tool. Clicking it converts the drawing into a simulated order. (A position tool drawn without placing stays a pure drawing — useful for planning.)
+- **Sell / Buy buttons** on the chart (Joe, 24 Oct 2026: "the way it is handled is confusing"), TradingView-style under the price legend, show the bid (last close) and ask (plus spread). A press (or `Shift+S` / `Shift+B`) opens the **order ticket**: Buy/Sell, Market or Limit/Stop, stop and target prices with points and $ at each, size (Risk % / Risk $ / Lots, remembered), and the order's entry, stop and target drawn on the chart as lines you drag. A market ticket follows the price as replay moves; dragging or typing its entry makes it a limit or stop (named by where it sits against the price). `Enter`, the ticket's button, or the same Buy/Sell again places it; `Esc` closes it. On phones the ticket sits under the chart so it never hides the lines.
+- The positions list under the chart shows open P/L at the last close (per position and in total), **Close all**, Part with one-tap 25 / 50 / 75%, and an edit form that starts from the order as it is now (and moves a limit/stop entry). A market order waiting for the next open reads "fills at next open" and its entry can't be dragged.
+- Drawing a **long/short position tool** during replay still shows **Buy market / Place pending** on the tool. Clicking it converts the drawing into a simulated order. (A position tool drawn without placing stays a pure drawing — useful for planning.)
 - Order types v1:
   - **Market:** fills at the **open of the next 1m bar** after the cursor, plus spread (for buys) — entry level on the tool snaps to the fill price, SL/TP keep their distances.
   - **Limit / stop:** fills when price reaches the entry level, using 1m bars.

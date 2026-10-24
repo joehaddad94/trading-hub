@@ -29,6 +29,11 @@ test.describe('simulated trading (M20)', () => {
     await seedCandles(['2026-10-05', '2026-10-06', '2026-10-07']);
   });
 
+  // Other specs reuse the newest run: leave none behind.
+  test.afterAll(async () => {
+    await clearBacktestSessions();
+  });
+
   test.beforeEach(async ({ context, baseURL }) => {
     await clearDrawings();
     await clearBacktestSessions();
@@ -124,7 +129,7 @@ test.describe('simulated trading (M20)', () => {
     await page.getByRole('button', { name: 'Buy market' }).click();
     await page.keyboard.press('ArrowRight');
     await expect(rows(page).first()).toHaveAttribute('data-status', 'open');
-    await rows(page).first().getByRole('button', { name: 'BE' }).click();
+    await rows(page).first().getByRole('button', { name: 'Break-even' }).click();
     await expect(rows(page).first()).toContainText(/SL (\S+) · TP/);
     const fill = (await rows(page).first().textContent())?.match(/@ ([\d.]+)/)?.[1];
     await expect(rows(page).first()).toContainText(`SL ${fill}`);
@@ -152,5 +157,92 @@ test.describe('simulated trading (M20)', () => {
     );
     await page.locator('[data-testid="order-row"][data-status="open"]').getByRole('button', { name: 'Close' }).click();
     await expect(page.locator('[data-testid="order-row"][data-status="closed"]')).toHaveCount(2);
+  });
+
+  test('Buy opens a ticket with lines on the chart; Enter places it, it fills at the next open, closes in parts', async ({
+    page,
+  }) => {
+    await page.goto(`/backtest/chart?i=US30&tf=5&at=${AT}`);
+    await expect(page.getByTestId('kline-chart')).toHaveAttribute('data-ready', 'true');
+    await expect
+      .poll(async () => (await page.getByTestId('kline-chart').getAttribute('data-last-bar')) ?? '')
+      .not.toBe('');
+    const close = JSON.parse((await page.getByTestId('kline-chart').getAttribute('data-last-bar')) ?? '{}').close;
+
+    // Sell shows the bid (last close), Buy the ask (plus spread).
+    const trade = page.getByRole('group', { name: 'Trade' });
+    await expect(trade.getByRole('button', { name: /^Sell/ })).toContainText(Number(close).toFixed(2));
+    await trade.getByRole('button', { name: /^Buy/ }).click();
+    const ticket = page.getByTestId('order-ticket');
+    await expect(ticket).toHaveAttribute('data-kind', 'market');
+    // Entry, stop and target preview lines, before anything is placed.
+    await expect.poll(async () => (await orderLines(page)).filter((l) => l.key.startsWith('draft:')).length).toBe(3);
+    await expect(rows(page)).toHaveCount(0);
+
+    // Typing a stop updates the risk; Enter places the order.
+    const stop = (Number(close) - 30).toFixed(2);
+    await ticket.getByRole('textbox', { name: 'Stop loss' }).fill(stop);
+    await ticket.getByRole('textbox', { name: 'Stop loss' }).press('Tab');
+    await expect(ticket).toContainText('30.00 pts');
+    await ticket.getByRole('textbox', { name: 'Stop loss' }).press('Enter');
+    await expect(ticket).toHaveCount(0);
+    await expect(rows(page)).toHaveCount(1);
+    await expect(rows(page).first()).toContainText('fills at next open');
+    await expect(rows(page).first()).toContainText(`SL ${stop}`);
+    // A market order waiting for the next open has no draggable entry line.
+    await expect
+      .poll(async () => (await orderLines(page)).map((l) => l.key.split(':')[1]).sort())
+      .toEqual(['sl', 'tp']);
+
+    await page.keyboard.press('ArrowRight');
+    await expect(rows(page).first()).toHaveAttribute('data-status', 'open');
+    await expect(page.getByTestId('order-open-pnl')).toHaveText(/^(\+|−)?\$\d/);
+    // The SL/TP boxes start from the order as it is now (the fill moved the levels).
+    const sl = (await rows(page).first().textContent())?.match(/SL ([\d.]+)/)?.[1];
+    await rows(page).first().getByRole('button', { name: 'SL/TP' }).click();
+    await expect(page.getByRole('textbox', { name: 'SL' })).toHaveValue(sl ?? '');
+    await rows(page).first().getByRole('button', { name: 'SL/TP' }).click();
+
+    // 50% in one tap, then the rest.
+    await rows(page).first().getByRole('button', { name: 'Part' }).click();
+    await page.getByRole('form', { name: 'Partial close' }).getByRole('button', { name: '50%' }).click();
+    await expect(rows(page)).toHaveCount(2);
+    await page.locator('[data-testid="order-row"][data-status="open"]').getByRole('button', { name: 'Close' }).click();
+    await expect(page.locator('[data-testid="order-row"][data-status="closed"]')).toHaveCount(2);
+  });
+
+  test('Shift+S twice sells at market; a ticket dragged off the price becomes a limit, Esc closes it', async ({
+    page,
+  }) => {
+    await page.goto(`/backtest/chart?i=US30&tf=5&at=${AT}`);
+    await expect(page.getByTestId('kline-chart')).toHaveAttribute('data-ready', 'true');
+    await expect
+      .poll(async () => (await page.getByTestId('kline-chart').getAttribute('data-last-bar')) ?? '')
+      .not.toBe('');
+    await page.keyboard.press('Shift+S');
+    await expect(page.getByTestId('order-ticket')).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(page.getByTestId('order-ticket')).toHaveCount(0);
+
+    // Drag the entry line of a buy ticket below the price: it becomes a buy limit.
+    await page.keyboard.press('Shift+B');
+    const entry = (await orderLines(page)).find((l) => l.key === 'draft:entry');
+    const box = await page.getByTestId('kline-chart').boundingBox();
+    if (!entry?.y || !box) throw new Error('no entry line');
+    await page.mouse.move(box.x + box.width * 0.4, box.y + entry.y);
+    await page.mouse.down();
+    await page.mouse.move(box.x + box.width * 0.4, box.y + entry.y + 20, { steps: 5 });
+    await page.mouse.up();
+    await expect(page.getByTestId('order-ticket')).toHaveAttribute('data-kind', 'pending');
+    await expect(page.getByTestId('order-ticket').getByRole('button', { name: /^Buy limit/ })).toBeVisible();
+    await page.keyboard.press('Escape');
+
+    await page.keyboard.press('Shift+S');
+    await page.keyboard.press('Shift+S');
+    await expect(rows(page)).toHaveCount(1);
+    await expect(rows(page).first()).toContainText('Short');
+    // Leave the run flat: later specs reuse the newest run, and an open trade changes how replay steps.
+    await rows(page).first().getByRole('button', { name: 'Cancel' }).click();
+    await expect(rows(page)).toHaveCount(0);
   });
 });

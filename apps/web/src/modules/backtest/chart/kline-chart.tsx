@@ -79,6 +79,8 @@ export type ChartProps = {
   orderMarks?: OrderMark[];
   /** Choosing a replay start: a line follows the pointer and the bars right of it are dimmed. */
   picking?: boolean;
+  /** The newest bar on the chart changed (the cursor bar in replay): Buy/Sell prices and open P/L follow it. */
+  onLastBar?: (bar: Bar | null) => void;
 };
 
 /** For the e2e tests: where the newest bar sits on screen, to check that replay keeps the view. */
@@ -130,6 +132,7 @@ export function KLineChart(props: ChartProps) {
     indicators,
     orderMarks,
     picking,
+    onLastBar,
   } = props;
   const el = useRef<HTMLDivElement>(null);
   const chartRef = useRef<Chart | null>(null);
@@ -153,6 +156,7 @@ export function KLineChart(props: ChartProps) {
   /** Bumped by Retry after a failed load. */
   const [attempt, setAttempt] = useState(0);
   const [lastBar, setLastBar] = useState<Bar | null>(null);
+  useEffect(() => onLastBar?.(lastBar), [lastBar, onLastBar]);
   /** Newest bar on screen; when false the » button shows. */
   const [atLatest, setAtLatest] = useState(true);
   /** Price axis fits the candles (TradingView's "A"). */

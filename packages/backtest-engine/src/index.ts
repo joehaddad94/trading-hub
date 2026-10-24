@@ -74,3 +74,17 @@ export {
   type Zone,
   zonesOnDay,
 } from './replay-start';
+export {
+  DEFAULT_STOP_SHARE,
+  defaultStopPoints,
+  flipTicket,
+  followPrice,
+  newTicket,
+  openPnl,
+  partOf,
+  pendingType,
+  signedUsd,
+  type Ticket,
+  type TicketKind,
+  ticketValid,
+} from './ticket';
