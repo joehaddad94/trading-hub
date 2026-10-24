@@ -83,16 +83,21 @@ test.describe('simulated trading (M20)', () => {
     // Delete, undo, delete for good.
     await page.goto(`/backtest/chart?i=US30&tf=5&at=${AT}`);
     await page.getByRole('button', { name: /Run \d+/ }).click();
-    page.once('dialog', (d) => {
-      expect(d.message()).toContain('removed from all stats');
-      void d.accept();
-    });
+    // The app's own confirm dialog; Escape cancels and keeps the trade.
+    const confirm = page.getByRole('alertdialog', { name: 'Delete this backtest trade?' });
     await rows(page).first().getByRole('button', { name: 'Delete' }).click();
+    await expect(confirm).toContainText('removed from all stats');
+    await expect(confirm.getByRole('button', { name: 'Cancel' })).toBeFocused();
+    await page.keyboard.press('Escape');
+    await expect(confirm).toBeHidden();
+    await expect(rows(page)).toHaveCount(1);
+    await rows(page).first().getByRole('button', { name: 'Delete' }).click();
+    await confirm.getByRole('button', { name: 'Delete', exact: true }).click();
     await expect(rows(page)).toHaveCount(0);
     await page.getByRole('button', { name: 'Undo', exact: true }).click();
     await expect(rows(page)).toHaveCount(1);
-    page.once('dialog', (d) => void d.accept());
     await rows(page).first().getByRole('button', { name: 'Delete' }).click();
+    await confirm.getByRole('button', { name: 'Delete', exact: true }).click();
     await expect(rows(page)).toHaveCount(0);
     await page.goto('/tracker/trades?scope=backtest');
     await expect(page.getByTestId('trades-summary')).toContainText(/^0 trades/);

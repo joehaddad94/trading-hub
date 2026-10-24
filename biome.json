@@ -11,7 +11,10 @@
     "rules": {
       "preset": "recommended",
       "nursery": {},
-      "suspicious": { "noConsole": { "level": "warn", "options": { "allow": ["error", "warn"] } } }
+      "suspicious": {
+        "noAlert": "error",
+        "noConsole": { "level": "warn", "options": { "allow": ["error", "warn"] } }
+      }
     }
   },
   "css": { "parser": { "tailwindDirectives": true } },

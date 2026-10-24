@@ -122,8 +122,11 @@ test.describe('drawings (M18)', () => {
     await page.reload();
     await expect.poll(async () => (await shown(page)).length).toBe(1);
 
-    page.once('dialog', (d) => void d.accept());
     await page.getByRole('button', { name: 'Delete all drawings' }).click();
+    await page
+      .getByRole('alertdialog', { name: 'Delete all drawings?' })
+      .getByRole('button', { name: 'Delete all' })
+      .click();
     await expect.poll(async () => (await shown(page)).length).toBe(0);
     await page.reload();
     await expect(page.getByTestId('kline-chart')).toHaveAttribute('data-ready', 'true');

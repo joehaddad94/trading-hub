@@ -7,6 +7,7 @@ import Decimal from 'decimal.js';
 import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { useDialogs } from '@/components/dialogs';
 import { cn } from '@/lib/utils';
 import type { Trading } from './use-trading';
 
@@ -88,6 +89,7 @@ export function TradePanel({ trading, timezone }: { trading: Trading; timezone: 
 }
 
 function OrderRow({ order: o, trading, timezone }: { order: OrderView; trading: Trading; timezone: string }) {
+  const dialogs = useDialogs();
   const [editing, setEditing] = useState(false);
   const [partial, setPartial] = useState(false);
   const [part, setPart] = useState(() => halfLots(o.lots));
@@ -121,9 +123,21 @@ function OrderRow({ order: o, trading, timezone }: { order: OrderView; trading: 
           <button
             type="button"
             className="ml-auto h-8 rounded-md px-2 text-muted-foreground hover:bg-accent/60"
-            onClick={() => {
-              const text = `Delete this backtest trade?\n\n${o.instrument} ${o.side}, ${when(o.filledAt, timezone)}, P/L ${o.net}\n\nIt will be removed from all stats and from the live-vs-backtest comparison.`;
-              if (window.confirm(text)) void trading.remove(o);
+            onClick={async () => {
+              const ok = await dialogs.confirm({
+                title: 'Delete this backtest trade?',
+                message: (
+                  <>
+                    <span className="num block text-foreground">
+                      {o.instrument} {o.side}, {when(o.filledAt, timezone)}, P/L {o.net}
+                    </span>
+                    It will be removed from all stats and from the live-vs-backtest comparison.
+                  </>
+                ),
+                confirmLabel: 'Delete',
+                tone: 'destructive',
+              });
+              if (ok) void trading.remove(o);
             }}
           >
             Delete

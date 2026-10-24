@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from 'next';
 import { Geist, Geist_Mono } from 'next/font/google';
 import { NuqsAdapter } from 'nuqs/adapters/next/app';
 import type { ReactNode } from 'react';
+import { DialogProvider } from '@/components/dialogs';
 import './globals.css';
 
 const sans = Geist({ subsets: ['latin'], variable: '--font-geist-sans' });
@@ -22,7 +23,9 @@ export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en" className={`dark ${sans.variable} ${mono.variable}`}>
       <body className="min-h-dvh">
-        <NuqsAdapter>{children}</NuqsAdapter>
+        <NuqsAdapter>
+          <DialogProvider>{children}</DialogProvider>
+        </NuqsAdapter>
       </body>
     </html>
   );
