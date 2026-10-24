@@ -20,7 +20,7 @@ import {
 import { SESSION_TZ } from '@trading/core';
 import { isTradingHours } from '@trading/market-data';
 import { format } from 'date-fns';
-import { ChevronLeft, ChevronRight, Dices, Loader2, Play, RotateCcw, X } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Dices, Loader2, Play, RotateCcw, Scissors, X } from 'lucide-react';
 import { type KeyboardEvent, useEffect, useMemo, useRef, useState } from 'react';
 import { cn } from '@/lib/utils';
 
@@ -78,6 +78,7 @@ export function ReplayStartPanel({
   lastStart,
   replaying,
   onStart,
+  onSelectBar,
   onClose,
 }: {
   timezone: string;
@@ -88,6 +89,8 @@ export function ReplayStartPanel({
   replaying: boolean;
   /** Starts the replay; resolves to an error message, or null once it started. */
   onStart: (pick: StartPick) => Promise<string | null>;
+  /** Closes the panel and picks a bar on the chart instead. */
+  onSelectBar: () => void;
   onClose: () => void;
 }) {
   const now = useMemo(() => Date.now(), []);
@@ -385,6 +388,15 @@ export function ReplayStartPanel({
                 <Dices className="size-4" aria-hidden />
               )}
               Random
+            </button>
+            <button
+              type="button"
+              className="inline-flex h-9 items-center justify-center gap-1.5 rounded-md border border-dashed px-2 text-muted-foreground text-sm hover:bg-accent"
+              onClick={onSelectBar}
+              title="Close this and click a bar on the chart (B)"
+            >
+              <Scissors className="size-4 rotate-90" aria-hidden />
+              Select bar on chart
             </button>
           </div>
         </div>

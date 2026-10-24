@@ -11,6 +11,7 @@ import { BARS_PAGE, fetchBars, liveUntil, toKLine } from './loader';
 import { type Marker, NEWS_INDICATOR, newsMarkers } from './news-markers';
 import { ORDER_LEVEL_OVERLAY, orderLevelOverlay } from './order-handles';
 import { ORDERS_INDICATOR, type OrderMark, orderLines } from './order-lines';
+import { PickLine } from './pick-line';
 import { SESSION_INDICATOR, sessionShading } from './session-shading';
 import { chartStyles } from './styles';
 import { TOOLS } from './tools/registry';
@@ -81,6 +82,8 @@ export type ChartProps = {
   picking?: boolean;
   /** The newest bar on the chart changed (the cursor bar in replay): Buy/Sell prices and open P/L follow it. */
   onLastBar?: (bar: Bar | null) => void;
+  /** Phones, while picking: a tap (or a drag of the line) places the line on a bar instead of starting there. */
+  onPickPlace?: (barStart: number | null) => void;
 };
 
 /** For the e2e tests: where the newest bar sits on screen, to check that replay keeps the view. */
@@ -133,6 +136,7 @@ export function KLineChart(props: ChartProps) {
     orderMarks,
     picking,
     onLastBar,
+    onPickPlace,
   } = props;
   const el = useRef<HTMLDivElement>(null);
   const chartRef = useRef<Chart | null>(null);
@@ -163,16 +167,39 @@ export function KLineChart(props: ChartProps) {
   const [auto, setAuto] = useState(true);
   /** Price axis width and price pane height, to place the buttons on the chart. */
   const [frame, setFrame] = useState<{ axis: number; pane: number } | null>(null);
-  /** x of the bar under the pointer while picking a replay start. */
-  const [pickX, setPickX] = useState<number | null>(null);
+  /** Bar under the pick line while picking a replay start; `placed` when a tap put it there (phones). */
+  const [pick, setPick] = useState<{ ts: number; x: number; placed: boolean } | null>(null);
+  const placedRef = useRef<number | null>(null);
   const pickingRef = useRef(picking);
   pickingRef.current = picking;
+  const placeRef = useRef(onPickPlace);
+  placeRef.current = onPickPlace;
+  /** Puts the pick line on the bar at chart x (phones: tap or drag) and tells the workspace. */
+  const placeAt = useCallback((x: number) => {
+    const chart = chartRef.current;
+    const ts = chart ? barAt(chart, x) : null;
+    if (!chart || ts === null) return;
+    placedRef.current = ts;
+    setPick({ ts, x: barX(chart, ts) ?? x, placed: true });
+    placeRef.current?.(ts);
+  }, []);
+  useEffect(() => {
+    if (picking) return;
+    placedRef.current = null;
+    setPick(null);
+  }, [picking]);
   const lastReloadKey = useRef(reloadKey);
   /** Re-reads what the buttons on the chart depend on (after scrolls, zooms, axis drags, new bars). */
   const measure = useCallback(() => {
     const chart = chartRef.current;
     if (!chart) return;
     setAtLatest(isAtLatest(chart.getVisibleRange(), chart.getDataList().length));
+    // A placed pick line stays on its bar while the chart pans or zooms.
+    const placed = placedRef.current;
+    if (placed !== null) {
+      const x = barX(chart, placed);
+      setPick(x === null ? null : { ts: placed, x, placed: true });
+    }
     setAuto(isAutoScale(chart));
     const axis = chart.getSize('candle_pane', 'yAxis')?.width;
     const pane = chart.getSize('candle_pane', 'main')?.height;
@@ -192,7 +219,7 @@ export function KLineChart(props: ChartProps) {
     const node = el.current;
     const onLeave = () => {
       crosshairRef.current?.(null);
-      setPickX(null);
+      if (placedRef.current === null) setPick(null);
     };
     // A click is a press and release in about the same place: letting go after a pan is not a bar click
     // (audit #06). Pointer events also reach us on phones, where the chart cancels touch clicks.
@@ -206,7 +233,13 @@ export function KLineChart(props: ChartProps) {
       const chart = chartRef.current;
       if (!chart || !node || !start || start.id !== event.pointerId) return;
       if (!isClick(start, { x: event.clientX, y: event.clientY })) return;
-      const ts = barAt(chart, event.clientX - node.getBoundingClientRect().left);
+      const x = event.clientX - node.getBoundingClientRect().left;
+      // Phones: a tap only places the pick line; the workspace's Start button starts there.
+      if (pickingRef.current && event.pointerType !== 'mouse' && placeRef.current) {
+        placeAt(x);
+        return;
+      }
+      const ts = barAt(chart, x);
       if (ts !== null) clickRef.current?.(ts);
     };
     // Scrolls, zooms and axis drags all end in one of these; read the view after the chart has applied them.
@@ -217,9 +250,10 @@ export function KLineChart(props: ChartProps) {
     };
     const onMove = (event: PointerEvent) => {
       const chart = chartRef.current;
-      if (!pickingRef.current || !chart || !node) return;
+      if (!pickingRef.current || !chart || !node || event.pointerType !== 'mouse') return;
       const ts = barAt(chart, event.clientX - node.getBoundingClientRect().left);
-      setPickX(ts === null ? null : barX(chart, ts));
+      const x = ts === null ? null : barX(chart, ts);
+      setPick(ts === null || x === null ? null : { ts, x, placed: false });
     };
     const onMenu = (event: MouseEvent) => {
       const chart = chartRef.current;
@@ -537,16 +571,16 @@ export function KLineChart(props: ChartProps) {
         data-order-marks={orderMarks?.length ?? 0}
         data-loading={loading ?? ''}
       />
-      {picking && pickX !== null && frame && (
-        // TradingView's "Select bar": a line on the bar under the pointer, the bars after it dimmed.
-        <div aria-hidden className="pointer-events-none absolute inset-x-0 top-0" style={{ height: frame.pane }}>
-          <div className="absolute top-0 h-full bg-background/55" style={{ left: pickX, right: frame.axis }} />
-          <div
-            className="absolute top-0 h-full w-px bg-primary"
-            style={{ left: pickX }}
-            data-testid="replay-pick-line"
-          />
-        </div>
+      {picking && pick && frame && (
+        <PickLine
+          x={pick.x}
+          ts={pick.ts}
+          pane={frame.pane}
+          axis={frame.axis}
+          timezone={timezone}
+          draggable={pick.placed}
+          onDrag={placeAt}
+        />
       )}
       {frame && !atLatest && (
         <button
