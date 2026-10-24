@@ -56,3 +56,22 @@ export {
   stepTarget,
   stepTargetBy,
 } from './replay';
+export {
+  addDays,
+  type CalendarDay,
+  CLOSED_GAP_MS,
+  dayBlocked,
+  dayHasMarket,
+  dayOf,
+  type IsOpen,
+  monthGrid,
+  pickTime,
+  randomStart,
+  resolveStart,
+  type StartPick,
+  sameDay,
+  timeOn,
+  weekdayOf,
+  type Zone,
+  zonesOnDay,
+} from './replay-start';

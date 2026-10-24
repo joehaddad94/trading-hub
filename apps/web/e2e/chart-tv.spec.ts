@@ -110,7 +110,7 @@ test.describe('chart like TradingView', () => {
 
   test('picking a replay start: a pan is not a pick, a line shows the bar, a click starts', async ({ page }) => {
     await open(page, 'i=US30&tf=5');
-    await page.getByRole('button', { name: 'Start replay here' }).click();
+    await page.getByRole('button', { name: 'Select bar' }).click();
     await pan(page, 0.4, 0.6);
     await expect(cursor(page)).toBeHidden();
     const box = await chart(page).boundingBox();

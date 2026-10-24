@@ -1,20 +1,14 @@
 import { describe, expect, it } from 'vitest';
-import { defaultReplayStart, formatCursor, localInputToUtc, utcToLocalInput } from './replay-time';
+import { defaultReplayStart, formatCursor } from './replay-time';
 
-describe('replay time inputs', () => {
-  it('reads the picker in the chart time zone', () => {
-    expect(localInputToUtc('2026-10-07T17:37', 'Asia/Beirut')).toBe(Date.parse('2026-10-07T14:37:00Z'));
-    expect(localInputToUtc('2026-10-07T10:37', 'America/New_York')).toBe(Date.parse('2026-10-07T14:37:00Z'));
-    expect(localInputToUtc('nope', 'Asia/Beirut')).toBeNull();
-  });
-
-  it('writes and formats in the chart time zone', () => {
+describe('replay time', () => {
+  it('formats in the chart time zone', () => {
     const ms = Date.parse('2026-10-07T14:37:00Z');
-    expect(utcToLocalInput(ms, 'Asia/Beirut')).toBe('2026-10-07T17:37');
     expect(formatCursor(ms, 'America/New_York')).toBe('Wed 7 Oct 2026 10:37');
+    expect(formatCursor(ms, 'Asia/Beirut')).toBe('Wed 7 Oct 2026 17:37');
   });
 
-  it('defaults a bare Start to one week back, on the hour', () => {
+  it('defaults the start panel to one week back, on the hour', () => {
     expect(defaultReplayStart(Date.parse('2026-10-21T12:42:27Z'))).toBe(Date.parse('2026-10-14T12:00:00Z'));
   });
 });

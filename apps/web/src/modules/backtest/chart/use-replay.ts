@@ -10,6 +10,7 @@ import {
   nextDayOpen,
   nextSessionWindow,
   playIntervalMs,
+  resolveStart,
   type Speed,
   type StepMode,
   type Timeframe,
@@ -146,6 +147,26 @@ export function useReplay({ instrument, tf, initialCursor, onCursor }: Options) 
       moveTo(Math.floor(at / MINUTE_MS) * MINUTE_MS, true);
     },
     [moveTo],
+  );
+
+  /**
+   * Start panel (spec §3.1): starts just before the first candle at or after a kill-zone open, so the next step
+   * shows the open and a holiday or break never parks the chart on empty time. Asks a time only, never prices.
+   */
+  const startFrom = useCallback(
+    async (target: number): Promise<{ ok: true; cursor: number; snapped: boolean } | { ok: false; error: string }> => {
+      let next: number | null;
+      try {
+        next = await fetchNextMinute(instrument, new Date(target));
+      } catch (e) {
+        return { ok: false, error: (e as Error).message };
+      }
+      const resolved = resolveStart(target, next);
+      if (!resolved) return { ok: false, error: 'No candles from that day on yet. Pick an earlier day.' };
+      start(resolved.cursor);
+      return { ok: true, ...resolved };
+    },
+    [instrument, start],
   );
 
   const startAtBar = useCallback((barStart: number) => start(cursorForBar(barStart, tf)), [start, tf]);
@@ -345,7 +366,10 @@ export function useReplay({ instrument, tf, initialCursor, onCursor }: Options) 
     speed,
     setSpeed,
     message,
+    /** Shows a line under the replay bar (cleared by the next start or step). */
+    notify: setMessage,
     start,
+    startFrom,
     startAtBar,
     exit,
     step,

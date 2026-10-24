@@ -14,9 +14,18 @@ const CLOSE_MINUTE = 16 * 60 + 15;
 
 export function isMarketOpen(minute: Date): boolean {
   const et = new TZDate(minute.getTime(), MARKET_TZ);
+  if (isReducedDay(et.getFullYear(), et.getMonth(), et.getDate())) return false;
+  return isTradingHours(minute);
+}
+
+/**
+ * The weekly schedule alone, holidays ignored: the replay start panel disables days with no trading hours, but
+ * keeps holidays pickable (they often have a short session) and lets the replay move to the next real candle.
+ */
+export function isTradingHours(minute: Date): boolean {
+  const et = new TZDate(minute.getTime(), MARKET_TZ);
   const day = et.getDay();
   const m = et.getHours() * 60 + et.getMinutes();
-  if (isReducedDay(et.getFullYear(), et.getMonth(), et.getDate())) return false;
   if (day === 6) return false;
   if (day === 0) return m >= OPEN_MINUTE;
   if (day === 5) return m < CLOSE_MINUTE;

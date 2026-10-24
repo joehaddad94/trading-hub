@@ -1,10 +1,11 @@
 'use client';
 
-import { SPEEDS, type Speed } from '@trading/backtest-engine';
-import { CalendarDays, FastForward, Pause, Play, SkipForward, StepBack, StepForward, X } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { MINUTE_MS, pickTime, SPEEDS, type Speed, type StartPick } from '@trading/backtest-engine';
+import { CalendarDays, Crosshair, FastForward, Pause, Play, SkipForward, StepBack, StepForward, X } from 'lucide-react';
+import { useState } from 'react';
 import { cn } from '@/lib/utils';
-import { defaultReplayStart, formatCursor, formatCursorShort, localInputToUtc, utcToLocalInput } from './replay-time';
+import { ReplayStartPanel } from './replay-start-panel';
+import { defaultReplayStart, formatCursor, formatCursorShort } from './replay-time';
 import type { useReplay } from './use-replay';
 
 type Replay = ReturnType<typeof useReplay>;
@@ -17,74 +18,79 @@ function Label({ children }: { children: string }) {
   return <span className="hidden sm:inline">{children}</span>;
 }
 
-/** Replay bar (spec §3.1): start at a date/time or a clicked bar, step back and forward, play, jump, exit. */
+/** Replay bar (spec §3.1): start from the start panel or a clicked bar, step back and forward, play, jump, exit. */
 export function ReplayControls({
   replay,
   timezone,
+  data,
   picking,
   onPick,
   back,
 }: {
   replay: Replay;
   timezone: string;
+  /** First and last candle of the instrument (ms), or null when unknown. */
+  data: { from: number; to: number } | null;
   picking: boolean;
   onPick: (on: boolean) => void;
   /** Step back: why it is blocked (or null) and the earliest cursor allowed. */
   back: { blocked: string | null; floor: number | null };
 }) {
-  const [when, setWhen] = useState('');
-  const [hint, setHint] = useState<string | null>(null);
-  /** Replaying: the date field is open to jump to another start without leaving replay. */
-  const [changing, setChanging] = useState(false);
-  // Prefilled after mount (the server doesn't know "now" the same way), so Start always does something.
-  useEffect(() => setWhen((w) => w || utcToLocalInput(defaultReplayStart(Date.now()), timezone)), [timezone]);
+  const [panel, setPanel] = useState(false);
+
+  const startPanel = panel && (
+    <ReplayStartPanel
+      timezone={timezone}
+      data={data}
+      initialAt={replay.cursor ?? defaultReplayStart(Date.now())}
+      replaying={replay.cursor !== null}
+      onStart={async (pick: StartPick) => {
+        const target = pickTime(pick, timezone);
+        if (target === null) return 'That kill zone does not open on this day.';
+        const result = await replay.startFrom(target);
+        if (!result.ok) return result.error;
+        if (result.snapped) {
+          replay.notify(
+            `Market closed then. Started at the next candle, ${formatCursor(result.cursor + MINUTE_MS, timezone)}.`,
+          );
+        }
+        return null;
+      }}
+      onClose={() => setPanel(false)}
+    />
+  );
 
   if (replay.cursor === null) {
     return (
-      <form
-        className="flex flex-wrap items-center gap-2 border-b px-2 py-1.5 text-sm md:px-4"
+      <div
+        className="relative z-20 flex flex-wrap items-center gap-2 border-b px-2 py-1.5 text-sm md:px-4"
+        role="toolbar"
         aria-label="Start replay"
-        onSubmit={(e) => {
-          e.preventDefault();
-          const at = localInputToUtc(when, timezone);
-          if (at === null) {
-            setHint('Pick a date and time first, or use Start replay here and click a candle.');
-            return;
-          }
-          setHint(null);
-          replay.start(at);
-        }}
       >
-        <label className="flex items-center gap-2 text-muted-foreground">
-          <span className="hidden sm:inline">Replay from</span>
-          <input
-            type="datetime-local"
-            value={when}
-            onChange={(e) => {
-              setWhen(e.target.value);
-              setHint(null);
-            }}
-            className="h-9 rounded-md border bg-background px-2 text-foreground"
-            aria-label="Replay start"
-          />
-        </label>
-        <button type="submit" className={cn(button, 'bg-accent text-accent-foreground')}>
-          <Play className="size-4" aria-hidden /> Start
+        <button
+          type="button"
+          className={cn(button, 'bg-accent text-accent-foreground')}
+          aria-expanded={panel}
+          aria-haspopup="dialog"
+          onClick={() => setPanel(!panel)}
+        >
+          <CalendarDays className="size-4" aria-hidden /> Start replay
         </button>
         <button type="button" className={button} aria-pressed={picking} onClick={() => onPick(!picking)}>
-          {picking ? 'Click a candle…' : 'Start replay here'}
+          <Crosshair className="size-4" aria-hidden /> {picking ? 'Click a candle…' : 'Select bar'}
         </button>
-        {hint && (
-          <p role="alert" className="text-warning">
-            {hint}
+        {replay.message && (
+          <p role="status" className="text-muted-foreground text-xs">
+            {replay.message}
           </p>
         )}
-      </form>
+        {startPanel}
+      </div>
     );
   }
 
   return (
-    <>
+    <div className="relative z-20">
       {/* Phones: one row that scrolls sideways, icons only, short time — so the chart keeps its height. */}
       <div
         className="flex flex-nowrap items-center gap-1 overflow-x-auto whitespace-nowrap border-b px-2 py-1.5 text-sm md:flex-wrap md:px-4"
@@ -98,53 +104,14 @@ export function ReplayControls({
         <button
           type="button"
           className={button}
-          aria-expanded={changing}
+          aria-expanded={panel}
+          aria-haspopup="dialog"
           aria-label="Change replay date"
           title="Replay from another date"
-          onClick={() => {
-            if (!changing && replay.cursor !== null) setWhen(utcToLocalInput(replay.cursor, timezone));
-            setHint(null);
-            setChanging(!changing);
-          }}
+          onClick={() => setPanel(!panel)}
         >
           <CalendarDays className="size-4" aria-hidden />
         </button>
-        {changing && (
-          <form
-            className="flex shrink-0 items-center gap-1"
-            aria-label="Change replay date"
-            onSubmit={(e) => {
-              e.preventDefault();
-              const at = localInputToUtc(when, timezone);
-              if (at === null) {
-                setHint('Pick a date and time first.');
-                return;
-              }
-              setHint(null);
-              setChanging(false);
-              replay.start(at);
-            }}
-          >
-            <input
-              type="datetime-local"
-              value={when}
-              onChange={(e) => {
-                setWhen(e.target.value);
-                setHint(null);
-              }}
-              className="h-9 rounded-md border bg-background px-2 text-foreground"
-              aria-label="New replay start"
-            />
-            <button type="submit" className={cn(button, 'bg-accent text-accent-foreground')}>
-              Go
-            </button>
-            {hint && (
-              <span role="alert" className="text-warning">
-                {hint}
-              </span>
-            )}
-          </form>
-        )}
         <button
           type="button"
           className={button}
@@ -215,6 +182,7 @@ export function ReplayControls({
           {replay.message}
         </p>
       )}
-    </>
+      {startPanel}
+    </div>
   );
 }

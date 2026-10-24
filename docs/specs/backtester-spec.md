@@ -70,7 +70,7 @@
 ## 3. Replay (the core feature)
 
 ### 3.1 Controls
-- **Start point:** pick a date + time, or click a candle with a "Start replay here" tool.
+- **Start point** (Joe, 24 Oct 2026: fast and easy): the start panel (📅) shows a calendar where days with no trading hours in the chart's time zone or no candles are greyed out, then the day's kill zones (Asia / London / NY AM / NY PM, chart time with New York time underneath); one click on a kill zone starts the replay just before its first candle. **Random** starts at a random kill zone in the data. A kill zone with no candles (holiday) moves to the next candle and says so. Or click a candle with **Select bar** (right-click › Replay from here).
 - **Step forward** one bar of the current timeframe (`Shift + →` as on TradingView, or `→`) and **step forward one minute** (`Alt + →`; Joe, 23 Oct 2026).
 - **Play / pause** (`Shift + ↓` as on TradingView, or `Space`) with speeds: 1, 2, 5, 10, 20 bars/second (configurable).
 - **Jump to next session open** (Asia / London / NY AM / NY PM) and **jump to next day**.
