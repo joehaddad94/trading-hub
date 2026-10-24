@@ -91,25 +91,45 @@ export function zonesOnDay(day: CalendarDay, timezone: string): { name: Zone; la
   return found.sort((a, b) => a.at - b.at);
 }
 
-/** A replay start: a day and one of its kill zones. */
-export type StartPick = { day: CalendarDay; zone: Zone };
+/** A replay start: a day and a clock time on it (minutes after midnight), in the chart's time zone. */
+export type StartPick = { day: CalendarDay; minute: number };
 
-/** When a pick's kill zone opens (ms), or null when it doesn't open that day. */
-export function pickTime(pick: StartPick, timezone: string): number | null {
-  return zonesOnDay(pick.day, timezone).find((z) => z.name === pick.zone)?.at ?? null;
+export function pickTime(pick: StartPick, timezone: string): number {
+  return timeOn(pick.day, pick.minute, timezone);
+}
+
+/** The pick a time stands for, in `timezone`. */
+export function pickOf(ts: number, timezone: string): StartPick {
+  const t = new TZDate(ts, timezone);
+  return { day: dayOf(ts, timezone), minute: t.getHours() * 60 + t.getMinutes() };
+}
+
+/** "16:30", "1630", "9:30", "9" → minutes after midnight, or null. */
+export function parseClock(text: string): number | null {
+  const m = /^\s*(\d{1,2})(?:[:.h]?(\d{2}))?\s*$/.exec(text);
+  if (!m) return null;
+  const h = Number(m[1]);
+  const mi = Number(m[2] ?? 0);
+  return h > 23 || mi > 59 ? null : h * 60 + mi;
+}
+
+export function formatClock(minute: number): string {
+  return `${String(Math.floor(minute / 60)).padStart(2, '0')}:${String(minute % 60).padStart(2, '0')}`;
 }
 
 /** A gap longer than this between the pick and the next candle means the market was closed. */
 export const CLOSED_GAP_MS = 30 * MINUTE_MS;
 
 /**
- * Where the replay cursor goes, given the first candle at or after the kill-zone open (`next`, null at the end of
- * the data): one minute before that candle, so the next step shows the open, as Next session does. `snapped`
- * when the market was closed at the open (a holiday, the daily break).
+ * Where the replay cursor goes, given the first candle at or after the picked time (`next`, null at the end of
+ * the data). The cursor is the picked minute, so the replay bar reads the time you chose and that minute's
+ * candle is the newest on the chart. When the market was closed then (`snapped`: a weekend night, the daily
+ * break, a holiday), it is the first candle after.
  */
 export function resolveStart(target: number, next: number | null): { cursor: number; snapped: boolean } | null {
   if (next === null) return null;
-  return { cursor: next - MINUTE_MS, snapped: next - target > CLOSED_GAP_MS };
+  const snapped = next - target > CLOSED_GAP_MS;
+  return { cursor: snapped ? next : Math.floor(target / MINUTE_MS) * MINUTE_MS, snapped };
 }
 
 /**
@@ -129,7 +149,7 @@ export function randomStart(
     const day = dayOf(from + rand() * (last - from), timezone);
     const zones = zonesOnDay(day, timezone).filter((z) => isOpen(new Date(z.at)) && z.at >= from && z.at < last);
     const zone = zones[Math.floor(rand() * zones.length)];
-    if (zone) return { day, zone: zone.name };
+    if (zone) return pickOf(zone.at, timezone);
   }
   return null;
 }

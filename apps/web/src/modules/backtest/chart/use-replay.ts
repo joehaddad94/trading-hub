@@ -17,6 +17,7 @@ import {
 } from '@trading/backtest-engine';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { ChartApi } from './kline-chart';
+import { saveLastStart } from './last-start';
 import { fetchBarsFresh, fetchNextMinute } from './loader';
 import {
   extendTape,
@@ -144,14 +145,16 @@ export function useReplay({ instrument, tf, initialCursor, onCursor }: Options) 
     (at: number) => {
       setPlaying(false);
       setMessage(null);
+      saveLastStart(at);
       moveTo(Math.floor(at / MINUTE_MS) * MINUTE_MS, true);
     },
     [moveTo],
   );
 
   /**
-   * Start panel (spec §3.1): starts just before the first candle at or after a kill-zone open, so the next step
-   * shows the open and a holiday or break never parks the chart on empty time. Asks a time only, never prices.
+   * Start panel (spec §3.1): starts on the picked minute, or on the first candle after it when the market was
+   * closed then, so a weekend night, the daily break or a holiday never parks the chart on empty time. Asks a
+   * time only, never prices.
    */
   const startFrom = useCallback(
     async (target: number): Promise<{ ok: true; cursor: number; snapped: boolean } | { ok: false; error: string }> => {
@@ -162,7 +165,7 @@ export function useReplay({ instrument, tf, initialCursor, onCursor }: Options) 
         return { ok: false, error: (e as Error).message };
       }
       const resolved = resolveStart(target, next);
-      if (!resolved) return { ok: false, error: 'No candles from that day on yet. Pick an earlier day.' };
+      if (!resolved) return { ok: false, error: 'No candles from that time on yet. Pick an earlier date.' };
       start(resolved.cursor);
       return { ok: true, ...resolved };
     },
