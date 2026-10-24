@@ -7,8 +7,6 @@ import {
   bucketStart,
   cursorForBar,
   MINUTE_MS,
-  nextDayOpen,
-  nextSessionWindow,
   playIntervalMs,
   resolveStart,
   type Speed,
@@ -43,8 +41,6 @@ type Options = {
 
 export type StepResult = 'ok' | 'end' | 'busy';
 
-/** Empty kill zones a jump may skip (weekends, holidays) before giving up. */
-const MAX_EMPTY_ZONES = 40;
 /** Refills a step may wait for before it gives up (each covers up to two weeks). */
 const MAX_REFILLS = 4;
 
@@ -189,7 +185,7 @@ export function useReplay({ instrument, tf, initialCursor, onCursor }: Options) 
     async (mode: StepMode, rule: { blocked: string | null; floor: number | null }): Promise<StepResult> => {
       const from = cursorRef.current;
       const api = chartApi.current;
-      // While the chart reloads (a new date, a jump), its bars are the old window: wait for the new one.
+      // While the chart reloads (a new date), its bars are the old window: wait for the new one.
       if (from === null || !api || busy.current || api.reloading()) return 'busy';
       if (rule.blocked) {
         setMessage(rule.blocked);
@@ -245,7 +241,7 @@ export function useReplay({ instrument, tf, initialCursor, onCursor }: Options) 
     async (mode: StepMode, count = 1): Promise<StepResult> => {
       const from = cursorRef.current;
       const api = chartApi.current;
-      // While the chart reloads (a new date, a jump), its bars are the old window: wait for the new one.
+      // While the chart reloads (a new date), its bars are the old window: wait for the new one.
       if (from === null || !api || busy.current || api.reloading()) return 'busy';
       busy.current = true;
       try {
@@ -261,7 +257,7 @@ export function useReplay({ instrument, tf, initialCursor, onCursor }: Options) 
           return 'end';
         }
         if (move === 'more') {
-          setMessage('No candles found ahead. Try Next day.');
+          setMessage('No candles found ahead.');
           return 'end';
         }
         api.upsert(applyMinutes(api.lastBar(), move.bars, tf));
@@ -280,44 +276,6 @@ export function useReplay({ instrument, tf, initialCursor, onCursor }: Options) 
       }
     },
     [instrument, tf, moveTo, refill],
-  );
-
-  /**
-   * Next session / next day. Lands just before the first candle at or after the open, so a weekend or holiday
-   * never leaves the chart parked on an empty zone: a kill zone with no candles is skipped (asks times only,
-   * never prices). Open trades are replayed over everything skipped once the cursor moves.
-   */
-  const jump = useCallback(
-    async (kind: 'session' | 'day') => {
-      const from = cursorRef.current;
-      if (from === null || busy.current) return;
-      busy.current = true;
-      setMessage(null);
-      setPlaying(false);
-      try {
-        let probe = from;
-        for (let i = 0; i < MAX_EMPTY_ZONES; i += 1) {
-          const zone = kind === 'session' ? nextSessionWindow(probe) : { at: nextDayOpen(probe), end: Infinity };
-          const next = await fetchNextMinute(instrument, new Date(zone.at));
-          if (next === null) {
-            setMessage('End of the available data.');
-            return;
-          }
-          if (next < zone.end) {
-            // The first candle of the zone is the next bar to appear.
-            moveTo(next - MINUTE_MS, true);
-            return;
-          }
-          probe = next - MINUTE_MS;
-        }
-        setMessage('No session with candles found in the next two weeks.');
-      } catch (e) {
-        setMessage((e as Error).message);
-      } finally {
-        busy.current = false;
-      }
-    },
-    [instrument, moveTo],
   );
 
   useEffect(() => {
@@ -377,7 +335,6 @@ export function useReplay({ instrument, tf, initialCursor, onCursor }: Options) 
     exit,
     step,
     stepBack,
-    jump,
     onChartReady,
   };
 }

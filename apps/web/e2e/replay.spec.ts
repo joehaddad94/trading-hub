@@ -111,11 +111,9 @@ test.describe('replay (M16)', () => {
     await expect.poll(async () => Math.abs((await lastX()) - x1)).toBeLessThan(2);
   });
 
-  test('jumps to the next session, plays, keeps the cursor across timeframes and exits', async ({ page }) => {
-    await page.goto('/backtest/chart?i=US30&tf=5&at=2026-10-07T14:37:00.000Z');
-    await expect(cursor(page)).toBeVisible();
-    await page.getByRole('button', { name: 'Next session' }).click();
-    // NY PM opens 13:30 New York = 17:30 UTC; the cursor sits one minute before.
+  test('steps back and forward, plays, keeps the cursor across timeframes and exits', async ({ page }) => {
+    // One minute before NY PM opens (13:30 New York = 17:30 UTC).
+    await page.goto('/backtest/chart?i=US30&tf=5&at=2026-10-07T17:29:00.000Z');
     await expect(cursor(page)).toHaveAttribute('data-cursor', String(Date.parse('2026-10-07T17:29:00Z')));
     await expect.poll(async () => (await lastBar(page))?.ts).toBe(Date.parse('2026-10-07T17:25:00Z'));
 
