@@ -107,7 +107,7 @@ export function TradePanel({
         </p>
       )}
       {open && (
-        <div className="max-h-56 overflow-y-auto px-2 pb-2 md:px-4">
+        <div className="max-h-56 overflow-y-auto compact:max-h-[30dvh] px-2 pb-2 md:px-4">
           {trading.orders.length === 0 && (
             <p className="py-2 text-muted-foreground">
               No trades yet. Press Buy or Sell on the chart (Shift+B / Shift+S) during replay.

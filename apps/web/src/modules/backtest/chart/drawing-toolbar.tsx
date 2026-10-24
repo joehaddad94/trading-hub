@@ -40,7 +40,7 @@ const MAGNET_LABEL = { normal: 'Magnet off', weak_magnet: 'Weak magnet', strong_
 const NEXT_MAGNET = { normal: 'weak_magnet', weak_magnet: 'strong_magnet', strong_magnet: 'normal' } as const;
 
 const tile =
-  'flex size-10 shrink-0 items-center justify-center rounded-md text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-foreground aria-pressed:bg-primary/15 aria-pressed:text-primary disabled:pointer-events-none disabled:opacity-40';
+  'flex size-10 shrink-0 compact:size-9 items-center justify-center rounded-md text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-foreground aria-pressed:bg-primary/15 aria-pressed:text-primary disabled:pointer-events-none disabled:opacity-40';
 
 /** Left toolbar on desktop, a bottom row on phones (spec §4). */
 export function DrawingToolbar({ drawings }: { drawings: Drawings }) {
@@ -50,7 +50,7 @@ export function DrawingToolbar({ drawings }: { drawings: Drawings }) {
       role="toolbar"
       aria-label="Drawing tools"
       aria-orientation="vertical"
-      className="relative flex shrink-0 gap-1 overflow-x-auto border-t p-1 md:w-12 md:flex-col md:items-center md:overflow-x-hidden md:overflow-y-auto md:border-t-0 md:border-r"
+      className="relative flex shrink-0 gap-1 overflow-x-auto border-t p-1 compact:p-0.5 md:w-12 md:flex-col md:items-center md:overflow-x-hidden md:overflow-y-auto md:border-t-0 md:border-r"
     >
       <button
         type="button"

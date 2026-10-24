@@ -59,6 +59,8 @@ const TIMEZONES = [
 ] as const;
 
 const PREFS_KEY = 'backtest.chart';
+const FULL_KEY = 'backtest.fullScreen';
+const DATA_NOTE = 'Historical data from Dukascopy; prices may differ slightly from your broker.';
 type Impact = NewsFilter['impacts'][number];
 type Prefs = {
   timezone: string;
@@ -528,162 +530,169 @@ export function ChartWorkspace({
       className={cn('tv-dark isolate flex flex-1 flex-col md:h-full', full && 'fixed inset-0 z-50 h-dvh bg-background')}
       data-full-screen={full ? 'true' : 'false'}
     >
-      <div
-        className={cn(
-          'relative z-30 flex flex-wrap items-center gap-1.5 border-b px-2 py-1 text-sm md:px-3',
-          full && 'hidden',
-        )}
-      >
-        <fieldset className="flex items-center gap-1">
-          <legend className="sr-only">Instrument</legend>
-          {instruments.map((i) => (
-            <button
-              key={i.code}
-              type="button"
-              aria-pressed={i.code === instrument.code}
-              onClick={() => void setCode(i.code)}
-              title={`${i.displayName} · ${symbolWithAlias(i.code)}`}
-              className={cn(
-                'h-9 rounded-md px-3 font-semibold tracking-tight',
-                i.code === instrument.code
-                  ? 'bg-accent text-accent-foreground'
-                  : 'text-muted-foreground hover:bg-accent/60',
-              )}
-            >
-              {i.code}
-            </button>
-          ))}
-        </fieldset>
-        <Divider />
-        <fieldset className="flex items-center gap-1">
-          <legend className="sr-only">Timeframe</legend>
-          {TIMEFRAMES.map((t) => (
-            <button
-              key={t}
-              type="button"
-              aria-pressed={t === tf}
-              aria-keyshortcuts={t === 15 ? 'F' : String(t)}
-              onClick={() => void setTfParam(String(t))}
-              className={cn(
-                'h-9 min-w-11 rounded-md px-2 num',
-                t === tf ? 'bg-accent text-accent-foreground' : 'text-muted-foreground hover:bg-accent/60',
-              )}
-            >
-              {t}m
-            </button>
-          ))}
-        </fieldset>
-        <button
-          type="button"
-          className="ml-auto flex h-9 items-center gap-1 rounded-md px-2 text-muted-foreground hover:bg-accent/60 md:hidden"
-          aria-expanded={moreOpen}
-          aria-controls="chart-more"
-          onClick={() => setMoreOpen(!moreOpen)}
-        >
-          <SlidersHorizontal className="size-4" aria-hidden />
-          <span className="sr-only">Chart settings</span>
-        </button>
-        {/* Phones: indicators, news, sessions, time and full screen fold into a panel behind the button above, so
-            the toolbar stays one row. Desktop shows them inline. */}
+      {/* Landscape phone: the chart toolbar and the replay bar share one row. */}
+      <div className="flex flex-col short:flex-row">
         <div
-          id="chart-more"
           className={cn(
-            'md:contents',
-            moreOpen
-              ? 'absolute inset-x-0 top-full z-40 flex flex-wrap items-center gap-2 border-b bg-popover p-2 shadow-lg md:static md:border-0 md:bg-transparent md:p-0 md:shadow-none'
-              : 'hidden',
+            'relative z-30 flex flex-wrap items-center gap-1.5 border-b px-2 py-1 text-sm compact:py-0.5 short:shrink-0 md:px-3',
+            full && 'roomy:hidden',
           )}
         >
-          <Divider />
-          <IndicatorMenu
-            prefs={prefs.indicators}
-            onChange={(id, next) => {
-              const merged = { ...prefs.indicators, [id]: { ...prefs.indicators[id], ...next } };
-              updatePrefs({ indicators: normalisePrefs(merged) });
-            }}
-          />
-          <Divider />
           <fieldset className="flex items-center gap-1">
-            <legend className="sr-only">News markers</legend>
-            <span className="flex items-center gap-1 px-1 text-muted-foreground" title="News markers">
-              <Newspaper className="size-4" aria-hidden />
-              <span className="sr-only md:not-sr-only">News</span>
-            </span>
-            {IMPACT_TOGGLES.map((t) => (
+            <legend className="sr-only">Instrument</legend>
+            {instruments.map((i) => (
               <button
-                key={t.id}
+                key={i.code}
                 type="button"
-                aria-pressed={prefs.impacts.includes(t.id)}
-                aria-label={`${t.label} impact news`}
-                onClick={() =>
-                  updatePrefs({
-                    impacts: prefs.impacts.includes(t.id)
-                      ? prefs.impacts.filter((i) => i !== t.id)
-                      : [...prefs.impacts, t.id],
-                  })
-                }
+                aria-pressed={i.code === instrument.code}
+                onClick={() => void setCode(i.code)}
+                title={`${i.displayName} · ${symbolWithAlias(i.code)}`}
                 className={cn(
-                  'h-9 rounded-md px-2',
-                  prefs.impacts.includes(t.id)
+                  'h-9 rounded-md px-3 font-semibold tracking-tight',
+                  i.code === instrument.code
                     ? 'bg-accent text-accent-foreground'
                     : 'text-muted-foreground hover:bg-accent/60',
                 )}
               >
-                {t.label}
+                {i.code}
               </button>
             ))}
-            <select
-              value={prefs.allCurrencies ? 'all' : 'counted'}
-              onChange={(e) => updatePrefs({ allCurrencies: e.target.value === 'all' })}
-              className="h-9 rounded-md border bg-background px-1 text-foreground"
-              aria-label="News currencies"
-            >
-              <option value="counted">{currencies.join(', ') || 'Counted'}</option>
-              <option value="all">All currencies</option>
-            </select>
           </fieldset>
-          <div className="ml-auto flex items-center gap-2">
-            <label className="flex h-9 items-center gap-2 text-muted-foreground">
-              <input
-                type="checkbox"
-                checked={prefs.sessions}
-                onChange={(e) => updatePrefs({ sessions: e.target.checked })}
-                className="size-4"
-              />
-              Sessions
-            </label>
-            <label className="flex items-center gap-1 text-muted-foreground">
-              <span className="sr-only md:not-sr-only">Time</span>
-              <select
-                value={prefs.timezone}
-                onChange={(e) => updatePrefs({ timezone: e.target.value })}
-                className="h-9 rounded-md border bg-background px-2 text-foreground"
-                aria-label="Chart time zone"
+          <Divider />
+          <fieldset className="flex items-center gap-1">
+            <legend className="sr-only">Timeframe</legend>
+            {TIMEFRAMES.map((t) => (
+              <button
+                key={t}
+                type="button"
+                aria-pressed={t === tf}
+                aria-keyshortcuts={t === 15 ? 'F' : String(t)}
+                onClick={() => void setTfParam(String(t))}
+                className={cn(
+                  'h-9 min-w-11 rounded-md px-2 num',
+                  t === tf ? 'bg-accent text-accent-foreground' : 'text-muted-foreground hover:bg-accent/60',
+                )}
               >
-                {TIMEZONES.map((z) => (
-                  <option key={z.id} value={z.id}>
-                    {z.label}
-                  </option>
-                ))}
-              </select>
-            </label>
+                {t}m
+              </button>
+            ))}
+          </fieldset>
+          <div className="ml-auto flex items-center gap-1 roomy:hidden">
+            <button
+              type="button"
+              className="flex h-9 items-center gap-1 rounded-md px-2 text-muted-foreground hover:bg-accent/60"
+              aria-expanded={moreOpen}
+              aria-controls="chart-more"
+              onClick={() => setMoreOpen(!moreOpen)}
+            >
+              <SlidersHorizontal className="size-4" aria-hidden />
+              <span className="sr-only">Chart settings</span>
+            </button>
             <FullScreenButton full={full} onToggle={toggleFull} />
           </div>
+          {/* Phones (portrait or landscape): indicators, news, sessions and time fold into a panel behind the button
+            above, so the toolbar stays one row. Desktop shows them inline. */}
+          <div
+            id="chart-more"
+            className={cn(
+              'roomy:contents',
+              moreOpen
+                ? 'absolute inset-x-0 top-full z-40 flex flex-wrap items-center gap-2 border-b bg-popover p-2 shadow-lg'
+                : 'hidden',
+            )}
+          >
+            <Divider />
+            <IndicatorMenu
+              prefs={prefs.indicators}
+              onChange={(id, next) => {
+                const merged = { ...prefs.indicators, [id]: { ...prefs.indicators[id], ...next } };
+                updatePrefs({ indicators: normalisePrefs(merged) });
+              }}
+            />
+            <Divider />
+            <fieldset className="flex items-center gap-1">
+              <legend className="sr-only">News markers</legend>
+              <span className="flex items-center gap-1 px-1 text-muted-foreground" title="News markers">
+                <Newspaper className="size-4" aria-hidden />
+                <span className="sr-only md:not-sr-only">News</span>
+              </span>
+              {IMPACT_TOGGLES.map((t) => (
+                <button
+                  key={t.id}
+                  type="button"
+                  aria-pressed={prefs.impacts.includes(t.id)}
+                  aria-label={`${t.label} impact news`}
+                  onClick={() =>
+                    updatePrefs({
+                      impacts: prefs.impacts.includes(t.id)
+                        ? prefs.impacts.filter((i) => i !== t.id)
+                        : [...prefs.impacts, t.id],
+                    })
+                  }
+                  className={cn(
+                    'h-9 rounded-md px-2',
+                    prefs.impacts.includes(t.id)
+                      ? 'bg-accent text-accent-foreground'
+                      : 'text-muted-foreground hover:bg-accent/60',
+                  )}
+                >
+                  {t.label}
+                </button>
+              ))}
+              <select
+                value={prefs.allCurrencies ? 'all' : 'counted'}
+                onChange={(e) => updatePrefs({ allCurrencies: e.target.value === 'all' })}
+                className="h-9 rounded-md border bg-background px-1 text-foreground"
+                aria-label="News currencies"
+              >
+                <option value="counted">{currencies.join(', ') || 'Counted'}</option>
+                <option value="all">All currencies</option>
+              </select>
+            </fieldset>
+            <div className="ml-auto flex items-center gap-2">
+              <label className="flex h-9 items-center gap-2 text-muted-foreground">
+                <input
+                  type="checkbox"
+                  checked={prefs.sessions}
+                  onChange={(e) => updatePrefs({ sessions: e.target.checked })}
+                  className="size-4"
+                />
+                Sessions
+              </label>
+              <label className="flex items-center gap-1 text-muted-foreground">
+                <span className="sr-only md:not-sr-only">Time</span>
+                <select
+                  value={prefs.timezone}
+                  onChange={(e) => updatePrefs({ timezone: e.target.value })}
+                  className="h-9 rounded-md border bg-background px-2 text-foreground"
+                  aria-label="Chart time zone"
+                >
+                  {TIMEZONES.map((z) => (
+                    <option key={z.id} value={z.id}>
+                      {z.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <FullScreenButton full={full} onToggle={toggleFull} className="compact:hidden" />
+            </div>
+            <p className="w-full px-1 text-muted-foreground text-xs roomy:hidden">{DATA_NOTE}</p>
+          </div>
         </div>
+        <ReplayControls
+          replay={replay}
+          timezone={prefs.timezone}
+          data={
+            instrument.dataFrom != null && instrument.dataTo != null
+              ? { from: instrument.dataFrom, to: instrument.dataTo }
+              : null
+          }
+          picking={picking}
+          onPick={setPicking}
+          back={back}
+        />
       </div>
-      <ReplayControls
-        replay={replay}
-        timezone={prefs.timezone}
-        data={
-          instrument.dataFrom != null && instrument.dataTo != null
-            ? { from: instrument.dataFrom, to: instrument.dataTo }
-            : null
-        }
-        picking={picking}
-        onPick={setPicking}
-        back={back}
-      />
-      <div className="flex min-h-[60dvh] flex-1 flex-col-reverse md:min-h-0 md:flex-row">
+      <div className="flex min-h-0 flex-1 flex-col-reverse md:flex-row">
         <DrawingToolbar drawings={drawings} />
         <div
           className={cn('relative min-h-0 flex-1', picking && 'cursor-crosshair')}
@@ -710,7 +719,7 @@ export function ChartWorkspace({
             </div>
           )}
           {full && (
-            <div className="absolute top-2 right-16 z-20">
+            <div className="absolute top-2 right-16 z-20 compact:hidden">
               <FullScreenButton full={full} onToggle={toggleFull} />
             </div>
           )}
@@ -823,28 +832,29 @@ export function ChartWorkspace({
       </div>
       {!desktop && ticketNode && (
         <div
-          className="border-t p-2"
+          className="max-h-[50dvh] shrink-0 overflow-y-auto border-t p-2"
           // Brought into view when it opens: on a phone it sits under the chart.
           ref={revealTicket}
         >
           {ticketNode}
         </div>
       )}
-      {!full && (
+      {/* Desktop full screen is the chart alone; on a phone it keeps the trades, so nothing is out of reach. */}
+      <div className={cn(full && 'roomy:hidden')}>
         <TradePanel
           trading={trading}
           timezone={prefs.timezone}
           price={lastClose}
           instrument={{ code: instrument.code, pointValue, priceDigits }}
         />
-      )}
+      </div>
       {full && trading.error && (
-        <p role="alert" className="border-t px-4 py-1 text-loss text-sm">
+        <p role="alert" className="border-t px-4 py-1 text-loss text-sm compact:hidden">
           {trading.error}
         </p>
       )}
-      <p className={cn('border-t px-4 py-1 text-muted-foreground text-xs', full && 'hidden')}>
-        Historical data from Dukascopy; prices may differ slightly from your broker.
+      <p className={cn('border-t px-4 py-1 text-muted-foreground text-xs compact:hidden', full && 'hidden')}>
+        {DATA_NOTE}
       </p>
     </div>
   );
@@ -870,34 +880,54 @@ function Divider() {
 
 /**
  * Chart-only view (Shift+F, as on TradingView): the workspace covers the app and, where the browser allows,
- * goes truly full screen. Leaving browser full screen (Esc) leaves the mode too.
+ * goes truly full screen. Leaving browser full screen (Esc) leaves the mode too. The choice is remembered, so a
+ * phone that backtests in full screen comes back to it after a reload (the overlay only; browser full screen
+ * needs a tap).
  */
 function useFullScreen() {
   const rootRef = useRef<HTMLDivElement>(null);
   const [full, setFull] = useState(false);
   useEffect(() => {
+    try {
+      if (window.localStorage.getItem(FULL_KEY) === '1') setFull(true);
+    } catch {
+      // Storage blocked: start out of full screen.
+    }
+  }, []);
+  const remember = useCallback((on: boolean) => {
+    try {
+      window.localStorage.setItem(FULL_KEY, on ? '1' : '0');
+    } catch {
+      // Private mode: not remembered.
+    }
+  }, []);
+  useEffect(() => {
     const onChange = () => {
-      if (!document.fullscreenElement) setFull(false);
+      if (!document.fullscreenElement) {
+        setFull(false);
+        remember(false);
+      }
     };
     document.addEventListener('fullscreenchange', onChange);
     return () => document.removeEventListener('fullscreenchange', onChange);
-  }, []);
+  }, [remember]);
   const fullRef = useRef(full);
   fullRef.current = full;
   const toggleFull = useCallback(() => {
     const next = !fullRef.current;
     setFull(next);
+    remember(next);
     try {
       if (next) void rootRef.current?.requestFullscreen?.().catch(() => undefined);
       else if (document.fullscreenElement) void document.exitFullscreen().catch(() => undefined);
     } catch {
       // iPhone Safari has no element full screen: the fixed layout still hides the app around the chart.
     }
-  }, []);
+  }, [remember]);
   return { full, toggleFull, rootRef };
 }
 
-function FullScreenButton({ full, onToggle }: { full: boolean; onToggle: () => void }) {
+function FullScreenButton({ full, onToggle, className }: { full: boolean; onToggle: () => void; className?: string }) {
   const Icon = full ? Minimize2 : Maximize2;
   return (
     <button
@@ -906,7 +936,10 @@ function FullScreenButton({ full, onToggle }: { full: boolean; onToggle: () => v
       aria-pressed={full}
       aria-keyshortcuts="Shift+F"
       title={full ? 'Exit full screen (Shift+F)' : 'Full screen (Shift+F)'}
-      className="flex size-9 items-center justify-center rounded-md bg-popover/80 text-muted-foreground hover:bg-accent hover:text-foreground"
+      className={cn(
+        'flex size-9 items-center justify-center rounded-md bg-popover/80 text-muted-foreground hover:bg-accent hover:text-foreground',
+        className,
+      )}
     >
       <Icon className="size-4" aria-hidden />
       <span className="sr-only">{full ? 'Exit full screen' : 'Full screen'}</span>

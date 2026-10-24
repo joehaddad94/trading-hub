@@ -50,7 +50,9 @@ test.describe('backtest chart (M15)', () => {
     await page.getByLabel('Chart time zone').selectOption('America/New_York');
     await page.reload();
     await expect(page.getByLabel('Chart time zone')).toHaveValue('America/New_York');
-    await expect(page.getByText('Historical data from Dukascopy')).toBeVisible();
+    // Phones show the data note inside chart settings, desktop under the chart.
+    await openChartSettings(page);
+    await expect(page.getByText('Historical data from Dukascopy').filter({ visible: true })).toBeVisible();
   });
 
   test('fits a phone screen', async ({ page }) => {
@@ -58,5 +60,41 @@ test.describe('backtest chart (M15)', () => {
     await page.goto('/backtest/chart');
     await expect(page.getByTestId('kline-chart')).toHaveAttribute('data-ready', 'true');
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
+  });
+
+  test('phone full screen keeps every control and gives the chart the height', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto('/backtest/chart?i=US30&tf=5&at=2026-10-07T14:37:00.000Z');
+    const chart = page.getByTestId('kline-chart');
+    await expect(chart).toHaveAttribute('data-ready', 'true');
+    const before = (await chart.boundingBox())?.height ?? 0;
+    // The page itself never scrolls: the chart fills what the header and bars leave.
+    expect(await page.evaluate(() => document.documentElement.scrollHeight)).toBeLessThanOrEqual(844);
+    await page.getByRole('button', { name: 'Full screen' }).click();
+    await expect(page.locator('[data-full-screen="true"]')).toBeVisible();
+    await expect.poll(async () => (await chart.boundingBox())?.height ?? 0).toBeGreaterThan(before + 120);
+    // Instrument, timeframe, settings, replay, drawing tools and trades all stay on screen.
+    for (const name of ['NAS100', '5m', 'Chart settings', 'Exit full screen', 'Play', 'Bar back', 'Exit replay']) {
+      await expect(page.getByRole('button', { name, exact: true })).toBeInViewport();
+    }
+    await expect(page.getByRole('toolbar', { name: 'Drawing tools' })).toBeInViewport();
+    await expect(page.getByRole('region', { name: 'Simulated trades' })).toBeInViewport();
+    // Remembered after a reload.
+    await page.reload();
+    await expect(page.locator('[data-full-screen="true"]')).toBeVisible();
+    await page.getByRole('button', { name: 'Exit full screen' }).click();
+    await expect(page.locator('[data-full-screen="false"]')).toBeVisible();
+  });
+
+  test('a phone on its side puts the chart toolbars on one row', async ({ page }) => {
+    await page.setViewportSize({ width: 844, height: 390 });
+    await page.goto('/backtest/chart?i=US30&tf=5&at=2026-10-07T14:37:00.000Z');
+    const chart = page.getByTestId('kline-chart');
+    await expect(chart).toHaveAttribute('data-ready', 'true');
+    const tf = await page.getByRole('button', { name: '5m', exact: true }).boundingBox();
+    const play = await page.getByRole('button', { name: 'Play', exact: true }).boundingBox();
+    expect(Math.abs((tf?.y ?? 0) - (play?.y ?? 999))).toBeLessThan(4);
+    await page.getByRole('button', { name: 'Full screen' }).click();
+    await expect.poll(async () => (await chart.boundingBox())?.height ?? 0).toBeGreaterThan(250);
   });
 });

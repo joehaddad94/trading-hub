@@ -14,9 +14,9 @@ type Replay = ReturnType<typeof useReplay>;
 const button =
   'inline-flex h-9 shrink-0 items-center gap-1 rounded-md px-2 text-sm text-muted-foreground hover:bg-accent/60 disabled:opacity-50';
 
-/** Button text shown from tablet width up; phones get the icon and the aria-label. */
+/** Button text shown from tablet width up; phones (either way round) get the icon and the aria-label. */
 function Label({ children }: { children: string }) {
-  return <span className="hidden sm:inline">{children}</span>;
+  return <span className="hidden sm:inline short:hidden!">{children}</span>;
 }
 
 /** Replay bar (spec §3.1): start from the start panel or a clicked bar, step back and forward, play, exit. */
@@ -65,7 +65,7 @@ export function ReplayControls({
     return (
       <div
         className={cn(
-          'relative flex flex-wrap items-center gap-2 border-b px-2 py-1.5 text-sm md:px-4',
+          'relative flex flex-wrap items-center gap-2 border-b px-2 py-1.5 text-sm compact:py-0.5 short:min-w-0 short:flex-1 md:px-4',
           panel ? 'z-40' : 'z-20',
         )}
         role="toolbar"
@@ -94,16 +94,16 @@ export function ReplayControls({
   }
 
   return (
-    <div className={cn('relative', panel ? 'z-40' : 'z-20')}>
+    <div className={cn('relative short:min-w-0 short:flex-1', panel ? 'z-40' : 'z-20')}>
       {/* Phones: one row that scrolls sideways, icons only, short time — so the chart keeps its height. */}
       <div
-        className="flex flex-nowrap items-center gap-1 overflow-x-auto whitespace-nowrap border-b px-2 py-1.5 text-sm md:flex-wrap md:px-4"
+        className="flex flex-nowrap items-center gap-1 overflow-x-auto whitespace-nowrap border-b px-2 py-1.5 text-sm compact:py-0.5 md:flex-wrap md:px-4 short:flex-nowrap!"
         role="toolbar"
         aria-label="Replay"
       >
         <span className="mr-1 shrink-0 font-medium num" data-testid="replay-cursor" data-cursor={replay.cursor}>
-          <span className="hidden sm:inline">{formatCursor(replay.cursor, timezone)}</span>
-          <span className="sm:hidden">{formatCursorShort(replay.cursor, timezone)}</span>
+          <span className="hidden sm:inline short:hidden!">{formatCursor(replay.cursor, timezone)}</span>
+          <span className="sm:hidden short:inline!">{formatCursorShort(replay.cursor, timezone)}</span>
         </span>
         <button
           type="button"
