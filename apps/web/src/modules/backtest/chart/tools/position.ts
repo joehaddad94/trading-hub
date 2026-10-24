@@ -1,10 +1,8 @@
 import type { DrawingPoint } from '@trading/backtest';
-import { defaultLevels, MINUTE_MS, positionMetrics, type Side } from '@trading/backtest-engine';
+import { defaultLevels, defaultStopPoints, MINUTE_MS, positionMetrics, type Side } from '@trading/backtest-engine';
 import type { OverlayFigure } from 'klinecharts';
 import { overlayName, type ToolModule } from './types';
 
-/** Default stop distance for a new position: 0.1% of price (≈46 points on US30, ≈24 on NAS100). */
-export const DEFAULT_STOP_SHARE = 0.001;
 /** A new position box spans this many bars. */
 const DEFAULT_WIDTH_BARS = 20;
 
@@ -19,8 +17,7 @@ function positionTool(side: Side): ToolModule {
     defaults: { sizing: { mode: 'risk_pct', value: '0.5' } },
     complete: (points, { tf, priceDigits }) => {
       const [entry] = points as [DrawingPoint];
-      const step = 10 ** -priceDigits;
-      const distance = Math.max(step, Math.round((entry.price * DEFAULT_STOP_SHARE) / step) * step);
+      const distance = defaultStopPoints(entry.price, priceDigits);
       const { stop, target } = defaultLevels(side, entry.price, distance);
       const end = entry.ts + DEFAULT_WIDTH_BARS * tf * MINUTE_MS;
       return [entry, { ts: end, price: stop }, { ts: end, price: target }];

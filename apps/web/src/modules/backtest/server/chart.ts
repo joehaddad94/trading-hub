@@ -11,6 +11,8 @@ export type ChartInstrument = {
   displayName: string;
   priceDigits: number;
   pointValue: string;
+  /** Spread when the run has no cost override: the Buy button's ask. */
+  spreadPoints: string;
   /** First and last 1m candle (ms), or null when there are none: the replay start panel blocks days outside. */
   dataFrom: number | null;
   dataTo: number | null;
@@ -35,6 +37,7 @@ export async function getChartInstruments(): Promise<ChartInstrument[]> {
       displayName: i.displayName,
       priceDigits: i.priceDigits,
       pointValue: i.pointValuePerLot,
+      spreadPoints: i.defaultSpreadPoints,
       dataFrom: range?.first ? range.first.getTime() : null,
       dataTo: range?.last ? range.last.getTime() : null,
     };

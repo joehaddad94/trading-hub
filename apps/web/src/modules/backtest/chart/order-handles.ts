@@ -20,7 +20,24 @@ export type LevelData = {
   lots: string;
   pointValue: string;
   priceDigits: number;
+  /** Entry line text instead of "Entry", e.g. "Buy limit 0.27" on the order ticket's preview. */
+  title?: string;
 };
+
+/** The order ticket's preview (not yet an order): its entry, stop and target as draggable lines. */
+export type DraftLines = {
+  long: boolean;
+  entry: number;
+  sl: number;
+  tp: number;
+  lots: string;
+  /** Where the lines are anchored in time: the replay cursor. */
+  at: number;
+  title: string;
+};
+
+/** Key prefix of the ticket preview's lines (orders use their id). */
+export const DRAFT_ID = 'draft';
 
 const COLOUR: Record<Level, string> = { sl: '#f87171', tp: '#4ade80', entry: '#60a5fa' };
 const LABEL_BG: Record<Level, string> = {
@@ -43,7 +60,11 @@ export function pnlAt(data: Pick<LevelData, 'entry' | 'long' | 'lots' | 'pointVa
 
 /** Label on a line, e.g. "SL 42100.00 · −$250.00" or "Entry 42010.00 · 0.50 lots". */
 export function levelLabel(data: LevelData, price: number): string {
-  if (data.level === 'entry') return `Entry ${price.toFixed(data.priceDigits)} · ${data.lots} lots`;
+  if (data.level === 'entry') {
+    return data.title
+      ? `${data.title} · ${price.toFixed(data.priceDigits)}`
+      : `Entry ${price.toFixed(data.priceDigits)} · ${data.lots} lots`;
+  }
   const pnl = pnlAt(data, price);
   const money = pnl.startsWith('-') ? `−$${pnl.slice(1)}` : `+$${pnl}`;
   return `${data.level.toUpperCase()} ${price.toFixed(data.priceDigits)} · ${money}`;
@@ -73,7 +94,11 @@ export const orderLevelOverlay: OverlayTemplate<LevelData> = {
             { x: bounding.width, y },
           ],
         },
-        styles: { color: COLOUR[data.level], size: 1, style: 'dashed', dashedValue: [6, 4] },
+        // The ticket preview is solid; placed orders are dashed.
+        styles:
+          data.orderId === DRAFT_ID
+            ? { color: COLOUR[data.level], size: 1, style: 'solid' }
+            : { color: COLOUR[data.level], size: 1, style: 'dashed', dashedValue: [6, 4] },
       },
       // A wider invisible band so the thin line is easy to grab, also on touch.
       {
@@ -126,8 +151,13 @@ export function useOrderHandles(opts: {
   /** False outside replay: levels can only change at a cursor. */
   editable: boolean;
   onMove: (orderId: string, levels: { sl: string; tp: string; entry?: string }) => Promise<unknown>;
+  /** The order ticket's preview; its lines move the ticket, not an order. */
+  draft?: DraftLines | null;
+  onDraftMove?: (level: Level, price: number) => void;
 }) {
-  const { chart, orders, instrument, editable, onMove } = opts;
+  const { chart, orders, instrument, editable, onMove, draft = null } = opts;
+  const draftMoveRef = useRef(opts.onDraftMove);
+  draftMoveRef.current = opts.onDraftMove;
   const ids = useRef(new Map<string, string>());
   const dragging = useRef<string | null>(null);
   const ordersRef = useRef(orders);
@@ -147,14 +177,14 @@ export function useOrderHandles(opts: {
     const live = orders.filter(
       (o) => o.instrument === instrument.code && (o.status === 'open' || o.status === 'pending'),
     );
-    const wanted = new Set<string>();
-    for (const o of live) {
-      const levels: Level[] = o.status === 'pending' ? ['entry', 'sl', 'tp'] : ['sl', 'tp'];
-      for (const level of levels) {
-        const key = keyOf(o.id, level);
-        wanted.add(key);
-        if (dragging.current === key) continue;
-        const data: LevelData = {
+    type Spec = { key: string; level: Level; data: LevelData; point: { timestamp: number; value: number } };
+    const specs: Spec[] = live.flatMap((o) => {
+      // A market order waiting for the next open has an entry nobody can move: only its stop and target show.
+      const levels: Level[] = o.status === 'pending' && o.type !== 'market' ? ['entry', 'sl', 'tp'] : ['sl', 'tp'];
+      return levels.map((level) => ({
+        key: keyOf(o.id, level),
+        level,
+        data: {
           orderId: o.id,
           level,
           entry: o.fillPrice ?? o.entry,
@@ -162,43 +192,74 @@ export function useOrderHandles(opts: {
           lots: o.lots,
           pointValue: instrument.pointValue,
           priceDigits: instrument.priceDigits,
-        };
-        const point = { timestamp: o.filledAt ?? o.placedAt, value: Number(o[level]) };
-        const existing = ids.current.get(key);
-        if (existing && chart.getOverlays({ id: existing }).length > 0) {
-          chart.overrideOverlay({ id: existing, points: [point], extendData: data, lock: !editable });
-          continue;
-        }
-        const id = chart.createOverlay({
-          name: ORDER_LEVEL_OVERLAY,
-          points: [point],
-          lock: !editable,
-          extendData: data,
-          zLevel: 10,
-          onMouseEnter: () => {
-            hover.current = true;
-            setResize();
+        },
+        point: { timestamp: o.filledAt ?? o.placedAt, value: Number(o[level]) },
+      }));
+    });
+    if (draft) {
+      for (const level of ['entry', 'sl', 'tp'] as const) {
+        specs.push({
+          key: keyOf(DRAFT_ID, level),
+          level,
+          data: {
+            orderId: DRAFT_ID,
+            level,
+            entry: String(draft.entry),
+            long: draft.long,
+            lots: draft.lots,
+            pointValue: instrument.pointValue,
+            priceDigits: instrument.priceDigits,
+            title: draft.title,
           },
-          onMouseLeave: () => {
-            hover.current = false;
-            setResize();
-          },
-          onPressedMoveStart: () => {
-            dragging.current = key;
-            setResize();
-          },
-          onPressedMoveEnd: (event: OverlayEvent<LevelData>) => {
-            dragging.current = null;
-            setResize();
-            const order = ordersRef.current.find((x) => x.id === o.id);
-            const price = event.overlay.points[0]?.value;
-            if (!order || price === undefined) return;
-            const levels = movedLevels(order, level, price.toFixed(instrument.priceDigits));
-            void moveRef.current(order.id, levels).finally(() => setRevision((r) => r + 1));
-          },
-        } as OverlayCreate) as string | null;
-        if (id) ids.current.set(key, id);
+          point: { timestamp: draft.at, value: draft[level] },
+        });
       }
+    }
+    const wanted = new Set<string>();
+    for (const { key, level, data, point } of specs) {
+      const { orderId } = data;
+      wanted.add(key);
+      if (dragging.current === key) continue;
+      const existing = ids.current.get(key);
+      if (existing && chart.getOverlays({ id: existing }).length > 0) {
+        chart.overrideOverlay({ id: existing, points: [point], extendData: data, lock: !editable });
+        continue;
+      }
+      const id = chart.createOverlay({
+        name: ORDER_LEVEL_OVERLAY,
+        points: [point],
+        lock: !editable,
+        extendData: data,
+        zLevel: 10,
+        onMouseEnter: () => {
+          hover.current = true;
+          setResize();
+        },
+        onMouseLeave: () => {
+          hover.current = false;
+          setResize();
+        },
+        onPressedMoveStart: () => {
+          dragging.current = key;
+          setResize();
+        },
+        onPressedMoveEnd: (event: OverlayEvent<LevelData>) => {
+          dragging.current = null;
+          setResize();
+          const price = event.overlay.points[0]?.value;
+          if (price === undefined) return;
+          if (orderId === DRAFT_ID) {
+            draftMoveRef.current?.(level, Number(price.toFixed(instrument.priceDigits)));
+            setRevision((r) => r + 1);
+            return;
+          }
+          const order = ordersRef.current.find((x) => x.id === orderId);
+          if (!order) return;
+          const levels = movedLevels(order, level, price.toFixed(instrument.priceDigits));
+          void moveRef.current(order.id, levels).finally(() => setRevision((r) => r + 1));
+        },
+      } as OverlayCreate) as string | null;
+      if (id) ids.current.set(key, id);
     }
     for (const [key, id] of ids.current) {
       if (wanted.has(key)) continue;
@@ -213,7 +274,17 @@ export function useOrderHandles(opts: {
       return [{ key, price: point.value, y: px.y ?? null }];
     });
     chart.getDom()?.setAttribute('data-order-lines', JSON.stringify(lines));
-  }, [chart, orders, instrument.code, instrument.pointValue, instrument.priceDigits, editable, revision, setResize]);
+  }, [
+    chart,
+    orders,
+    draft,
+    instrument.code,
+    instrument.pointValue,
+    instrument.priceDigits,
+    editable,
+    revision,
+    setResize,
+  ]);
 
   // Unmount: take the lines off the chart.
   useEffect(

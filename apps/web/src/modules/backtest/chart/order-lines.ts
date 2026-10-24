@@ -1,16 +1,27 @@
 import type { OrderView } from '@trading/backtest';
-import { bucketStart, type Timeframe } from '@trading/backtest-engine';
+import { bucketStart, openPnl, signedUsd, type Timeframe } from '@trading/backtest-engine';
 import type { IndicatorTemplate } from 'klinecharts';
 
 export const ORDERS_INDICATOR = 'BT_ORDERS';
 
 /** What the chart draws for one order, in bar times of the current timeframe. */
 export type OrderMark =
-  | { kind: 'live'; from: number; entry: number; sl: number; tp: number; pending: boolean; long: boolean }
+  | {
+      kind: 'live';
+      from: number;
+      entry: number;
+      sl: number;
+      tp: number;
+      pending: boolean;
+      long: boolean;
+      lots: string;
+      /** USD per point per lot, for the open P/L on the entry line. */
+      pointValue: string;
+    }
   | { kind: 'closed'; from: number; to: number; entry: number; exit: number; win: boolean };
 
 /** Orders of one instrument → marks; times snap to the bar that contains them. */
-export function orderMarks(orders: OrderView[], instrument: string, tf: Timeframe): OrderMark[] {
+export function orderMarks(orders: OrderView[], instrument: string, tf: Timeframe, pointValue = '1'): OrderMark[] {
   return orders
     .filter((o) => o.instrument === instrument)
     .flatMap((o): OrderMark[] => {
@@ -24,6 +35,8 @@ export function orderMarks(orders: OrderView[], instrument: string, tf: Timefram
             tp: Number(o.tp),
             pending: o.status === 'pending',
             long: o.side === 'long',
+            lots: o.lots,
+            pointValue,
           },
         ];
       }
@@ -54,8 +67,10 @@ export const orderLines: IndicatorTemplate<unknown, unknown, { marks: OrderMark[
   extendData: { marks: [] },
   calc: (list) => list.map(() => ({})),
   createTooltipDataSource: () => ({ name: '', calcParamsText: '', legends: [], features: [] }),
-  draw: ({ ctx, indicator, bounding, xAxis, yAxis }) => {
+  draw: ({ ctx, chart, indicator, bounding, xAxis, yAxis }) => {
     const marks = indicator.extendData?.marks ?? [];
+    // The newest bar on the chart is the cursor bar in replay: open P/L is read at its close.
+    const close = chart.getDataList().at(-1)?.close;
     const x = (ts: number) => xAxis.convertTimestampToPixel(ts);
     const y = (p: number) => Math.round(yAxis.convertToPixel(p)) + 0.5;
     ctx.save();
@@ -66,17 +81,28 @@ export const orderLines: IndicatorTemplate<unknown, unknown, { marks: OrderMark[
         const left = Math.max(0, x(m.from));
         // Stop, target and a pending entry are draggable overlays (order-handles.ts); a filled entry stays here.
         if (m.pending) continue;
-        const lines: [number, string, string][] = [[m.entry, COLOURS.entry, m.long ? 'Long' : 'Short']];
-        for (const [price, colour, label] of lines) {
-          ctx.strokeStyle = colour;
-          ctx.setLineDash([]);
-          ctx.beginPath();
-          ctx.moveTo(left, y(price));
-          ctx.lineTo(bounding.width, y(price));
-          ctx.stroke();
-          ctx.fillStyle = colour;
-          ctx.fillText(label, left + 4, y(price) - 3);
-        }
+        const side = `${m.long ? 'Long' : 'Short'} ${m.lots}`;
+        const pnl =
+          close === undefined
+            ? ''
+            : ` · ${signedUsd(openPnl({ side: m.long ? 'long' : 'short', fill: String(m.entry), lots: m.lots }, close, m.pointValue))}`;
+        const label = `${side}${pnl}`;
+        const py = y(m.entry);
+        ctx.strokeStyle = COLOURS.entry;
+        ctx.setLineDash([]);
+        ctx.beginPath();
+        ctx.moveTo(left, py);
+        ctx.lineTo(bounding.width, py);
+        ctx.stroke();
+        // A tag at the right edge, like the draggable SL/TP labels, so it never runs under the price axis.
+        const w = ctx.measureText(label).width + 12;
+        const tx = bounding.width - 8 - w;
+        ctx.fillStyle = 'rgba(30, 64, 175, 0.92)';
+        ctx.fillRect(tx, py - 9, w, 18);
+        ctx.fillStyle = '#f9fafb';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(label, tx + 6, py);
+        ctx.textBaseline = 'alphabetic';
       } else {
         const colour = m.win ? COLOURS.win : COLOURS.loss;
         ctx.strokeStyle = colour;

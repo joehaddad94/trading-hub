@@ -162,6 +162,11 @@ describe.skipIf(!url)('simulated trading', () => {
       await expect(modifyOrder(tx, limit.id, { entry: '89', sl: '98', tp: '110', at: at(1) })).rejects.toThrow(
         TradingError,
       );
+      // A market order waiting for the next open keeps its entry.
+      const market = await placeOrder(tx, session.id, order({}));
+      await expect(modifyOrder(tx, market.id, { entry: '99', sl: '90', tp: '120', at: at(1) })).rejects.toThrow(
+        /market order/,
+      );
     });
   });
 

@@ -1,7 +1,18 @@
 'use client';
 
 import type { Drawing, OrderView, SessionView } from '@trading/backtest';
-import { parseTimeframe, TIMEFRAMES, type Timeframe } from '@trading/backtest-engine';
+import {
+  type Bar,
+  followPrice,
+  newTicket,
+  parseTimeframe,
+  positionMetrics,
+  type Side,
+  type Sizing,
+  TIMEFRAMES,
+  type Ticket,
+  type Timeframe,
+} from '@trading/backtest-engine';
 import { Maximize2, Minimize2, Newspaper, SlidersHorizontal } from 'lucide-react';
 import { parseAsString, useQueryState } from 'nuqs';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -14,8 +25,9 @@ import { chartKeyFor } from './keys';
 import { type ChartApi, KLineChart } from './kline-chart';
 import { BARS_PAGE, liveUntil, prefetchBars } from './loader';
 import { NewsPanel } from './news-panel';
-import { useOrderHandles } from './order-handles';
+import { type DraftLines, useOrderHandles } from './order-handles';
 import { orderMarks } from './order-lines';
+import { OrderTicket, quotes, readSizing, saveSizing, TradeButtons, ticketTitle } from './order-ticket';
 import { ReplayControls } from './replay-controls';
 import { toolForKey } from './tools/registry';
 import { TradePanel } from './trade-panel';
@@ -29,6 +41,8 @@ export type WorkspaceInstrument = {
   displayName: string;
   priceDigits: number;
   pointValue: string;
+  /** Default spread (points) when the run has no cost override. */
+  spreadPoints?: string;
   dataFrom?: number | null;
   dataTo?: number | null;
 };
@@ -232,8 +246,148 @@ export function ChartWorkspace({
       priceDigits: instrument?.priceDigits ?? 2,
     },
   });
+  const priceDigits = instrument?.priceDigits ?? 2;
+  const pointValue = instrument?.pointValue ?? '10';
+  const balance = initialTrading?.session.startingBalance ?? DEFAULT_BALANCE;
+  // Order ticket (Buy/Sell): a draft order shown as lines on the chart until it's placed. Refs mirror the state
+  // so Enter right after typing in a box places what was typed.
+  const [lastClose, setLastClose] = useState<number | null>(null);
+  const onLastBar = useCallback((bar: Bar | null) => setLastClose(bar?.close ?? null), []);
+  const [ticket, setTicketState] = useState<Ticket | null>(null);
+  const ticketRef = useRef<Ticket | null>(null);
+  const setTicket = useCallback((next: Ticket | null) => {
+    ticketRef.current = next;
+    setTicketState(next);
+  }, []);
+  const riskPct = initialTrading?.session.riskPct ?? '0.5';
+  const [sizing, setSizingState] = useState<Sizing>({ mode: 'risk_pct', value: riskPct });
+  const sizingRef = useRef(sizing);
+  useEffect(() => {
+    const stored = readSizing(riskPct);
+    sizingRef.current = stored;
+    setSizingState(stored);
+  }, [riskPct]);
+  const setSizing = useCallback((next: Sizing) => {
+    sizingRef.current = next;
+    setSizingState(next);
+    saveSizing(next);
+  }, []);
+  const [placing, setPlacing] = useState(false);
+  const placingRef = useRef(false);
+  // A market ticket rides with the price as replay moves; leaving replay or switching instrument drops it.
+  useEffect(() => {
+    const t = ticketRef.current;
+    if (t && lastClose !== null) setTicket(followPrice(t, lastClose, priceDigits));
+  }, [lastClose, priceDigits, setTicket]);
+  // biome-ignore lint/correctness/useExhaustiveDependencies: a new instrument or the end of replay drops the ticket.
+  useEffect(() => setTicket(null), [instrument?.code, cursor === null, setTicket]);
+  const tradable = trading.session !== null && cursor !== null && lastClose !== null;
+  const placeTicket = async () => {
+    const t = ticketRef.current;
+    // A ref, not the state: two quick presses (Enter, B B) must not place twice.
+    if (!t || cursor === null || placingRef.current) return;
+    placingRef.current = true;
+    setPlacing(true);
+    try {
+      const placed = await trading.place(
+        {
+          side: t.side,
+          points: [
+            { ts: cursor, price: t.entry },
+            { ts: cursor, price: t.sl },
+            { ts: cursor, price: t.tp },
+          ],
+          sizing: sizingRef.current,
+        },
+        t.kind,
+        null,
+      );
+      if (placed) setTicket(null);
+    } finally {
+      placingRef.current = false;
+      setPlacing(false);
+    }
+  };
+  const placeRef = useRef(placeTicket);
+  placeRef.current = placeTicket;
+  /** Buy/Sell (button or B/S): opens the ticket, flips it, or places it when it is already open on that side. */
+  const pressSide = useCallback(
+    (side: Side) => {
+      if (!tradable || lastClose === null) return;
+      const t = ticketRef.current;
+      if (t?.side === side) {
+        void placeRef.current();
+        return;
+      }
+      if (t) {
+        // Same stop distance on the other side.
+        setTicket(newTicket(side, lastClose, priceDigits, Math.abs(t.entry - t.sl)));
+        return;
+      }
+      drawings.cancel();
+      setTicket(newTicket(side, lastClose, priceDigits));
+    },
+    [tradable, lastClose, priceDigits, setTicket, drawings.cancel],
+  );
+  const ticketMetrics = ticket
+    ? positionMetrics({
+        side: ticket.side,
+        entry: ticket.entry,
+        stop: ticket.sl,
+        target: ticket.tp,
+        pointValue,
+        balance,
+        sizing,
+      })
+    : null;
+  const draft = useMemo<DraftLines | null>(
+    () =>
+      ticket && cursor !== null
+        ? {
+            long: ticket.side === 'long',
+            entry: ticket.entry,
+            sl: ticket.sl,
+            tp: ticket.tp,
+            lots: ticketMetrics?.lots ?? '0.00',
+            at: cursor,
+            title: `${ticketTitle(ticket, lastClose)} ${ticketMetrics?.lots ?? ''}`.trim(),
+          }
+        : null,
+    [ticket, cursor, lastClose, ticketMetrics?.lots],
+  );
+  const onDraftMove = useCallback(
+    (level: 'entry' | 'sl' | 'tp', price: number) => {
+      const t = ticketRef.current;
+      if (!t) return;
+      // Dragging the entry away from the price turns a market ticket into a limit or stop.
+      setTicket({ ...t, [level]: price, ...(level === 'entry' ? { kind: 'pending' as const } : {}) });
+    },
+    [setTicket],
+  );
+  // Same spread the fill uses: the run's override, else the instrument's default (costsFor on the server).
+  const desktop = useDesktop();
+  // Stable, so it runs once when the phone ticket opens, not on every replay step.
+  const revealTicket = useCallback((node: HTMLDivElement | null) => node?.scrollIntoView({ block: 'nearest' }), []);
+  const ticketNode = ticket && (
+    <OrderTicket
+      ticket={ticket}
+      price={lastClose}
+      instrument={{ code: instrument?.code ?? 'US30', pointValue, priceDigits }}
+      balance={balance}
+      sizing={sizing}
+      busy={placing}
+      onChange={setTicket}
+      onSizing={setSizing}
+      onPlace={() => void placeTicket()}
+      onClose={() => setTicket(null)}
+    />
+  );
+  const spread = initialTrading?.session.costs[instrument?.code ?? '']?.spreadPoints ?? instrument?.spreadPoints ?? '0';
+  const { bid, ask } = quotes(lastClose, spread, priceDigits);
   useOrderHandles({
     chart: chartApi?.chart ?? null,
+    draft,
+    onDraftMove,
     orders: trading.orders,
     instrument: {
       code: instrument?.code ?? 'US30',
@@ -263,8 +417,8 @@ export function ChartWorkspace({
     return () => window.clearTimeout(t);
   }, [cursor, playing, tf, instrument?.code, instrumentCodes]);
   const marks = useMemo(
-    () => orderMarks(trading.orders, instrument?.code ?? '', tf),
-    [trading.orders, instrument?.code, tf],
+    () => orderMarks(trading.orders, instrument?.code ?? '', tf, pointValue),
+    [trading.orders, instrument?.code, tf, pointValue],
   );
   const selected = drawings.selected;
   const placeFromSelected = async (kind: 'market' | 'pending') => {
@@ -315,7 +469,20 @@ export function ChartWorkspace({
       }
       if (event.metaKey || event.ctrlKey || event.altKey) return;
       if (event.key === 'Escape') {
-        cancelTool();
+        if (ticketRef.current) setTicket(null);
+        else cancelTool();
+        return;
+      }
+      // Shift+B / Shift+S: buy or sell ticket (again to place it); Enter places an open ticket. Plain B is
+      // Select bar.
+      if (event.shiftKey && (event.code === 'KeyB' || event.code === 'KeyS')) {
+        event.preventDefault();
+        pressSide(event.code === 'KeyB' ? 'long' : 'short');
+        return;
+      }
+      if (event.key === 'Enter' && ticketRef.current && target?.tagName !== 'BUTTON') {
+        event.preventDefault();
+        void placeRef.current();
         return;
       }
       if (event.shiftKey && (event.key === 'F' || event.key === 'f')) {
@@ -347,6 +514,8 @@ export function ChartWorkspace({
     chartApi,
     undo,
     redo,
+    pressSide,
+    setTicket,
   ]);
 
   if (!instrument) {
@@ -530,6 +699,16 @@ export function ChartWorkspace({
             {instrument.code}
           </div>
           <NewsPanel events={hovered} timezone={prefs.timezone} />
+          {trading.session && (
+            // Under the price legend: Sell/Buy, and on desktop the ticket below them. On phones the ticket sits under
+            // the chart, so it never hides the lines you drag.
+            <div className="pointer-events-none absolute top-14 left-2 z-20 flex flex-col items-start gap-2 md:top-8">
+              <div className="pointer-events-auto">
+                <TradeButtons enabled={tradable} bid={bid} ask={ask} open={ticket?.side ?? null} onPress={pressSide} />
+              </div>
+              {desktop && ticketNode && <div className="pointer-events-auto">{ticketNode}</div>}
+            </div>
+          )}
           {full && (
             <div className="absolute top-2 right-16 z-20">
               <FullScreenButton full={full} onToggle={toggleFull} />
@@ -587,35 +766,37 @@ export function ChartWorkspace({
               </div>
             </>
           )}
-          <DrawingProperties drawings={drawings}>
-            {cursor === null && (selected?.tool === 'long' || selected?.tool === 'short') && (
-              <span className="px-1 text-muted-foreground text-xs">Start replay to place it</span>
-            )}
-            {trading.session &&
-              cursor !== null &&
-              selected &&
-              (selected.tool === 'long' || selected.tool === 'short') && (
-                <>
-                  <button
-                    type="button"
-                    onClick={() => void placeFromSelected('market')}
-                    className={cn(
-                      'h-8 rounded-md px-2 font-medium',
-                      selected.tool === 'long' ? 'bg-profit/20 text-profit' : 'bg-loss/20 text-loss',
-                    )}
-                  >
-                    {selected.tool === 'long' ? 'Buy market' : 'Sell market'}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => void placeFromSelected('pending')}
-                    className="h-8 rounded-md px-2 hover:bg-accent/60"
-                  >
-                    Place pending
-                  </button>
-                </>
+          {!ticket && (
+            <DrawingProperties drawings={drawings}>
+              {cursor === null && (selected?.tool === 'long' || selected?.tool === 'short') && (
+                <span className="px-1 text-muted-foreground text-xs">Start replay to place it</span>
               )}
-          </DrawingProperties>
+              {trading.session &&
+                cursor !== null &&
+                selected &&
+                (selected.tool === 'long' || selected.tool === 'short') && (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => void placeFromSelected('market')}
+                      className={cn(
+                        'h-8 rounded-md px-2 font-medium',
+                        selected.tool === 'long' ? 'bg-profit/20 text-profit' : 'bg-loss/20 text-loss',
+                      )}
+                    >
+                      {selected.tool === 'long' ? 'Buy market' : 'Sell market'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => void placeFromSelected('pending')}
+                      className="h-8 rounded-md px-2 hover:bg-accent/60"
+                    >
+                      Place pending
+                    </button>
+                  </>
+                )}
+            </DrawingProperties>
+          )}
           {drawings.error && (
             <p role="alert" className="absolute top-2 left-2 z-10 rounded-md bg-loss/20 px-3 py-1 text-sm">
               {drawings.error}
@@ -636,10 +817,27 @@ export function ChartWorkspace({
             indicators={indicators}
             orderMarks={marks}
             picking={picking}
+            onLastBar={onLastBar}
           />
         </div>
       </div>
-      {!full && <TradePanel trading={trading} timezone={prefs.timezone} />}
+      {!desktop && ticketNode && (
+        <div
+          className="border-t p-2"
+          // Brought into view when it opens: on a phone it sits under the chart.
+          ref={revealTicket}
+        >
+          {ticketNode}
+        </div>
+      )}
+      {!full && (
+        <TradePanel
+          trading={trading}
+          timezone={prefs.timezone}
+          price={lastClose}
+          instrument={{ code: instrument.code, pointValue, priceDigits }}
+        />
+      )}
       {full && trading.error && (
         <p role="alert" className="border-t px-4 py-1 text-loss text-sm">
           {trading.error}
@@ -650,6 +848,19 @@ export function ChartWorkspace({
       </p>
     </div>
   );
+}
+
+/** Wide enough for the desktop layout (Tailwind's md); false until mounted. */
+function useDesktop() {
+  const [desktop, setDesktop] = useState(false);
+  useEffect(() => {
+    const query = window.matchMedia('(min-width: 768px)');
+    const update = () => setDesktop(query.matches);
+    update();
+    query.addEventListener('change', update);
+    return () => query.removeEventListener('change', update);
+  }, []);
+  return desktop;
 }
 
 /** Vertical separator between toolbar groups, as on TradingView's top bar. */
