@@ -18,6 +18,7 @@ import {
   TrendingUp,
   Undo2,
 } from 'lucide-react';
+import { useDialogs } from '@/components/dialogs';
 import { cn } from '@/lib/utils';
 import { TOOLS } from './tools/registry';
 import type { useDrawings } from './use-drawings';
@@ -43,6 +44,7 @@ const tile =
 
 /** Left toolbar on desktop, a bottom row on phones (spec §4). */
 export function DrawingToolbar({ drawings }: { drawings: Drawings }) {
+  const dialogs = useDialogs();
   return (
     <div
       role="toolbar"
@@ -122,8 +124,14 @@ export function DrawingToolbar({ drawings }: { drawings: Drawings }) {
         type="button"
         className={tile}
         title="Delete all drawings"
-        onClick={() => {
-          if (window.confirm('Delete every drawing on this instrument?')) void drawings.removeAll();
+        onClick={async () => {
+          const ok = await dialogs.confirm({
+            title: 'Delete all drawings?',
+            message: 'Every drawing on this instrument will be removed.',
+            confirmLabel: 'Delete all',
+            tone: 'destructive',
+          });
+          if (ok) void drawings.removeAll();
         }}
       >
         <Trash2 className="size-4" aria-hidden />
