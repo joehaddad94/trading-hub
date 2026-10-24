@@ -1,7 +1,7 @@
 'use client';
 
 import { pickTime, SPEEDS, type Speed, type StartPick } from '@trading/backtest-engine';
-import { CalendarDays, Crosshair, FastForward, Pause, Play, SkipForward, StepBack, StepForward, X } from 'lucide-react';
+import { CalendarDays, Crosshair, Pause, Play, StepBack, StepForward, X } from 'lucide-react';
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
 import { readLastStart } from './last-start';
@@ -19,7 +19,7 @@ function Label({ children }: { children: string }) {
   return <span className="hidden sm:inline">{children}</span>;
 }
 
-/** Replay bar (spec §3.1): start from the start panel or a clicked bar, step back and forward, play, jump, exit. */
+/** Replay bar (spec §3.1): start from the start panel or a clicked bar, step back and forward, play, exit. */
 export function ReplayControls({
   replay,
   timezone,
@@ -170,12 +170,6 @@ export function ReplayControls({
           title="One minute forward (Alt+→)"
         >
           +1m
-        </button>
-        <button type="button" className={button} onClick={() => void replay.jump('session')} aria-label="Next session">
-          <SkipForward className="size-4" aria-hidden /> <Label>Next session</Label>
-        </button>
-        <button type="button" className={button} onClick={() => void replay.jump('day')} aria-label="Next day">
-          <FastForward className="size-4" aria-hidden /> <Label>Next day</Label>
         </button>
         <button type="button" className={cn(button, 'ml-auto')} onClick={replay.exit} aria-label="Exit replay">
           <X className="size-4" aria-hidden /> <Label>Exit replay</Label>

@@ -1,5 +1,3 @@
-import { TZDate } from '@date-fns/tz';
-import { SESSION_TZ, SESSIONS, type SessionName } from '@trading/core';
 import { type Bar, bucketStart, MINUTE_MS, type Timeframe } from './bars';
 
 /**
@@ -72,50 +70,6 @@ export function barsPerTick(stepMs: number, intervalMs: number, max = 10): numbe
 /** Milliseconds between automatic steps at `speed` bars per second. */
 export function playIntervalMs(speed: Speed): number {
   return Math.round(1000 / speed);
-}
-
-function etMinuteOf(ts: number): { date: TZDate; minute: number } {
-  const date = new TZDate(ts, SESSION_TZ);
-  return { date, minute: date.getHours() * 60 + date.getMinutes() };
-}
-
-function etTime(base: TZDate, dayOffset: number, minute: number): number {
-  const d = new TZDate(base.getFullYear(), base.getMonth(), base.getDate() + dayOffset, 0, 0, 0, 0, SESSION_TZ);
-  d.setHours(Math.floor(minute / 60), minute % 60, 0, 0);
-  return d.getTime();
-}
-
-/**
- * Next open of a kill zone strictly after the cursor (any zone, or one named zone). Weekend and holiday
- * closures are not skipped here: the replay then advances to the first bar that exists from that time.
- */
-export function nextSessionOpen(cursor: number, name?: Exclude<SessionName, 'outside'>): { name: string; at: number } {
-  const { date } = etMinuteOf(cursor);
-  const zones = SESSIONS.filter((s) => !name || s.name === name);
-  let best: { name: string; at: number } | null = null;
-  for (let day = 0; day <= 7 && !best; day += 1) {
-    for (const zone of zones) {
-      const at = etTime(date, day, zone.start);
-      if (at > cursor && (!best || at < best.at)) best = { name: zone.name, at };
-    }
-  }
-  return best as { name: string; at: number };
-}
-
-/** The next kill zone after the cursor with its close: replay uses the close to skip zones with no candles. */
-export function nextSessionWindow(cursor: number): { name: string; at: number; end: number } {
-  const open = nextSessionOpen(cursor);
-  const zone = SESSIONS.find((s) => s.name === open.name);
-  return { ...open, end: open.at + ((zone?.end ?? 0) - (zone?.start ?? 0)) * MINUTE_MS };
-}
-
-/** The index futures trading day starts 18:00 ET (the daily reopen); "next day" jumps to the next one. */
-export const DAY_OPEN_MINUTE_ET = 18 * 60;
-
-export function nextDayOpen(cursor: number): number {
-  const { date } = etMinuteOf(cursor);
-  const today = etTime(date, 0, DAY_OPEN_MINUTE_ET);
-  return today > cursor ? today : etTime(date, 1, DAY_OPEN_MINUTE_ET);
 }
 
 /** "Start replay here" on a `tf` bar hides everything after that bar: the cursor is its last minute. */

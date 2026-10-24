@@ -4,9 +4,6 @@ import {
   applyMinutes,
   barsPerTick,
   cursorForBar,
-  nextDayOpen,
-  nextSessionOpen,
-  nextSessionWindow,
   playIntervalMs,
   stepBackTarget,
   stepTarget,
@@ -58,26 +55,7 @@ describe('applyMinutes', () => {
   });
 });
 
-describe('jumps', () => {
-  it('finds the next kill-zone open in New York time', () => {
-    // 14:37 UTC = 10:37 EDT, inside NY AM → next is NY PM 13:30 EDT = 17:30 UTC.
-    expect(nextSessionOpen(at('2026-10-07T14:37:00Z'))).toEqual({ name: 'ny_pm', at: at('2026-10-07T17:30:00Z') });
-    // After NY PM opens: Asia at 20:00 EDT = 00:00 UTC next day.
-    expect(nextSessionOpen(at('2026-10-07T17:30:00Z'))).toEqual({ name: 'asia', at: at('2026-10-08T00:00:00Z') });
-    expect(nextSessionOpen(at('2026-10-07T14:37:00Z'), 'london')).toEqual({
-      name: 'london',
-      at: at('2026-10-08T06:00:00Z'),
-    });
-    // Winter time: London 02:00 EST = 07:00 UTC.
-    expect(nextSessionOpen(at('2026-01-14T03:00:00Z'), 'london').at).toBe(at('2026-01-14T07:00:00Z'));
-  });
-
-  it('finds the next 18:00 ET day open', () => {
-    expect(iso(nextDayOpen(at('2026-10-07T14:37:00Z')))).toBe('2026-10-07T22:00:00.000Z');
-    expect(iso(nextDayOpen(at('2026-10-07T22:00:00Z')))).toBe('2026-10-08T22:00:00.000Z');
-    expect(iso(nextDayOpen(at('2026-01-14T12:00:00Z')))).toBe('2026-01-14T23:00:00.000Z');
-  });
-
+describe('replay start and pace', () => {
   it('starts replay at the last minute of the clicked bar', () => {
     expect(iso(cursorForBar(at('2026-10-07T14:30:00Z'), 15))).toBe('2026-10-07T14:44:00.000Z');
     expect(iso(cursorForBar(at('2026-10-07T14:31:00Z'), 1))).toBe('2026-10-07T14:31:00.000Z');
@@ -98,14 +76,6 @@ describe('playback under lag', () => {
     expect(barsPerTick(40, 50)).toBe(1);
     expect(barsPerTick(120, 50)).toBe(3);
     expect(barsPerTick(5000, 50)).toBe(10);
-  });
-});
-
-describe('nextSessionWindow', () => {
-  it('gives the next kill zone with its close', () => {
-    // Fri 9 Oct 2026 16:30 ET → Asia opens 20:00 ET, closes midnight.
-    const w = nextSessionWindow(at('2026-10-09T20:30:00Z'));
-    expect([w.name, iso(w.at), iso(w.end)]).toEqual(['asia', '2026-10-10T00:00:00.000Z', '2026-10-10T04:00:00.000Z']);
   });
 });
 

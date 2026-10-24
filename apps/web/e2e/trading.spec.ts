@@ -67,9 +67,11 @@ test.describe('simulated trading (M20)', () => {
     await expect(page.getByText('Close or cancel your open trades to step back.')).toBeVisible();
     await expect(page.getByTestId('replay-cursor')).toHaveAttribute('data-cursor', before ?? '');
 
-    // A day later the stop or target has been hit.
-    await page.getByRole('button', { name: 'Next day' }).click();
-    await expect(rows(page).first()).toHaveAttribute('data-status', 'closed');
+    // Played forward, the stop or target is hit.
+    await page.getByLabel('Bars per second').selectOption('20');
+    await page.getByRole('button', { name: 'Play', exact: true }).click();
+    await expect(rows(page).first()).toHaveAttribute('data-status', 'closed', { timeout: 60_000 });
+    await page.getByRole('button', { name: 'Pause', exact: true }).click();
     await expect(rows(page).first()).toContainText(/R\)/);
 
     // The trade is a backtest trade in the tracker, not a live one.
