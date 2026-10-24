@@ -165,7 +165,8 @@ export function useReplay({ instrument, tf, initialCursor, onCursor }: Options) 
     async (mode: StepMode, rule: { blocked: string | null; floor: number | null }): Promise<StepResult> => {
       const from = cursorRef.current;
       const api = chartApi.current;
-      if (from === null || !api || busy.current) return 'busy';
+      // While the chart reloads (a new date, a jump), its bars are the old window: wait for the new one.
+      if (from === null || !api || busy.current || api.reloading()) return 'busy';
       if (rule.blocked) {
         setMessage(rule.blocked);
         return 'busy';
@@ -220,7 +221,8 @@ export function useReplay({ instrument, tf, initialCursor, onCursor }: Options) 
     async (mode: StepMode, count = 1): Promise<StepResult> => {
       const from = cursorRef.current;
       const api = chartApi.current;
-      if (from === null || !api || busy.current) return 'busy';
+      // While the chart reloads (a new date, a jump), its bars are the old window: wait for the new one.
+      if (from === null || !api || busy.current || api.reloading()) return 'busy';
       busy.current = true;
       try {
         let move: ReturnType<typeof stepFromTape> = 'more';

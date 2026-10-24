@@ -147,6 +147,29 @@ test.describe('replay (M16)', () => {
     await expect(page.getByRole('form', { name: 'Start replay' })).toBeVisible();
   });
 
+  test('a new date whose candles fail to load says so, waits, and Retry loads it', async ({ page }) => {
+    await page.goto('/backtest/chart?i=US30&tf=5&at=2026-10-07T14:37:00.000Z');
+    await expect(page.getByTestId('kline-chart')).toHaveAttribute('data-loading', '');
+    // The connection drops for the new date's window.
+    await page.route('**/api/backtest/candles?*tf=5*', (route) => route.abort('connectionfailed'));
+    await page.getByRole('button', { name: 'Change replay date' }).click();
+    await page.getByLabel('New replay start').fill('2026-10-06T17:00');
+    await page.getByRole('button', { name: 'Go', exact: true }).click();
+    const failed = page.getByRole('alert').filter({ hasText: 'Could not reach the server' });
+    await expect(failed).toBeVisible();
+    await expect(page.getByTestId('kline-chart')).toHaveAttribute('data-loading', '');
+    // A step can't run on a window that never loaded.
+    await page.keyboard.press('Shift+ArrowRight');
+    await expect(cursor(page)).toHaveAttribute('data-cursor', String(Date.parse('2026-10-06T14:00:00Z')));
+
+    await page.unroute('**/api/backtest/candles?*tf=5*');
+    await failed.getByRole('button', { name: 'Retry' }).click();
+    await expect(failed).toBeHidden();
+    await expect.poll(async () => (await lastBar(page))?.ts).toBe(Date.parse('2026-10-06T14:00:00Z'));
+    await page.keyboard.press('Shift+ArrowRight');
+    await expect(cursor(page)).toHaveAttribute('data-cursor', String(Date.parse('2026-10-06T14:04:00Z')));
+  });
+
   test('starts from a date and time or a clicked candle', async ({ page }) => {
     await page.goto('/backtest/chart?i=US30&tf=5');
     await page.getByLabel('Replay start').fill('2026-10-06T17:00');
