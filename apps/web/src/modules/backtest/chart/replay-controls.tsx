@@ -1,11 +1,12 @@
 'use client';
 
-import { MINUTE_MS, pickTime, SPEEDS, type Speed, type StartPick } from '@trading/backtest-engine';
+import { pickTime, SPEEDS, type Speed, type StartPick } from '@trading/backtest-engine';
 import { CalendarDays, Crosshair, FastForward, Pause, Play, SkipForward, StepBack, StepForward, X } from 'lucide-react';
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
-import { ReplayStartPanel } from './replay-start-panel';
-import { defaultReplayStart, formatCursor, formatCursorShort } from './replay-time';
+import { readLastStart } from './last-start';
+import { initialPick, ReplayStartPanel } from './replay-start-panel';
+import { formatCursor, formatCursorShort } from './replay-time';
 import type { useReplay } from './use-replay';
 
 type Replay = ReturnType<typeof useReplay>;
@@ -36,43 +37,46 @@ export function ReplayControls({
   /** Step back: why it is blocked (or null) and the earliest cursor allowed. */
   back: { blocked: string | null; floor: number | null };
 }) {
-  const [panel, setPanel] = useState(false);
+  /** Open: the last start (ms) the panel was opened with, so it labels Start as Restart when nothing changed. */
+  const [panel, setPanel] = useState<{ lastStart: number | null } | null>(null);
+  const toggle = () => setPanel(panel ? null : { lastStart: readLastStart() });
 
   const startPanel = panel && (
     <ReplayStartPanel
       timezone={timezone}
       data={data}
-      initialAt={replay.cursor ?? defaultReplayStart(Date.now())}
+      initial={initialPick(panel.lastStart, replay.cursor, timezone, data, Date.now())}
+      lastStart={panel.lastStart}
       replaying={replay.cursor !== null}
       onStart={async (pick: StartPick) => {
         const target = pickTime(pick, timezone);
-        if (target === null) return 'That kill zone does not open on this day.';
         const result = await replay.startFrom(target);
         if (!result.ok) return result.error;
         if (result.snapped) {
-          replay.notify(
-            `Market closed then. Started at the next candle, ${formatCursor(result.cursor + MINUTE_MS, timezone)}.`,
-          );
+          replay.notify(`Market closed then. Started at the next candle, ${formatCursor(result.cursor, timezone)}.`);
         }
         return null;
       }}
-      onClose={() => setPanel(false)}
+      onClose={() => setPanel(null)}
     />
   );
 
   if (replay.cursor === null) {
     return (
       <div
-        className="relative z-20 flex flex-wrap items-center gap-2 border-b px-2 py-1.5 text-sm md:px-4"
+        className={cn(
+          'relative flex flex-wrap items-center gap-2 border-b px-2 py-1.5 text-sm md:px-4',
+          panel ? 'z-40' : 'z-20',
+        )}
         role="toolbar"
         aria-label="Start replay"
       >
         <button
           type="button"
           className={cn(button, 'bg-accent text-accent-foreground')}
-          aria-expanded={panel}
+          aria-expanded={!!panel}
           aria-haspopup="dialog"
-          onClick={() => setPanel(!panel)}
+          onClick={toggle}
         >
           <CalendarDays className="size-4" aria-hidden /> Start replay
         </button>
@@ -90,7 +94,7 @@ export function ReplayControls({
   }
 
   return (
-    <div className="relative z-20">
+    <div className={cn('relative', panel ? 'z-40' : 'z-20')}>
       {/* Phones: one row that scrolls sideways, icons only, short time — so the chart keeps its height. */}
       <div
         className="flex flex-nowrap items-center gap-1 overflow-x-auto whitespace-nowrap border-b px-2 py-1.5 text-sm md:flex-wrap md:px-4"
@@ -104,11 +108,11 @@ export function ReplayControls({
         <button
           type="button"
           className={button}
-          aria-expanded={panel}
+          aria-expanded={!!panel}
           aria-haspopup="dialog"
           aria-label="Change replay date"
           title="Replay from another date"
-          onClick={() => setPanel(!panel)}
+          onClick={toggle}
         >
           <CalendarDays className="size-4" aria-hidden />
         </button>

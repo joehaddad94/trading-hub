@@ -1,5 +1,16 @@
 import { describe, expect, it } from 'vitest';
-import { dayBlocked, dayHasMarket, monthGrid, pickTime, randomStart, resolveStart, zonesOnDay } from './replay-start';
+import {
+  dayBlocked,
+  dayHasMarket,
+  formatClock,
+  monthGrid,
+  parseClock,
+  pickOf,
+  pickTime,
+  randomStart,
+  resolveStart,
+  zonesOnDay,
+} from './replay-start';
 
 const at = (iso: string) => Date.parse(iso);
 const iso = (ms: number) => new Date(ms).toISOString();
@@ -75,20 +86,35 @@ describe('zonesOnDay', () => {
   });
 });
 
-describe('pickTime and resolveStart', () => {
-  it('turns a pick into its kill-zone open', () => {
-    expect(iso(pickTime({ day: { y: 2026, m: 10, d: 7 }, zone: 'ny_am' }, BEIRUT) ?? 0)).toBe(
-      '2026-10-07T13:30:00.000Z',
-    );
+describe('picks', () => {
+  it('turns a pick into a time and back', () => {
+    const t = pickTime({ day: { y: 2026, m: 10, d: 7 }, minute: 16 * 60 + 30 }, BEIRUT);
+    expect(iso(t)).toBe('2026-10-07T13:30:00.000Z');
+    expect(pickOf(t, BEIRUT)).toEqual({ day: { y: 2026, m: 10, d: 7 }, minute: 16 * 60 + 30 });
+    expect(pickOf(t, NY)).toEqual({ day: { y: 2026, m: 10, d: 7 }, minute: 9 * 60 + 30 });
   });
 
-  it('parks one minute before the first candle and flags a closed market', () => {
-    const open = at('2026-10-07T13:30:00Z');
-    expect(resolveStart(open, open)).toEqual({ cursor: open - 60_000, snapped: false });
-    // Thanksgiving-style gap: the zone opens, the next candle is the evening reopen.
+  it('reads and writes the time box', () => {
+    expect(parseClock('16:30')).toBe(990);
+    expect(parseClock('1630')).toBe(990);
+    expect(parseClock('9')).toBe(540);
+    expect(parseClock('9.15')).toBe(555);
+    expect(parseClock('24:00')).toBeNull();
+    expect(parseClock('abc')).toBeNull();
+    expect(formatClock(555)).toBe('09:15');
+  });
+});
+
+describe('resolveStart', () => {
+  it('starts on the picked minute, or on the first candle after a closed market', () => {
+    const t = at('2026-10-07T13:30:00Z');
+    expect(resolveStart(t, t)).toEqual({ cursor: t, snapped: false });
+    // A missing minute or two is not a closed market.
+    expect(resolveStart(t, t + 120_000)).toEqual({ cursor: t, snapped: false });
+    // In the daily break: the reopen.
     const reopen = at('2026-10-07T22:00:00Z');
-    expect(resolveStart(open, reopen)).toEqual({ cursor: reopen - 60_000, snapped: true });
-    expect(resolveStart(open, null)).toBeNull();
+    expect(resolveStart(at('2026-10-07T20:30:00Z'), reopen)).toEqual({ cursor: reopen, snapped: true });
+    expect(resolveStart(t, null)).toBeNull();
   });
 });
 
@@ -104,8 +130,8 @@ describe('randomStart', () => {
     for (let i = 0; i < 20; i += 1) {
       const pick = randomStart(from, to, rand, BEIRUT, isOpen);
       if (!pick) throw new Error('no pick');
-      const t = pickTime(pick, BEIRUT) ?? 0;
-      expect(pick.zone).not.toBeNull();
+      const t = pickTime(pick, BEIRUT);
+      expect(zonesOnDay(pick.day, BEIRUT).some((z) => z.at === t)).toBe(true);
       expect(isOpen(new Date(t))).toBe(true);
       expect(t).toBeGreaterThanOrEqual(from);
       expect(t).toBeLessThan(to);

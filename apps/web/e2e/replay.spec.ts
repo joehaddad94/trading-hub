@@ -155,22 +155,23 @@ test.describe('replay (M16)', () => {
     await page.getByRole('button', { name: 'Change replay date' }).click();
     await page.getByRole('button', { name: /^Tuesday 6 October 2026/ }).click();
     await page.locator('[data-zone="ny_am"]').click();
+    await page.getByRole('button', { name: 'Start', exact: true }).click();
     const failed = page.getByRole('alert').filter({ hasText: 'Could not reach the server' });
     await expect(failed).toBeVisible();
     await expect(page.getByTestId('kline-chart')).toHaveAttribute('data-loading', '');
     // A step can't run on a window that never loaded.
     await page.keyboard.press('Shift+ArrowRight');
-    await expect(cursor(page)).toHaveAttribute('data-cursor', String(Date.parse('2026-10-06T13:29:00Z')));
+    await expect(cursor(page)).toHaveAttribute('data-cursor', String(Date.parse('2026-10-06T13:30:00Z')));
 
     await page.unroute('**/api/backtest/candles?*tf=5*');
     await failed.getByRole('button', { name: 'Retry' }).click();
     await expect(failed).toBeHidden();
-    await expect.poll(async () => (await lastBar(page))?.ts).toBe(Date.parse('2026-10-06T13:25:00Z'));
+    await expect.poll(async () => (await lastBar(page))?.ts).toBe(Date.parse('2026-10-06T13:30:00Z'));
     await page.keyboard.press('Shift+ArrowRight');
     await expect(cursor(page)).toHaveAttribute('data-cursor', String(Date.parse('2026-10-06T13:34:00Z')));
   });
 
-  test('the start panel: a day, a kill zone, and it starts; closed days are greyed out', async ({ page }) => {
+  test('the start panel: day, time and kill-zone shortcuts; a second pick keeps what you chose', async ({ page }) => {
     await page.goto('/backtest/chart?i=US30&tf=5');
     await page.getByRole('button', { name: 'Start replay' }).click();
     const panel = page.getByRole('dialog', { name: 'Start replay' });
@@ -179,26 +180,54 @@ test.describe('replay (M16)', () => {
     await expect(panel.getByRole('button', { name: /^Saturday 3 October 2026/ })).toBeDisabled();
     await expect(panel.getByRole('button', { name: /^Sunday 4 October 2026/ })).toBeDisabled();
     await panel.getByRole('button', { name: /^Tuesday 6 October 2026/ }).click();
+    // A kill zone fills the time; it doesn't start on its own.
     const nyAm = panel.locator('[data-zone="ny_am"]');
     await expect(nyAm).toHaveText(/NY AM.*16:30 · 09:30 NY/);
     await nyAm.click();
-    // NY AM opens on the next step: the cursor sits one minute before 09:30 NY (13:30 UTC).
-    await expect(cursor(page)).toHaveAttribute('data-cursor', String(Date.parse('2026-10-06T13:29:00Z')));
+    await expect(panel.getByLabel('Start time')).toHaveValue('16:30');
+    await expect(nyAm).toHaveAttribute('aria-pressed', 'true');
+    await expect(panel.getByTestId('start-ny')).toHaveText('09:30 NY');
+    await panel.getByRole('button', { name: 'Start', exact: true }).click();
+    // The replay bar reads the time you picked.
+    await expect(cursor(page)).toHaveAttribute('data-cursor', String(Date.parse('2026-10-06T13:30:00Z')));
+    await expect(cursor(page)).toContainText('16:30');
     await expect(panel).toBeHidden();
+    await page.getByRole('button', { name: 'Bar', exact: true }).click();
 
-    // Another day without leaving replay; the panel opens on the replay's day.
+    // Second pick: the panel opens on the last start, not on where the replay has moved to.
     await page.getByRole('button', { name: 'Change replay date' }).click();
     const again = page.getByRole('dialog', { name: 'Replay from another date' });
     await expect(again.getByRole('button', { name: /^Tuesday 6 October 2026/ })).toHaveAttribute(
       'aria-pressed',
       'true',
     );
+    await expect(again.getByLabel('Start time')).toHaveValue('16:30');
+    await expect(again.getByRole('button', { name: 'Restart' })).toBeVisible();
+    // Another day keeps the time.
     await again.getByRole('button', { name: /^Monday 5 October 2026/ }).click();
-    await again.locator('[data-zone="london"]').click();
-    await expect(cursor(page)).toHaveAttribute('data-cursor', String(Date.parse('2026-10-05T05:59:00Z')));
+    await expect(again.getByLabel('Start time')).toHaveValue('16:30');
+    await again.getByRole('button', { name: 'Start', exact: true }).click();
+    await expect(cursor(page)).toHaveAttribute('data-cursor', String(Date.parse('2026-10-05T13:30:00Z')));
+
+    // Another time keeps the day: type it and press Enter.
+    await page.getByRole('button', { name: 'Change replay date' }).click();
+    await page.getByLabel('Start time').fill('1015');
+    await page.getByLabel('Start time').press('Enter');
+    await expect(cursor(page)).toHaveAttribute('data-cursor', String(Date.parse('2026-10-05T07:15:00Z')));
+
+    // A time in the daily break moves to the next candle and says so.
+    await page.getByRole('button', { name: 'Change replay date' }).click();
+    await page.getByLabel('Start time').fill('23:30'); // 16:30 NY, after the 16:15 close
+    await page.getByLabel('Start time').press('Enter');
+    await expect(cursor(page)).toHaveAttribute('data-cursor', String(Date.parse('2026-10-05T22:00:00Z')));
+    await expect(page.getByRole('status').filter({ hasText: 'Market closed then' })).toBeVisible();
+
+    // A time that isn't one can't start.
+    await page.getByRole('button', { name: 'Change replay date' }).click();
+    await page.getByLabel('Start time').fill('25:00');
+    await expect(page.getByRole('button', { name: 'Start', exact: true })).toBeDisabled();
 
     // Random lands on a kill-zone open inside the data.
-    await page.getByRole('button', { name: 'Change replay date' }).click();
     await page.getByRole('button', { name: 'Random' }).click();
     await expect(page.getByRole('dialog')).toBeHidden();
     await expect(cursor(page)).toBeVisible();
@@ -206,6 +235,13 @@ test.describe('replay (M16)', () => {
     await page.getByRole('button', { name: 'Change replay date' }).click();
     await page.keyboard.press('Escape');
     await expect(page.getByRole('dialog')).toBeHidden();
+
+    // After exit, Start replay opens on the last start too.
+    await page.getByRole('button', { name: 'Exit replay' }).click();
+    await page.getByRole('button', { name: 'Start replay' }).click();
+    await expect(
+      page.getByRole('dialog', { name: 'Start replay' }).getByRole('button', { name: 'Start', exact: true }),
+    ).toBeVisible();
   });
 
   test('starts from a clicked candle', async ({ page }) => {
