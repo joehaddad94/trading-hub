@@ -2,6 +2,7 @@ export { createDrawing, DrawingError, deleteAllDrawings, deleteDrawing, listDraw
 export {
   advanceSession,
   BACKTEST_FIRM,
+  BEHIND_LIVE_TRADE,
   cancelOrder,
   closeOrder,
   costsFor,

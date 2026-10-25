@@ -7,7 +7,7 @@ import { cn } from '@/lib/utils';
 import { readLastStart } from './last-start';
 import { initialPick, ReplayStartPanel } from './replay-start-panel';
 import { formatCursor, formatCursorShort } from './replay-time';
-import type { useReplay } from './use-replay';
+import { RESTART_BLOCKED, type useReplay } from './use-replay';
 
 type Replay = ReturnType<typeof useReplay>;
 
@@ -39,7 +39,11 @@ export function ReplayControls({
 }) {
   /** Open: the last start (ms) the panel was opened with, so it labels Start as Restart when nothing changed. */
   const [panel, setPanel] = useState<{ lastStart: number | null } | null>(null);
-  const toggle = () => setPanel(panel ? null : { lastStart: readLastStart() });
+  const toggle = () => {
+    // An open or pending trade keeps the replay on its time: say why instead of offering other dates.
+    if (!panel && back.blocked) replay.notify(RESTART_BLOCKED);
+    else setPanel(panel ? null : { lastStart: readLastStart() });
+  };
 
   // TradingView's "Select bar", before and during replay: a line follows the pointer, a click starts there. On a
   // phone in replay the row has no room for it, so it lives in the 📅 panel there.
