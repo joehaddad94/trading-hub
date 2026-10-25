@@ -2,6 +2,11 @@
 @import "tw-animate-css";
 
 @custom-variant dark (&:is(.dark *));
+/* Backtest chart chrome: "compact" is a phone held either way (narrow, or a short landscape screen), "roomy" the rest. */
+@custom-variant compact (@media not all and (width >= 48rem) and (height > 520px));
+@custom-variant roomy (@media (width >= 48rem) and (height > 520px));
+/* A phone on its side: the chart toolbars share one row. */
+@custom-variant short (@media (height <= 520px));
 
 /* One theme: the "Fog" mid-tone with frosted glass cards (docs/specs/design-spec.md). shadcn/ui token names. */
 :root {

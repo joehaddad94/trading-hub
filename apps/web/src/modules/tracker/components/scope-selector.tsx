@@ -61,7 +61,7 @@ export function ScopeSelector({ accounts }: { accounts: ScopeOption[] }) {
       <select
         id={id}
         data-testid="scope-selector"
-        className="h-11 w-full min-w-0 max-w-44 truncate rounded-md border bg-background px-2 text-sm md:h-9 md:max-w-60"
+        className="h-10 w-full min-w-0 max-w-44 truncate rounded-md border bg-background px-2 text-sm md:h-9 md:max-w-60"
         value={custom ? 'custom' : value}
         onChange={(e) => {
           if (e.target.value === 'custom') {

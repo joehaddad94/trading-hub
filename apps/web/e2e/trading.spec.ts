@@ -226,6 +226,18 @@ test.describe('simulated trading (M20)', () => {
 
     // Drag the entry line of a buy ticket below the price: it becomes a buy limit.
     await page.keyboard.press('Shift+B');
+    await expect(page.getByTestId('order-ticket')).toBeVisible();
+    // On a phone the ticket opens under the chart and the chart gets shorter: wait for the line to settle inside it.
+    let lastY: number | null = null;
+    await expect
+      .poll(async () => {
+        const y = (await orderLines(page)).find((l) => l.key === 'draft:entry')?.y ?? null;
+        const height = (await page.getByTestId('kline-chart').boundingBox())?.height ?? 0;
+        const settled = y !== null && y === lastY && y < height;
+        lastY = y;
+        return settled;
+      })
+      .toBe(true);
     const entry = (await orderLines(page)).find((l) => l.key === 'draft:entry');
     const box = await page.getByTestId('kline-chart').boundingBox();
     if (!entry?.y || !box) throw new Error('no entry line');

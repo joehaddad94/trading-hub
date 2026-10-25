@@ -49,19 +49,21 @@ function isActive(pathname: string, href: string, rootHref: string) {
   return href === rootHref ? pathname === href : pathname === href || pathname.startsWith(`${href}/`);
 }
 
-/** The module's own pages as tabs under the header (desktop and phone; scrolls sideways when narrow). */
+/** The module's own pages as tabs in the header (desktop and phone; scrolls sideways when narrow). */
 export function ModuleTabs({
   items,
   rootHref,
   keep,
+  className,
 }: {
   items: NavItem[];
   rootHref: string;
   keep?: string[] | undefined;
+  className?: string;
 }) {
   const pathname = usePathname();
   return (
-    <nav aria-label="Module" className="-mb-px flex gap-1 overflow-x-auto px-3 [scrollbar-width:none] md:px-6">
+    <nav aria-label="Module" className={cn('-mb-px flex gap-1 overflow-x-auto px-2 [scrollbar-width:none]', className)}>
       {items.map((item) => {
         const on = isActive(pathname, item.href, rootHref);
         return (
@@ -71,7 +73,7 @@ export function ModuleTabs({
             keep={keep}
             aria-current={on ? 'page' : undefined}
             className={cn(
-              'flex h-11 shrink-0 items-center border-transparent border-b-2 px-3 text-muted-foreground text-sm transition-colors hover:text-foreground',
+              'flex h-11 shrink-0 items-center border-transparent border-b-2 px-3 md:h-12 text-muted-foreground text-sm transition-colors hover:text-foreground',
               on && 'border-primary font-medium text-foreground',
             )}
           >

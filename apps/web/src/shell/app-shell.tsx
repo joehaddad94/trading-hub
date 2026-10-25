@@ -26,7 +26,7 @@ export async function AppShell({
   rootHref?: string | undefined;
   keep?: string[] | undefined;
   controls?: ReactNode;
-  /** Full-height workspace (Backtest Lab): the content fills the screen on desktop instead of scrolling. */
+  /** Full-height workspace (Backtest Lab): the content fills the screen instead of scrolling the page. */
   fill?: boolean;
   children: ReactNode;
 }) {
@@ -38,7 +38,7 @@ export async function AppShell({
       <div
         className={cn(
           'flex min-w-0 flex-1 flex-col pb-[calc(4rem+env(safe-area-inset-bottom,0px))] md:pb-0',
-          fill && 'md:h-dvh',
+          fill && 'h-dvh',
         )}
       >
         {title && (
