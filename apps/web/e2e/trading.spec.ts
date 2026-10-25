@@ -257,4 +257,55 @@ test.describe('simulated trading (M20)', () => {
     await rows(page).first().getByRole('button', { name: 'Cancel' }).click();
     await expect(rows(page)).toHaveCount(0);
   });
+  test('an open trade keeps the replay on its time: no Select bar, date change, Replay from here or Exit', async ({
+    page,
+  }) => {
+    await page.goto(`/backtest/chart?i=US30&tf=5&at=${AT}`);
+    const chart = page.getByTestId('kline-chart');
+    await expect(chart).toHaveAttribute('data-ready', 'true');
+    await expect(chart).toHaveAttribute('data-loading', '');
+    await expect.poll(async () => (await chart.getAttribute('data-last-bar')) ?? '').not.toBe('');
+    await page.keyboard.press('Shift+B');
+    await page.keyboard.press('Shift+B');
+    await expect(rows(page)).toHaveCount(1);
+    await expect(async () => {
+      await page.keyboard.press('ArrowRight');
+      await expect(rows(page).first()).toHaveAttribute('data-status', 'open', { timeout: 1500 });
+    }).toPass();
+    const cursor = page.getByTestId('replay-cursor');
+    const at = (await cursor.getAttribute('data-cursor')) ?? '';
+    const refused = page.getByText('Close or cancel your open trades before replaying another time.');
+
+    // B: no pick line.
+    await page.keyboard.press('b');
+    await expect(refused).toBeVisible();
+    await expect(page.getByTestId('replay-pick-hint')).toHaveCount(0);
+    // 📅: no date panel.
+    await page.getByRole('button', { name: 'Change replay date' }).click();
+    await expect(page.getByRole('dialog', { name: 'Replay from another date' })).toHaveCount(0);
+    await expect(refused).toBeVisible();
+    // Exit: still replaying on the same bar.
+    await page.getByRole('button', { name: 'Exit replay' }).click();
+    await expect(cursor).toHaveAttribute('data-cursor', at);
+    // Right-click › Replay from here (desktop).
+    const box = await chart.boundingBox();
+    if (box && !test.info().project.name.includes('phone')) {
+      await page.mouse.click(box.x + box.width * 0.3, box.y + box.height * 0.5, { button: 'right' });
+      await page.getByRole('menuitem', { name: 'Replay from here' }).click();
+      await expect(cursor).toHaveAttribute('data-cursor', at);
+      await expect(refused).toBeVisible();
+    }
+
+    // Opened without a time, the run comes back on the trade's time.
+    await page.goto('/backtest/chart?i=US30&tf=5');
+    await expect(cursor).toHaveAttribute('data-cursor', at);
+    await expect(chart).toHaveAttribute('data-loading', '');
+
+    // Closed, the replay can move again.
+    if ((await rows(page).count()) === 0) await page.getByRole('button', { name: /open · / }).click();
+    await rows(page).first().getByRole('button', { name: 'Close' }).click();
+    await expect(rows(page).first()).toHaveAttribute('data-status', 'closed');
+    await page.getByRole('button', { name: 'Exit replay' }).click();
+    await expect(cursor).toBeHidden();
+  });
 });

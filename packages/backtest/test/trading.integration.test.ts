@@ -4,6 +4,7 @@ import { accounts, backtestOrders, candles1m, instruments, journalEntries, trade
 import { afterAll, describe, expect, it } from 'vitest';
 import {
   advanceSession,
+  BEHIND_LIVE_TRADE,
   cancelOrder,
   closeOrder,
   createSession,
@@ -219,6 +220,34 @@ describe.skipIf(!url)('simulated trading', () => {
           .from(trades)
           .where(eq(trades.id, closed?.tradeId as string)),
       ).toEqual([]);
+    });
+  });
+
+  it('refuses anything dated before an open trade, so it never closes before it opened', async () => {
+    await inTx(async (tx) => {
+      await seedBars(tx, [
+        [100, 101, 99, 100],
+        [100, 101, 99, 100],
+        [100, 103, 99, 102],
+        [102, 104, 101, 103],
+        [103, 105, 102, 104],
+      ]);
+      const session = await createSession(tx, { name: 'Behind' });
+      const placed = await placeOrder(tx, session.id, order({}));
+      await advanceSession(tx, session.id, at(4));
+      expect((await listOrders(tx, session.id))[0]).toMatchObject({ status: 'open' });
+
+      // The replay jumped back to minute 1: nothing may be closed, moved, placed or replayed there.
+      await expect(advanceSession(tx, session.id, at(1))).rejects.toThrow(BEHIND_LIVE_TRADE);
+      await expect(closeOrder(tx, placed.id, at(1))).rejects.toThrow(BEHIND_LIVE_TRADE);
+      await expect(modifyOrder(tx, placed.id, { sl: '95', tp: '120', at: at(1) })).rejects.toThrow(BEHIND_LIVE_TRADE);
+      await expect(placeOrder(tx, session.id, order({ at: at(1).getTime() }))).rejects.toThrow(BEHIND_LIVE_TRADE);
+
+      // Back where it left off, it closes normally, after its fill.
+      await closeOrder(tx, placed.id, at(4));
+      const [closed] = await listOrders(tx, session.id);
+      expect(closed).toMatchObject({ status: 'closed', closePrice: '104.00000' });
+      expect((closed?.closedAt ?? 0) > (closed?.filledAt ?? Infinity)).toBe(true);
     });
   });
 

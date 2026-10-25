@@ -43,6 +43,28 @@ export const BACKTEST_FIRM = 'Backtest Lab';
 const BATCH = 5000;
 
 type OrderRow = typeof backtestOrders.$inferSelect;
+
+/**
+ * Joe's rule (25 Oct 2026): while a trade is open or pending the replay can't go back before it, so a trade is
+ * never closed before it opened and nothing is traded with hindsight. Live orders are processed up to the
+ * newest cursor they saw; an action dated earlier is refused.
+ */
+export const BEHIND_LIVE_TRADE =
+  'The replay is behind your open trade. Close or cancel it from where you left off before replaying another time.';
+
+function assertNotBehind(live: Pick<OrderRow, 'processedUntil' | 'placedAt'>[], at: Date) {
+  if (live.some((o) => (o.processedUntil ?? o.placedAt).getTime() > at.getTime())) {
+    throw new TradingError(BEHIND_LIVE_TRADE);
+  }
+}
+
+async function liveOrders(db: Executor, sessionId: string): Promise<OrderRow[]> {
+  return db
+    .select()
+    .from(backtestOrders)
+    .where(and(eq(backtestOrders.sessionId, sessionId), inArray(backtestOrders.status, ['pending', 'open'])))
+    .orderBy(asc(backtestOrders.placedAt));
+}
 type SessionRow = typeof backtestSessions.$inferSelect;
 type Instrument = typeof instruments.$inferSelect;
 
@@ -195,6 +217,7 @@ export async function placeOrder(db: Executor, sessionId: string, input: PlaceOr
         : 'A short needs its stop above and target below the entry.',
     );
   }
+  assertNotBehind(await liveOrders(db, sessionId), input.at);
   const now = await barAt(db, instrument.id, input.at);
   if (!now) throw new TradingError('No candles at the replay cursor yet.');
   let type: 'market' | 'limit' | 'stop' = 'market';
@@ -258,11 +281,8 @@ function simState(o: OrderRow): SimState {
  */
 export async function advanceSession(db: Executor, sessionId: string, cursor: Date): Promise<number> {
   const session = await getSession(db, sessionId);
-  const live = await db
-    .select()
-    .from(backtestOrders)
-    .where(and(eq(backtestOrders.sessionId, sessionId), inArray(backtestOrders.status, ['pending', 'open'])))
-    .orderBy(asc(backtestOrders.placedAt));
+  const live = await liveOrders(db, sessionId);
+  assertNotBehind(live, cursor);
   let changed = 0;
   for (const o of live) {
     const instrument = await instrumentBy(db, { id: o.instrumentId });
@@ -425,6 +445,7 @@ async function liveOrder(db: Executor, id: string): Promise<OrderRow> {
  */
 export async function modifyOrder(db: Executor, id: string, input: ModifyOrderInput): Promise<void> {
   const o = await liveOrder(db, id);
+  assertNotBehind([o], input.at);
   const s = side(o.side);
   if (input.entry !== undefined && o.status !== 'pending') {
     throw new TradingError('Only a pending order can move its entry; this one has filled.');

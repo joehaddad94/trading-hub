@@ -34,7 +34,7 @@ import { toolForKey } from './tools/registry';
 import { TradePanel } from './trade-panel';
 import { type DrawingActions, useDrawings } from './use-drawings';
 import { eventsInBar, type NewsFilter, toMarkers, useNewsEvents } from './use-news-events';
-import { useReplay } from './use-replay';
+import { RESTART_BLOCKED, useReplay } from './use-replay';
 import { type TradingActions, useTrading } from './use-trading';
 
 export type WorkspaceInstrument = {
@@ -168,11 +168,20 @@ export function ChartWorkspace({
     (cursor: number | null) => void setAt(cursor === null ? null : new Date(cursor).toISOString()),
     [setAt],
   );
+  // Filled in once the run's orders are known (below): an open or pending trade locks the replay to its time.
+  const restartBlocked = useRef<string | null>(null);
+  const [resumeAt] = useState(() =>
+    initialTrading?.orders.some((o) => o.status === 'open' || o.status === 'pending')
+      ? initialTrading.session.cursor
+      : null,
+  );
   const replay = useReplay({
     instrument: instrument?.code ?? 'US30',
     tf,
-    initialCursor: at && !Number.isNaN(Date.parse(at)) ? Date.parse(at) : null,
+    // A run with an open trade always reopens where the replay left it, so the trade can be managed.
+    initialCursor: at && !Number.isNaN(Date.parse(at)) ? Date.parse(at) : resumeAt,
     onCursor,
+    restartBlocked,
   });
   const [chartApi, setChartApi] = useState<ChartApi | null>(null);
   const onChartReady = useCallback(
@@ -414,6 +423,18 @@ export function ChartWorkspace({
   });
   const { full, toggleFull, rootRef } = useFullScreen();
   const back = useMemo(() => stepBackRule(trading.orders), [trading.orders]);
+  restartBlocked.current = back.blocked ? RESTART_BLOCKED : null;
+  /** Select bar on or off; it can't turn on while a trade is open or pending. */
+  const pick = useCallback(
+    (on: boolean) => {
+      if (on && restartBlocked.current) {
+        replay.notify(restartBlocked.current);
+        return;
+      }
+      setPicking(on);
+    },
+    [replay.notify],
+  );
   // Once the chart has settled, warm the cache for the other timeframes and instruments at the same cursor,
   // so switching is instant (same request as the chart would make; nothing past the cursor).
   const instrumentCodes = instruments.map((i) => i.code).join(',');
@@ -511,7 +532,7 @@ export function ChartWorkspace({
       }
       // B toggles Select bar (Shift+B belongs to buy).
       if (!event.shiftKey && (event.key === 'b' || event.key === 'B')) {
-        setPicking((on) => !on);
+        pick(!picking);
         return;
       }
       const next = timeframeForKey(event.key);
@@ -536,6 +557,8 @@ export function ChartWorkspace({
     redo,
     pressSide,
     setTicket,
+    pick,
+    picking,
   ]);
 
   if (!instrument) {
@@ -706,7 +729,7 @@ export function ChartWorkspace({
               : null
           }
           picking={picking}
-          onPick={setPicking}
+          onPick={pick}
           back={back}
         />
       </div>

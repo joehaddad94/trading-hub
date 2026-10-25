@@ -37,9 +37,17 @@ type Options = {
   /** Cursor from the URL (ms) or null; the URL is updated through `onCursor`. */
   initialCursor: number | null;
   onCursor: (cursor: number | null) => void;
+  /**
+   * Why the replay can't start again, jump or exit right now (an open or pending trade, Joe 25 Oct 2026), or
+   * null. Stepping is unaffected.
+   */
+  restartBlocked?: { readonly current: string | null };
 };
 
 export type StepResult = 'ok' | 'end' | 'busy';
+
+/** Joe, 25 Oct 2026: while a trade is open or pending the replay stays on its time (no restart, jump or exit). */
+export const RESTART_BLOCKED = 'Close or cancel your open trades before replaying another time.';
 
 /** Refills a step may wait for before it gives up (each covers up to two weeks). */
 const MAX_REFILLS = 4;
@@ -84,7 +92,7 @@ export function rewindBars(
  * Replay state machine (backtester spec §3). Every request carries `until` ≤ the new cursor, so no price
  * after the cursor ever reaches the browser; a closed market is skipped by asking only when the next candle is.
  */
-export function useReplay({ instrument, tf, initialCursor, onCursor }: Options) {
+export function useReplay({ instrument, tf, initialCursor, onCursor, restartBlocked }: Options) {
   const cursorRef = useRef<number | null>(initialCursor);
   const [cursor, setCursor] = useState<number | null>(initialCursor);
   const [reloadKey, setReloadKey] = useState(0);
@@ -95,6 +103,8 @@ export function useReplay({ instrument, tf, initialCursor, onCursor }: Options) 
   const busy = useRef(false);
   const tape = useRef<Tape | null>(null);
   const refilling = useRef<Promise<void> | null>(null);
+  const none = useRef<string | null>(null);
+  const blockedRef = restartBlocked ?? none;
 
   /** Tops up the tape after the cursor; one request at a time. Resolves when the tape has grown. */
   const refill = useCallback((): Promise<void> => {
@@ -137,14 +147,20 @@ export function useReplay({ instrument, tf, initialCursor, onCursor }: Options) 
     [onCursor],
   );
 
+  /** Starts (or restarts) at `at`; false, with the reason shown, while a trade is open or pending. */
   const start = useCallback(
-    (at: number) => {
+    (at: number): boolean => {
+      if (blockedRef.current) {
+        setMessage(blockedRef.current);
+        return false;
+      }
       setPlaying(false);
       setMessage(null);
       saveLastStart(at);
       moveTo(Math.floor(at / MINUTE_MS) * MINUTE_MS, true);
+      return true;
     },
-    [moveTo],
+    [moveTo, blockedRef],
   );
 
   /**
@@ -154,6 +170,7 @@ export function useReplay({ instrument, tf, initialCursor, onCursor }: Options) 
    */
   const startFrom = useCallback(
     async (target: number): Promise<{ ok: true; cursor: number; snapped: boolean } | { ok: false; error: string }> => {
+      if (blockedRef.current) return { ok: false, error: blockedRef.current };
       let next: number | null;
       try {
         next = await fetchNextMinute(instrument, new Date(target));
@@ -162,19 +179,23 @@ export function useReplay({ instrument, tf, initialCursor, onCursor }: Options) 
       }
       const resolved = resolveStart(target, next);
       if (!resolved) return { ok: false, error: 'No candles from that time on yet. Pick an earlier date.' };
-      start(resolved.cursor);
+      if (!start(resolved.cursor)) return { ok: false, error: blockedRef.current ?? 'Could not start the replay.' };
       return { ok: true, ...resolved };
     },
-    [instrument, start],
+    [instrument, start, blockedRef],
   );
 
   const startAtBar = useCallback((barStart: number) => start(cursorForBar(barStart, tf)), [start, tf]);
 
   const exit = useCallback(() => {
+    if (blockedRef.current) {
+      setMessage(blockedRef.current);
+      return;
+    }
     setPlaying(false);
     setMessage(null);
     moveTo(null, true);
-  }, [moveTo]);
+  }, [moveTo, blockedRef]);
 
   /**
    * One bar (or minute) back, from what is already on the chart: nothing new is revealed (no lookahead) and
