@@ -41,11 +41,16 @@ export function ReplayControls({
   const [panel, setPanel] = useState<{ lastStart: number | null } | null>(null);
   const toggle = () => setPanel(panel ? null : { lastStart: readLastStart() });
 
-  // TradingView's "Select bar", before and during replay: a line follows the pointer, a click starts there.
+  // TradingView's "Select bar", before and during replay: a line follows the pointer, a click starts there. On a
+  // phone in replay the row has no room for it, so it lives in the 📅 panel there.
   const selectBar = (
     <button
       type="button"
-      className={cn(button, picking && 'bg-accent text-accent-foreground')}
+      className={cn(
+        button,
+        replay.cursor !== null && 'hidden sm:inline-flex',
+        picking && 'bg-accent text-accent-foreground',
+      )}
       aria-pressed={picking}
       aria-label="Select bar"
       aria-keyshortcuts="B"
