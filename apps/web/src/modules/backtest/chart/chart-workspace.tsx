@@ -711,11 +711,12 @@ export function ChartWorkspace({
           {trading.session && (
             // Under the price legend: Sell/Buy, and on desktop the ticket below them. On phones the ticket sits under
             // the chart, so it never hides the lines you drag.
-            <div className="pointer-events-none absolute top-14 left-2 z-20 flex flex-col items-start gap-2 md:top-8">
+            <div className="pointer-events-none absolute top-14 bottom-2 left-2 z-20 flex flex-col items-start gap-2 md:top-8">
               <div className="pointer-events-auto">
                 <TradeButtons enabled={tradable} bid={bid} ask={ask} open={ticket?.side ?? null} onPress={pressSide} />
               </div>
-              {desktop && ticketNode && <div className="pointer-events-auto">{ticketNode}</div>}
+              {/* A short screen (phone on its side) scrolls the ticket instead of cutting off its button. */}
+              {desktop && ticketNode && <div className="pointer-events-auto min-h-0 overflow-y-auto">{ticketNode}</div>}
             </div>
           )}
           {full && (
