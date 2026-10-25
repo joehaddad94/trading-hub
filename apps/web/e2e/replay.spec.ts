@@ -242,24 +242,75 @@ test.describe('replay (M16)', () => {
     ).toBeVisible();
   });
 
-  test('starts from a clicked candle', async ({ page }) => {
+  test('Select bar: before and during replay, a time flag on the line, right-click or B cancels', async ({
+    page,
+    isMobile,
+  }) => {
     await page.goto('/backtest/chart?i=US30&tf=5');
     await page.getByRole('button', { name: 'Select bar' }).click();
-    await expect(page.getByTestId('replay-pick-hint')).toHaveText(/Click a candle/); // U8
+    await expect(page.getByTestId('replay-pick-hint')).toHaveText(/Click a bar/); // U8
     const chart = page.getByTestId('kline-chart');
     const box = await chart.boundingBox();
     if (!box) throw new Error('no chart');
     await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+    await expect(page.getByTestId('replay-pick-flag')).toHaveText(/\d{2}:\d{2}/);
     await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
     await expect(cursor(page)).toBeVisible();
-    const at = Number(await cursor(page).getAttribute('data-cursor'));
-    expect((at / 60_000) % 5).toBe(4); // last minute of the clicked 5m bar
+    const first = Number(await cursor(page).getAttribute('data-cursor'));
+    expect((first / 60_000) % 5).toBe(4); // last minute of the clicked 5m bar
     await expect(page.getByTestId('replay-pick-hint')).toBeHidden();
+
+    // During replay: the toolbar button (in the 📅 panel on a phone), and right-click cancels instead of opening the menu.
+    if (isMobile) {
+      await page.getByRole('button', { name: 'Change replay date' }).click();
+      await page.getByRole('button', { name: /Select bar on chart/ }).click();
+    } else {
+      await page.getByRole('button', { name: 'Select bar' }).click();
+    }
+    await expect(page.getByTestId('replay-pick-hint')).toBeVisible();
+    await page.mouse.click(box.x + box.width * 0.3, box.y + box.height / 2, { button: 'right' });
+    await expect(page.getByTestId('replay-pick-hint')).toBeHidden();
+    await expect(page.getByRole('menu')).toBeHidden();
+    // B toggles it from the keyboard.
+    await page.keyboard.press('b');
+    await expect(page.getByTestId('replay-pick-hint')).toBeVisible();
+    await page.keyboard.press('b');
+    await expect(page.getByTestId('replay-pick-hint')).toBeHidden();
+    // An earlier bar restarts the replay there.
+    await page.keyboard.press('b');
+    await page.mouse.move(box.x + box.width * 0.3, box.y + box.height / 2);
+    await page.mouse.click(box.x + box.width * 0.3, box.y + box.height / 2);
+    await expect.poll(async () => Number(await cursor(page).getAttribute('data-cursor'))).toBeLessThan(first);
 
     // U8: right-click › "Replay from here" starts at the bar under the pointer too.
     await page.getByRole('button', { name: 'Exit replay' }).click();
     await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2, { button: 'right' });
     await page.getByRole('menuitem', { name: 'Replay from here' }).click();
+    await expect(cursor(page)).toBeVisible();
+    expect((Number(await cursor(page).getAttribute('data-cursor')) / 60_000) % 5).toBe(4);
+  });
+
+  test('Select bar on a phone: a tap places the line, Start starts there, ✕ cancels', async ({ page, isMobile }) => {
+    test.skip(!isMobile, 'touch');
+    await page.goto('/backtest/chart?i=US30&tf=5');
+    const chart = page.getByTestId('kline-chart');
+    await expect(chart).toHaveAttribute('data-ready', 'true');
+    const box = await chart.boundingBox();
+    if (!box) throw new Error('no chart');
+    await page.getByRole('button', { name: 'Select bar' }).click();
+    await page.touchscreen.tap(box.x + box.width / 2, box.y + box.height / 2);
+    // Placed, not started.
+    const bar = page.getByRole('toolbar', { name: 'Replay start' });
+    await expect(bar).toBeVisible();
+    await expect(page.getByTestId('replay-pick-flag')).toBeVisible();
+    await expect(cursor(page)).toBeHidden();
+    await bar.getByRole('button', { name: 'Cancel' }).click();
+    await expect(bar).toBeHidden();
+    await expect(page.getByTestId('replay-pick-line')).toBeHidden();
+
+    await page.getByRole('button', { name: 'Select bar' }).click();
+    await page.touchscreen.tap(box.x + box.width / 2, box.y + box.height / 2);
+    await bar.getByRole('button', { name: /^Start/ }).click();
     await expect(cursor(page)).toBeVisible();
     expect((Number(await cursor(page).getAttribute('data-cursor')) / 60_000) % 5).toBe(4);
   });

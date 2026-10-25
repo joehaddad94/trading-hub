@@ -28,6 +28,7 @@ import { NewsPanel } from './news-panel';
 import { type DraftLines, useOrderHandles } from './order-handles';
 import { orderMarks } from './order-lines';
 import { OrderTicket, quotes, readSizing, saveSizing, TradeButtons, ticketTitle } from './order-ticket';
+import { PickBar } from './pick-line';
 import { ReplayControls } from './replay-controls';
 import { toolForKey } from './tools/registry';
 import { TradePanel } from './trade-panel';
@@ -157,6 +158,11 @@ export function ChartWorkspace({
   const instrument = instruments.find((i) => i.code === code) ?? instruments[0];
   const [at, setAt] = useQueryState('at', parseAsString.withOptions({ throttleMs: 500 }));
   const [picking, setPicking] = useState(false);
+  /** Phones: the bar a tap put the pick line on, waiting for Start. */
+  const [placed, setPlaced] = useState<number | null>(null);
+  useEffect(() => {
+    if (!picking) setPlaced(null);
+  }, [picking]);
   const [moreOpen, setMoreOpen] = useState(false);
   const onCursor = useCallback(
     (cursor: number | null) => void setAt(cursor === null ? null : new Date(cursor).toISOString()),
@@ -200,7 +206,14 @@ export function ChartWorkspace({
   );
   // Right-click › "Replay from here" (audit U8); the menu sits where the pointer was.
   const [menu, setMenu] = useState<{ bar: number; x: number; y: number } | null>(null);
-  const onBarContextMenu = useCallback((bar: number, at: { x: number; y: number }) => setMenu({ bar, ...at }), []);
+  // While picking, a right-click cancels instead (TradingView-like).
+  const onBarContextMenu = useCallback(
+    (bar: number, at: { x: number; y: number }) => {
+      if (picking) setPicking(false);
+      else setMenu({ bar, ...at });
+    },
+    [picking],
+  );
   useEffect(() => {
     if (!picking && !menu) return;
     const onKey = (e: KeyboardEvent) => {
@@ -496,6 +509,11 @@ export function ChartWorkspace({
         removeSelected();
         return;
       }
+      // B toggles Select bar (Shift+B belongs to buy).
+      if (!event.shiftKey && (event.key === 'b' || event.key === 'B')) {
+        setPicking((on) => !on);
+        return;
+      }
       const next = timeframeForKey(event.key);
       if (next) void setTfParam(String(next));
     };
@@ -725,13 +743,15 @@ export function ChartWorkspace({
             </div>
           )}
           {picking && (
-            <p
-              role="status"
-              className="pointer-events-none absolute top-2 left-1/2 z-10 -translate-x-1/2 rounded-full border bg-popover px-3 py-1 text-xs shadow"
-              data-testid="replay-pick-hint"
-            >
-              Click a candle to start replay · Esc to cancel
-            </p>
+            <PickBar
+              placed={placed}
+              timezone={prefs.timezone}
+              onStart={(bar) => {
+                setPicking(false);
+                replay.startAtBar(bar);
+              }}
+              onCancel={() => setPicking(false)}
+            />
           )}
           {menu && (
             <>
@@ -828,6 +848,7 @@ export function ChartWorkspace({
             orderMarks={marks}
             picking={picking}
             onLastBar={onLastBar}
+            onPickPlace={setPlaced}
           />
         </div>
       </div>

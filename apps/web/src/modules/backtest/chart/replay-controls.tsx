@@ -1,7 +1,7 @@
 'use client';
 
 import { pickTime, SPEEDS, type Speed, type StartPick } from '@trading/backtest-engine';
-import { CalendarDays, Crosshair, Pause, Play, StepBack, StepForward, X } from 'lucide-react';
+import { CalendarDays, Pause, Play, Scissors, StepBack, StepForward, X } from 'lucide-react';
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
 import { readLastStart } from './last-start';
@@ -41,6 +41,27 @@ export function ReplayControls({
   const [panel, setPanel] = useState<{ lastStart: number | null } | null>(null);
   const toggle = () => setPanel(panel ? null : { lastStart: readLastStart() });
 
+  // TradingView's "Select bar", before and during replay: a line follows the pointer, a click starts there. On a
+  // phone in replay the row has no room for it, so it lives in the 📅 panel there.
+  const selectBar = (
+    <button
+      type="button"
+      className={cn(
+        button,
+        replay.cursor !== null && 'hidden sm:inline-flex',
+        picking && 'bg-accent text-accent-foreground',
+      )}
+      aria-pressed={picking}
+      aria-label="Select bar"
+      aria-keyshortcuts="B"
+      title="Select bar: start the replay from a bar on the chart (B)"
+      onClick={() => onPick(!picking)}
+    >
+      <Scissors className="size-4 rotate-90" aria-hidden />
+      <span className={replay.cursor === null ? '' : 'hidden sm:inline'}>Select bar</span>
+    </button>
+  );
+
   const startPanel = panel && (
     <ReplayStartPanel
       timezone={timezone}
@@ -56,6 +77,10 @@ export function ReplayControls({
           replay.notify(`Market closed then. Started at the next candle, ${formatCursor(result.cursor, timezone)}.`);
         }
         return null;
+      }}
+      onSelectBar={() => {
+        setPanel(null);
+        onPick(true);
       }}
       onClose={() => setPanel(null)}
     />
@@ -80,9 +105,7 @@ export function ReplayControls({
         >
           <CalendarDays className="size-4" aria-hidden /> Start replay
         </button>
-        <button type="button" className={button} aria-pressed={picking} onClick={() => onPick(!picking)}>
-          <Crosshair className="size-4" aria-hidden /> {picking ? 'Click a candle…' : 'Select bar'}
-        </button>
+        {selectBar}
         {replay.message && (
           <p role="status" className="text-muted-foreground text-xs">
             {replay.message}
@@ -116,6 +139,7 @@ export function ReplayControls({
         >
           <CalendarDays className="size-4" aria-hidden />
         </button>
+        {selectBar}
         <button
           type="button"
           className={button}
