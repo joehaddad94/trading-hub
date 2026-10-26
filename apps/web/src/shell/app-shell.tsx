@@ -40,8 +40,7 @@ export async function AppShell({
       <AppRail journalBadge={toJournal} guest={guest} />
       <div
         className={cn(
-          'flex min-w-0 flex-1 flex-col',
-          !guest && 'pb-[calc(4rem+env(safe-area-inset-bottom,0px))] md:pb-0',
+          'flex min-w-0 flex-1 flex-col pb-[calc(4rem+env(safe-area-inset-bottom,0px))] md:pb-0',
           fill && 'h-dvh',
         )}
       >
@@ -53,7 +52,7 @@ export async function AppShell({
         {!guest && <SyncBanner />}
         {children}
       </div>
-      {!guest && <AppBottomBar journalBadge={toJournal} />}
+      <AppBottomBar journalBadge={toJournal} guest={guest} />
     </div>
   );
 }

@@ -5,6 +5,7 @@ import {
   Ellipsis,
   FlaskConical,
   LayoutDashboard,
+  LogOut,
   type LucideIcon,
   Newspaper,
   NotebookPen,
@@ -13,6 +14,7 @@ import {
 import type { Route } from 'next';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { signOutAction } from '@/app/(auth)/sign-out-actions';
 import { cn } from '@/lib/utils';
 
 type AppLink = { id: string; href: Route; label: string; icon: LucideIcon };
@@ -30,6 +32,26 @@ function activeId(pathname: string): string {
   if (pathname.startsWith('/tracker/journal')) return 'journal';
   for (const id of ['tracker', 'news', 'backtest', 'settings']) if (pathname.startsWith(`/${id}`)) return id;
   return '';
+}
+
+/** Log out, as a form so it works before the page has hydrated. */
+function LogOutButton({ className, label = true }: { className: string; label?: boolean }) {
+  return (
+    <form action={signOutAction} className="contents">
+      <button type="submit" className={cn('group relative cursor-pointer', className)}>
+        <LogOut className="size-5" aria-hidden strokeWidth={1.8} />
+        {label ? 'Log out' : <span className="sr-only">Log out</span>}
+        {!label && (
+          <span
+            aria-hidden
+            className="pointer-events-none absolute left-full z-50 ml-3 whitespace-nowrap rounded-md bg-popover px-2 py-1 text-foreground text-xs opacity-0 shadow-lg transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100"
+          >
+            Log out
+          </span>
+        )}
+      </button>
+    </form>
+  );
 }
 
 function Badge({ count, className }: { count: number; className?: string }) {
@@ -90,13 +112,19 @@ export function AppRail({ journalBadge = 0, guest = false }: { journalBadge?: nu
       <nav aria-label="Modules" className="flex flex-col items-center gap-1.5">
         {(guest ? [BACKTEST] : [HUB, TRACKER, JOURNAL, NEWS, BACKTEST]).map(item)}
       </nav>
-      {!guest && <div className="mt-auto">{item(SETTINGS)}</div>}
+      <div className="mt-auto flex flex-col items-center gap-1.5">
+        {!guest && item(SETTINGS)}
+        <LogOutButton
+          label={false}
+          className="flex size-11 items-center justify-center rounded-xl text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:ring-[3px] focus-visible:ring-ring/50"
+        />
+      </div>
     </aside>
   );
 }
 
-/** Phone: bottom tab bar. "More" holds Backtest and Settings. */
-export function AppBottomBar({ journalBadge = 0 }: { journalBadge?: number }) {
+/** Phone: bottom tab bar. "More" holds Backtest, Settings and Log out; an invited user gets Backtest and Log out. */
+export function AppBottomBar({ journalBadge = 0, guest = false }: { journalBadge?: number; guest?: boolean }) {
   const active = activeId(usePathname());
   const tab = (link: AppLink, ariaLabel?: string) => {
     const Icon = link.icon;
@@ -119,6 +147,17 @@ export function AppBottomBar({ journalBadge = 0 }: { journalBadge?: number }) {
     );
   };
   const moreOn = active === 'backtest' || active === 'settings';
+  if (guest) {
+    return (
+      <nav
+        aria-label="Modules"
+        className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-2 border-t bg-[#2b313c]/90 pb-[env(safe-area-inset-bottom,0px)] backdrop-blur-xl md:hidden"
+      >
+        {tab(BACKTEST)}
+        <LogOutButton className="flex h-16 w-full flex-col items-center justify-center gap-1 text-[11px] text-muted-foreground" />
+      </nav>
+    );
+  }
   return (
     <nav
       aria-label="Modules"
@@ -152,6 +191,15 @@ export function AppBottomBar({ journalBadge = 0 }: { journalBadge?: number }) {
               </Link>
             );
           })}
+          <form action={signOutAction}>
+            <button
+              type="submit"
+              className="flex h-11 w-full cursor-pointer items-center gap-3 rounded-lg px-3 text-sm hover:bg-accent"
+            >
+              <LogOut className="size-4 text-muted-foreground" aria-hidden />
+              Log out
+            </button>
+          </form>
         </div>
       </details>
     </nav>
