@@ -4,6 +4,7 @@ import * as Sentry from '@sentry/nextjs';
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import type { ActionResult } from '@/lib/action-result';
+import { ownerOnly } from '@/lib/server/viewer';
 import { writeAccountRestriction, writeNewsSettings } from '@/modules/news/server/news';
 
 const minutes = z.coerce.number().int('Whole minutes').min(0).max(120);
@@ -32,6 +33,8 @@ export async function saveNewsRulesAction(
   _prev: ActionResult<string> | null,
   form: FormData,
 ): Promise<ActionResult<string>> {
+  const denied = await ownerOnly();
+  if (denied) return denied;
   const parsed = settings.safeParse(Object.fromEntries(form));
   if (!parsed.success) return { ok: false, error: z.prettifyError(parsed.error) };
   try {
@@ -51,6 +54,8 @@ export async function saveAccountRestrictionAction(
   _prev: ActionResult<string> | null,
   form: FormData,
 ): Promise<ActionResult<string>> {
+  const denied = await ownerOnly();
+  if (denied) return denied;
   const parsed = accountSetting.safeParse(Object.fromEntries(form));
   if (!parsed.success) return { ok: false, error: z.prettifyError(parsed.error) };
   const { accountId, value } = parsed.data;

@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { getViewer } from '@/lib/server/viewer';
 import { cn } from '@/lib/utils';
 import { getUnjournaledCount } from '@/modules/tracker/server/journal';
 import { AppBottomBar, AppRail } from './app-nav';
@@ -9,7 +10,8 @@ import { SyncBanner } from './sync-banner';
 
 /**
  * Every screen sits in this frame (design spec): icon rail on desktop, bottom tab bar on phone, an optional
- * module header with the module's pages as tabs, and the sync status line.
+ * module header with the module's pages as tabs, and the sync status line. Invited users see the Backtest Lab
+ * only: no other modules, no sync status, no import on open.
  */
 export async function AppShell({
   title,
@@ -30,14 +32,16 @@ export async function AppShell({
   fill?: boolean;
   children: ReactNode;
 }) {
-  const toJournal = await getUnjournaledCount().catch(() => 0);
+  const guest = (await getViewer())?.isOwner === false;
+  const toJournal = guest ? 0 : await getUnjournaledCount().catch(() => 0);
   return (
     <div className="flex min-h-dvh">
-      <ImportOnOpen />
-      <AppRail journalBadge={toJournal} />
+      {!guest && <ImportOnOpen />}
+      <AppRail journalBadge={toJournal} guest={guest} />
       <div
         className={cn(
-          'flex min-w-0 flex-1 flex-col pb-[calc(4rem+env(safe-area-inset-bottom,0px))] md:pb-0',
+          'flex min-w-0 flex-1 flex-col',
+          !guest && 'pb-[calc(4rem+env(safe-area-inset-bottom,0px))] md:pb-0',
           fill && 'h-dvh',
         )}
       >
@@ -46,10 +50,10 @@ export async function AppShell({
             {controls}
           </ModuleHeader>
         )}
-        <SyncBanner />
+        {!guest && <SyncBanner />}
         {children}
       </div>
-      <AppBottomBar journalBadge={toJournal} />
+      {!guest && <AppBottomBar journalBadge={toJournal} />}
     </div>
   );
 }

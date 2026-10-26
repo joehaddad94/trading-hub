@@ -4,6 +4,7 @@ import * as Sentry from '@sentry/nextjs';
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import type { ActionResult } from '@/lib/action-result';
+import { ownerOnly } from '@/lib/server/viewer';
 import { type JournalFormInput, journalSchema } from '@/modules/tracker/journal/schema';
 import {
   detachScreenshot,
@@ -22,6 +23,8 @@ function revalidateTracker(tradeId: string) {
 
 /** Journal form (§8.3 screen 6). With `next`, also returns the next trade still to journal. */
 export async function saveJournalAction(input: JournalFormInput): Promise<ActionResult<{ next: string | null }>> {
+  const denied = await ownerOnly();
+  if (denied) return denied;
   const parsed = journalSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: z.prettifyError(parsed.error) };
   const { tradeId, next, ...entry } = parsed.data;
@@ -46,6 +49,8 @@ const startUpload = z.object({
 export async function startScreenshotUploadAction(
   input: z.input<typeof startUpload>,
 ): Promise<ActionResult<{ path: string; token: string }>> {
+  const denied = await ownerOnly();
+  if (denied) return denied;
   const parsed = startUpload.safeParse(input);
   if (!parsed.success) return { ok: false, error: z.prettifyError(parsed.error) };
   const ext = SCREENSHOT_TYPES[parsed.data.type];
@@ -72,6 +77,8 @@ const finishUpload = z.object({
 
 /** Screenshot upload, step 2: records the uploaded file on the trade. */
 export async function finishScreenshotUploadAction(input: z.input<typeof finishUpload>): Promise<ActionResult<string>> {
+  const denied = await ownerOnly();
+  if (denied) return denied;
   const parsed = finishUpload.safeParse(input);
   if (!parsed.success) return { ok: false, error: z.prettifyError(parsed.error) };
   try {
@@ -91,6 +98,8 @@ export async function deleteScreenshotAction(
   _prev: ActionResult<string> | null,
   form: FormData,
 ): Promise<ActionResult<string>> {
+  const denied = await ownerOnly();
+  if (denied) return denied;
   const parsed = remove.safeParse({ tradeId: form.get('tradeId'), screenshotId: form.get('screenshotId') });
   if (!parsed.success) return { ok: false, error: z.prettifyError(parsed.error) };
   try {

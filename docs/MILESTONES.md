@@ -44,6 +44,7 @@ A milestone marked **⛔ Blocked** needs an answer from Joe (see "Open questions
 | M21 | Sessions, analytics, live vs backtest | backtest B7, tracker phase 6 | ✅ Done — PR #1 |
 | M22 | Production launch | arch §9, §11 | ⛔ Repo side done; needs Joe's accounts (runbook `docs/ops/launch.md`) |
 | M23 | GitHub Actions pipeline (post-v1) | arch §9 | Not started — local gate is the only gate until v1 (Joe, 9 Oct) |
+| U1 | Backtest Lab for invited users (step 1 of multi-user) | arch §11 | ✅ Built — needs `db push` + `SUPABASE_SERVICE_ROLE_KEY` on Vercel |
 
 ---
 
@@ -136,6 +137,11 @@ A milestone marked **⛔ Blocked** needs an answer from Joe (see "Open questions
 ## R1 · Redesign  *(design spec, agreed 11 Oct 2026)*
 **Scope:** `docs/specs/design-spec.md`: Fog mid-tone theme with glass cards, cyan accent, mint/rose P&L, Geist fonts, icon rail and phone tab bar, new hub, TradingView-style backtest chart, outline icons, skeletons, lively motion.
 **Done when:** every screen uses the design tokens and shell, and the local gate is green. ✓ PR #10.
+
+## U1 · Backtest Lab for invited users  *(Joe, 26 Oct 2026)*
+**Scope:** other people use the Backtest Lab only; Tracker, Journal, News, Settings and the FundedNext sync stay Joe's. Joe's decisions: access is an email list only he manages (Settings › Users, max 10); invited people sign in by typing their email, with no link, password or Google (**temporary; Joe will do a full implementation later**); each person's runs, orders, trades and drawings are private (Joe doesn't see theirs either); removing someone cuts access on their next request and keeps their runs; Joe's setup tags are hidden from them; the app sends no email. Joe keeps his magic link.
+**Accepted risk:** anyone who knows or guesses an invited email can sign in as that person and see, change or delete that person's runs. Joe's data isn't reachable this way: his email is refused on the email-only path, pages are gated in the proxy, and every Tracker/News/Settings Server Action checks for the owner itself. Failed email-only tries are throttled per IP (10 per 15 min).
+**Done when:** a second email can sign in, sees only the lab and only its own runs, and Joe's Tracker never shows its runs (e2e `guests.spec.ts`, DB tests `owner`/`users`).
 
 ## M23 · GitHub Actions pipeline  *(post-v1, arch §9)*
 **Scope:** turn `ci.yml` back on for PRs and pushes to main (lint, typecheck, tests, boundaries, build, Playwright against local Supabase); keep `migrate.yml` running migrations before deploy.

@@ -1,15 +1,15 @@
 import { createServerClient } from '@supabase/ssr';
+import { isBacktestUser } from '@trading/backtest/server';
 import { type NextRequest, NextResponse } from 'next/server';
+import { accessFor, type Role } from '@/lib/auth/access';
 import { isAllowedEmail } from '@/lib/auth/allowed-email';
 import { env } from '@/lib/env';
+import { getDb } from '@/lib/server/db';
 
-const PUBLIC_PATHS = ['/login', '/auth/callback'];
-
-function isPublic(pathname: string) {
-  return PUBLIC_PATHS.some((p) => pathname === p || pathname.startsWith(`${p}/`));
-}
-
-/** Refreshes the Supabase session cookie and keeps everyone but ALLOWED_EMAIL out. */
+/**
+ * Refreshes the Supabase session cookie and applies the access rules: the owner (ALLOWED_EMAIL) everywhere,
+ * emails on the Backtest Lab list there only (checked on every request, so removal works at once).
+ */
 export async function updateSession(request: NextRequest) {
   let response = NextResponse.next({ request });
 
@@ -33,20 +33,21 @@ export async function updateSession(request: NextRequest) {
     email = undefined;
   }
 
-  const signedIn = isAllowedEmail(email, env.ALLOWED_EMAIL);
-  const { pathname } = request.nextUrl;
-
-  if (!signedIn && !isPublic(pathname)) {
-    const url = request.nextUrl.clone();
-    url.pathname = '/login';
-    url.search = '';
-    if (pathname !== '/') url.searchParams.set('next', pathname);
-    return NextResponse.redirect(url);
-  }
-
-  if (signedIn && pathname === '/login') {
-    return NextResponse.redirect(new URL('/', request.url));
-  }
-
+  const role = await roleOf(email);
+  const access = accessFor(request.nextUrl.pathname, role);
+  if (access.kind === 'forbidden') return NextResponse.json({ ok: false, error: 'Forbidden' }, { status: 403 });
+  if (access.kind === 'redirect') return NextResponse.redirect(new URL(access.to, request.url));
   return response;
+}
+
+async function roleOf(email: string | undefined): Promise<Role> {
+  if (!email) return null;
+  if (isAllowedEmail(email, env.ALLOWED_EMAIL)) return 'owner';
+  const db = getDb();
+  if (!db) return null;
+  try {
+    return (await isBacktestUser(db, email)) ? 'guest' : null;
+  } catch {
+    return null;
+  }
 }

@@ -10,7 +10,7 @@ export default async function LoginPage({ searchParams }: PageProps<'/login'>) {
       <Card className="w-full max-w-sm">
         <CardHeader>
           <CardTitle>Trading Hub</CardTitle>
-          <CardDescription>Sign in with a magic link.</CardDescription>
+          <CardDescription>Sign in with your email.</CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-4">
           {error === 'not-allowed' && (

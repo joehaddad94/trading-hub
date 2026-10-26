@@ -7,16 +7,9 @@ test.describe('signed out', () => {
     test(`${path} redirects to /login`, async ({ page }) => {
       await page.goto(path);
       await expect(page).toHaveURL(/\/login/);
-      await expect(page.getByRole('button', { name: 'Send sign-in link' })).toBeVisible();
+      await expect(page.getByRole('button', { name: 'Continue' })).toBeVisible();
     });
   }
-
-  test('a non-allowed email gets the same confirmation and no link is sent', async ({ page }) => {
-    await page.goto('/login');
-    await page.getByLabel('Email').fill('stranger@example.com');
-    await page.getByRole('button', { name: 'Send sign-in link' }).click();
-    await expect(page.getByRole('status')).toHaveText('Check your inbox for a sign-in link.');
-  });
 
   test('a failed callback shows the refusal message', async ({ page }) => {
     await page.goto('/auth/callback');

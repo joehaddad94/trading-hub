@@ -209,7 +209,8 @@ Validated in `apps/web/src/lib/env.ts`. Server-only unless prefixed `NEXT_PUBLIC
 
 ## 11. Security checklist
 
-- Auth: Supabase Auth magic link; sign-in refused unless email = `ALLOWED_EMAIL`; middleware protects every route except `/login` and cron routes (which use `CRON_SECRET`).
+- Auth: Supabase Auth magic link for the owner (`ALLOWED_EMAIL`); the proxy protects every route except `/login` and cron routes (which use `CRON_SECRET`).
+- Invited Backtest Lab users (26 Oct 2026, MILESTONES U1): emails in `backtest_users` (owner manages them in Settings › Users, max 10) sign in with the email alone; the server mints and redeems a magic-link token with the service role, so no email is sent. The proxy lets them reach `/backtest/**` and `/api/backtest/**` only and re-checks the list on every request. Their rows carry `owner_id` (auth user id; null = the owner) on `backtest_sessions` and `drawings`, and every backtest query is scoped by it, because the app's DB connection bypasses RLS. Tracker, News and Settings Server Actions start with `ownerOnly()` (a unit test enforces it). Invited users have no Supabase API access (RLS stays owner-only).
 - RLS on all tables; service role only in server code.
 - Drive service account has access to the two app folders only.
 - Storage bucket private; screenshots via short-lived signed URLs.

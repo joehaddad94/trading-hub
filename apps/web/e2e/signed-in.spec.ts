@@ -35,6 +35,7 @@ test.describe('signed in', () => {
     '/backtest',
     '/settings',
     '/settings/imports',
+    '/settings/users',
   ]) {
     test(`${path} renders inside its module`, async ({ page }) => {
       const response = await page.goto(path);

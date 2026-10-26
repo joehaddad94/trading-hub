@@ -10,6 +10,7 @@ import { importFromInbox, reprocessStoredImport, runHealthCheck } from '@/lib/se
 export type { ActionResult } from '@/lib/action-result';
 
 import type { ActionResult } from '@/lib/action-result';
+import { ownerOnly } from '@/lib/server/viewer';
 
 const MAX_BYTES = 5 * 1024 * 1024;
 
@@ -21,6 +22,8 @@ const upload = z.object({
 });
 
 export async function uploadExport(_prev: ActionResult<string> | null, form: FormData): Promise<ActionResult<string>> {
+  const denied = await ownerOnly();
+  if (denied) return denied;
   const parsed = upload.safeParse({ file: form.get('file') });
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message ?? 'Invalid file.' };
   const db = getDb();
@@ -39,6 +42,8 @@ export async function uploadExport(_prev: ActionResult<string> | null, form: For
 }
 
 export async function syncNow(_prev: ActionResult<string> | null): Promise<ActionResult<string>> {
+  const denied = await ownerOnly();
+  if (denied) return denied;
   const run = await importFromInbox();
   revalidatePath('/settings/imports');
   if (!run.ok) return { ok: false, error: run.error };
@@ -56,6 +61,8 @@ function describe(result: string, error: string | undefined) {
 }
 
 export async function runHealthCheckAction(_prev: ActionResult<string> | null): Promise<ActionResult<string>> {
+  const denied = await ownerOnly();
+  if (denied) return denied;
   const result = await runHealthCheck();
   revalidatePath('/settings/imports');
   if (!result) return { ok: false, error: 'The health check could not run.' };
@@ -67,6 +74,8 @@ export async function runHealthCheckAction(_prev: ActionResult<string> | null): 
 }
 
 export async function sendTestAlertAction(_prev: ActionResult<string> | null): Promise<ActionResult<string>> {
+  const denied = await ownerOnly();
+  if (denied) return denied;
   const db = getDb();
   if (!db) return { ok: false, error: 'The database is not configured.' };
   await sendTestAlert(db, new Date());
@@ -79,6 +88,8 @@ export async function reprocessAction(
   _prev: ActionResult<string> | null,
   form: FormData,
 ): Promise<ActionResult<string>> {
+  const denied = await ownerOnly();
+  if (denied) return denied;
   const parsed = z.uuid().safeParse(form.get('id'));
   if (!parsed.success) return { ok: false, error: 'Unknown import.' };
   const run = await reprocessStoredImport(parsed.data);

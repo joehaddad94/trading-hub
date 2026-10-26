@@ -86,7 +86,7 @@ describe.skipIf(!url)('simulated trading', () => {
         [103, 110, 101, 109],
         [109, 123, 108, 121], // TP
       ]);
-      const session = await createSession(tx, { name: 'Test' });
+      const session = await createSession(tx, null, { name: 'Test' });
       const placed = await placeOrder(tx, session.id, order({}));
       expect(placed).toMatchObject({ status: 'pending', type: 'market' });
 
@@ -126,7 +126,7 @@ describe.skipIf(!url)('simulated trading', () => {
         [100, 101, 99, 100],
         [100, 101, 99, 100],
       ]);
-      const session = await createSession(tx, { name: 'P' });
+      const session = await createSession(tx, null, { name: 'P' });
       const limit = await placeOrder(tx, session.id, order({ kind: 'pending', entry: '95', sl: '90', tp: '105' }));
       const stop = await placeOrder(tx, session.id, order({ kind: 'pending', entry: '105', sl: '100', tp: '115' }));
       expect([limit.type, stop.type]).toEqual(['limit', 'stop']);
@@ -141,7 +141,7 @@ describe.skipIf(!url)('simulated trading', () => {
 
   it('rejects bad levels and placing without candles', async () => {
     await inTx(async (tx) => {
-      const session = await createSession(tx, { name: 'X' });
+      const session = await createSession(tx, null, { name: 'X' });
       await expect(placeOrder(tx, session.id, order({ sl: '110' }))).rejects.toThrow(/stop below/);
       await expect(placeOrder(tx, session.id, order({}))).rejects.toThrow(/No candles/);
     });
@@ -153,7 +153,7 @@ describe.skipIf(!url)('simulated trading', () => {
         [100, 101, 99, 100],
         [100, 101, 99, 100],
       ]);
-      const session = await createSession(tx, { name: 'E' });
+      const session = await createSession(tx, null, { name: 'E' });
       const limit = await placeOrder(tx, session.id, order({ kind: 'pending', entry: '95', sl: '90', tp: '105' }));
       // Dragged above the price: a buy limit becomes a buy stop.
       await modifyOrder(tx, limit.id, { entry: '103', sl: '98', tp: '110', at: at(1) });
@@ -178,7 +178,7 @@ describe.skipIf(!url)('simulated trading', () => {
         [100, 101, 99, 100],
         [100, 106, 99, 105],
       ]);
-      const session = await createSession(tx, { name: 'P' });
+      const session = await createSession(tx, null, { name: 'P' });
       const placed = await placeOrder(tx, session.id, order({}));
       await expect(closeOrder(tx, placed.id, at(2), '0.60')).rejects.toThrow(/only 0.50 lots/);
       await closeOrder(tx, placed.id, at(2), '0.20');
@@ -200,7 +200,7 @@ describe.skipIf(!url)('simulated trading', () => {
         [100, 101, 99, 100],
         [100, 106, 99, 105],
       ]);
-      const session = await createSession(tx, { name: 'C' });
+      const session = await createSession(tx, null, { name: 'C' });
       const placed = await placeOrder(tx, session.id, order({}));
       await closeOrder(tx, placed.id, at(2));
       const [closed] = await listOrders(tx, session.id);
@@ -232,7 +232,7 @@ describe.skipIf(!url)('simulated trading', () => {
         [102, 104, 101, 103],
         [103, 105, 102, 104],
       ]);
-      const session = await createSession(tx, { name: 'Behind' });
+      const session = await createSession(tx, null, { name: 'Behind' });
       const placed = await placeOrder(tx, session.id, order({}));
       await advanceSession(tx, session.id, at(4));
       expect((await listOrders(tx, session.id))[0]).toMatchObject({ status: 'open' });
@@ -264,8 +264,8 @@ describe.skipIf(!url)('simulated trading', () => {
 
   it('current session is created once and numbered', async () => {
     await inTx(async (tx) => {
-      const a = await currentSession(tx);
-      const b = await currentSession(tx);
+      const a = await currentSession(tx, null);
+      const b = await currentSession(tx, null);
       expect(a.id).toBe(b.id);
       expect(a.name).toMatch(/^Run \d+$/);
     });
@@ -279,7 +279,7 @@ describe.skipIf(!url)('simulated trading', () => {
         [103, 110, 101, 109],
         [109, 123, 108, 121],
       ]);
-      const session = await createSession(tx, { name: 'L', startingBalance: '10000', riskPct: '1' });
+      const session = await createSession(tx, null, { name: 'L', startingBalance: '10000', riskPct: '1' });
       await placeOrder(tx, session.id, order({}));
       await advanceSession(tx, session.id, at(3));
       await placeOrder(
@@ -288,7 +288,7 @@ describe.skipIf(!url)('simulated trading', () => {
         order({ kind: 'pending', entry: '95', sl: '90', tp: '105', at: at(3).getTime() }),
       );
 
-      const row = (await listSessions(tx)).find((s) => s.id === session.id);
+      const row = (await listSessions(tx, null)).find((s) => s.id === session.id);
       expect(row).toMatchObject({ name: 'L', trades: 1, net: '100.00', openOrders: 1, instruments: ['US30'] });
 
       await updateSession(tx, session.id, {
@@ -309,7 +309,7 @@ describe.skipIf(!url)('simulated trading', () => {
       expect(account?.typeLabel).toBe('Backtest – Renamed');
 
       await setSessionStatus(tx, session.id, 'completed');
-      expect((await listSessions(tx)).find((s) => s.id === session.id)).toMatchObject({
+      expect((await listSessions(tx, null)).find((s) => s.id === session.id)).toMatchObject({
         status: 'completed',
         openOrders: 0,
       });
@@ -319,7 +319,7 @@ describe.skipIf(!url)('simulated trading', () => {
       const closed = await sessionTrades(tx, session.id);
       expect(closed).toHaveLength(1);
       expect(closed[0]).toMatchObject({ exitReason: 'tp', ambiguous: false, netProfit: '100.00' });
-      expect((await currentSession(tx, session.id)).id).toBe(session.id);
+      expect((await currentSession(tx, null, session.id)).id).toBe(session.id);
     });
   });
 });
