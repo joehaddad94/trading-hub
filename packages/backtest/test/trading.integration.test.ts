@@ -127,7 +127,7 @@ describe.skipIf(!url)('simulated trading', () => {
         [100, 104, 99, 103],
         [103, 121, 101, 120], // TP 120
       ]);
-      const session = await createSession(tx, { name: 'Drawn' });
+      const session = await createSession(tx, null, { name: 'Drawn' });
       const placed = await placeOrder(tx, session.id, order({ kind: 'drawn', entry: '96', sl: '90', tp: '120' }));
       expect(placed).toMatchObject({ status: 'open', fillPrice: '96.00000', sl: '90.00000', tp: '120.00000' });
 
