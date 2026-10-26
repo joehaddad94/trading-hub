@@ -72,7 +72,7 @@ test.describe('backtest chart (M15)', () => {
     expect(await page.evaluate(() => document.documentElement.scrollHeight)).toBeLessThanOrEqual(844);
     await page.getByRole('button', { name: 'Full screen' }).click();
     await expect(page.locator('[data-full-screen="true"]')).toBeVisible();
-    await expect.poll(async () => (await chart.boundingBox())?.height ?? 0).toBeGreaterThan(before + 120);
+    await expect.poll(async () => (await chart.boundingBox())?.height ?? 0).toBeGreaterThan(before + 100);
     // Instrument, timeframe, settings, replay, drawing tools and trades all stay on screen.
     for (const name of ['NAS100', '5m', 'Chart settings', 'Exit full screen', 'Play', 'Bar back', 'Exit replay']) {
       await expect(page.getByRole('button', { name, exact: true })).toBeInViewport();

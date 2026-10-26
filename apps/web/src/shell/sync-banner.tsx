@@ -6,7 +6,7 @@ import { StatusStrip } from './status-strip';
  * Status line on every page while sync is unhealthy (tracker spec §7): red for real problems, amber when the
  * only issue is a known partial export (data arrived, e.g. next week's calendar isn't published yet).
  */
-export async function SyncBanner() {
+export async function SyncBanner({ dock = false }: { dock?: boolean }) {
   const status = await getSyncStatus();
   if (!status || status.conditions.length === 0) return null;
   const error = status.conditions.some((c) => c.severity === 'error');
@@ -16,6 +16,7 @@ export async function SyncBanner() {
       title={error ? 'Sync problem' : 'Sync partial'}
       items={status.conditions.map((c) => ({ key: c.kind, message: c.message, since: c.since }))}
       link={{ href: '/settings/imports', label: 'Open Imports & health' }}
+      dock={dock}
     />
   );
 }

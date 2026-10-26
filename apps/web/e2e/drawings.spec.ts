@@ -1,6 +1,7 @@
 import { expect, type Page, test } from '@playwright/test';
 import { requireAuth, signIn } from './support/auth';
 import { clearDrawings, seedCandles } from './support/candles';
+import { chartReady } from './support/chart';
 
 requireAuth();
 
@@ -24,7 +25,7 @@ async function clickChart(page: Page, fx: number, fy: number) {
 
 async function open(page: Page, tf = 5) {
   await page.goto(`/backtest/chart?i=US30&tf=${tf}&at=2026-10-07T16:00:00.000Z`);
-  await expect(page.getByTestId('kline-chart')).toHaveAttribute('data-ready', 'true');
+  await chartReady(page);
   await expect
     .poll(async () => (await page.getByTestId('kline-chart').getAttribute('data-last-bar')) ?? '')
     .not.toBe('');
@@ -112,7 +113,7 @@ test.describe('drawings (M18)', () => {
     const props = page.getByRole('group', { name: 'Drawing properties' });
     // Same data and viewport after the reload, so the line is where it was drawn: click it to select (once the
     // chart has drawn it).
-    await expect(page.getByTestId('kline-chart')).toHaveAttribute('data-ready', 'true');
+    await chartReady(page);
     await page.waitForTimeout(300);
     await clickChart(page, 0.7, 0.3);
     await expect(props).toBeVisible();
@@ -129,7 +130,7 @@ test.describe('drawings (M18)', () => {
       .click();
     await expect.poll(async () => (await shown(page)).length).toBe(0);
     await page.reload();
-    await expect(page.getByTestId('kline-chart')).toHaveAttribute('data-ready', 'true');
+    await chartReady(page);
     expect(await shown(page)).toHaveLength(0);
   });
 });

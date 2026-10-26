@@ -20,6 +20,7 @@ export async function AppShell({
   keep,
   controls,
   fill = false,
+  status,
   children,
 }: {
   /** Module title for the header; omit for a page that draws its own header (the hub). */
@@ -30,6 +31,8 @@ export async function AppShell({
   controls?: ReactNode;
   /** Full-height workspace (Backtest Lab): the content fills the screen instead of scrolling the page. */
   fill?: boolean;
+  /** The module's own status lines (Backtest Lab's market data), shown with the sync one. */
+  status?: ReactNode;
   children: ReactNode;
 }) {
   const guest = (await getViewer())?.isOwner === false;
@@ -49,7 +52,15 @@ export async function AppShell({
             {controls}
           </ModuleHeader>
         )}
-        {!guest && <SyncBanner />}
+        {/* A full-height workspace on a phone docks the status lines as dots in the header's corner. */}
+        <div
+          className={cn(
+            fill && 'compact:fixed compact:top-1.5 compact:right-2 compact:z-30 compact:flex compact:gap-1',
+          )}
+        >
+          {!guest && <SyncBanner dock={fill} />}
+          {status}
+        </div>
         {children}
       </div>
       <AppBottomBar journalBadge={toJournal} guest={guest} />

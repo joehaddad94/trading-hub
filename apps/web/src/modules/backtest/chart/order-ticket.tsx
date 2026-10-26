@@ -12,7 +12,7 @@ import {
   ticketValid,
 } from '@trading/backtest-engine';
 import Decimal from 'decimal.js';
-import { X } from 'lucide-react';
+import { ChevronDown, ChevronUp, X } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { cn } from '@/lib/utils';
 
@@ -133,6 +133,7 @@ export function OrderTicket({
   onSizing,
   onPlace,
   onClose,
+  compact = false,
 }: {
   ticket: Ticket;
   /** Last close: the market price. */
@@ -145,7 +146,13 @@ export function OrderTicket({
   onSizing: (next: Sizing) => void;
   onPlace: () => void;
   onClose: () => void;
+  /**
+   * Phone held upright: one row (side, stop, target, size, place) that opens into the full ticket on a tap, so
+   * the chart keeps most of its height (audit 25 Oct, #6). The lines on the chart still move stop and target.
+   */
+  compact?: boolean;
 }) {
+  const [expanded, setExpanded] = useState(false);
   const m = positionMetrics({
     side: ticket.side,
     entry: ticket.entry,
@@ -162,12 +169,71 @@ export function OrderTicket({
     // Typing an entry makes the ticket a pending order, as dragging its line does.
     onChange({ ...ticket, [field]: value, ...(field === 'entry' ? { kind: 'pending' as const } : {}) });
   };
+  const toggle = compact && (
+    <button
+      type="button"
+      onClick={() => setExpanded(!expanded)}
+      aria-expanded={expanded}
+      className="flex size-8 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-accent"
+      title={expanded ? 'Fewer details' : 'Edit the order'}
+    >
+      {expanded ? <ChevronDown className="size-4" aria-hidden /> : <ChevronUp className="size-4" aria-hidden />}
+      <span className="sr-only">{expanded ? 'Fewer details' : 'Edit order'}</span>
+    </button>
+  );
+  if (compact && !expanded) {
+    return (
+      <form
+        aria-label="Order ticket"
+        data-testid="order-ticket"
+        data-kind={ticket.kind}
+        data-compact="true"
+        className="flex w-full items-center gap-2 rounded-lg border bg-popover/95 p-1.5 text-xs shadow-lg"
+        onSubmit={(e) => {
+          e.preventDefault();
+          if (valid && !busy) onPlace();
+        }}
+      >
+        {toggle}
+        <button
+          type="button"
+          onClick={() => setExpanded(true)}
+          className="grid min-w-0 flex-1 grid-cols-2 gap-x-2 text-left num"
+          title="Edit the order"
+        >
+          <span className="truncate text-loss">SL {ticket.sl.toFixed(instrument.priceDigits)}</span>
+          <span className="truncate text-profit">TP {ticket.tp.toFixed(instrument.priceDigits)}</span>
+          <span className="truncate text-muted-foreground">−${m.riskUsd}</span>
+          <span className="truncate text-muted-foreground">RR 1:{m.rr}</span>
+        </button>
+        <button
+          type="submit"
+          disabled={!valid || busy}
+          className={cn(
+            'h-9 shrink-0 rounded-md px-3 font-semibold text-sm disabled:opacity-50',
+            buy ? 'bg-profit text-background' : 'bg-loss text-background',
+          )}
+        >
+          {title} {m.lots}
+        </button>
+        <button
+          type="button"
+          onClick={onClose}
+          className="flex size-8 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-accent"
+          title="Close the ticket"
+        >
+          <X className="size-4" aria-hidden />
+          <span className="sr-only">Close ticket</span>
+        </button>
+      </form>
+    );
+  }
   return (
     <form
       aria-label="Order ticket"
       data-testid="order-ticket"
       data-kind={ticket.kind}
-      className="flex w-full flex-col gap-2 rounded-lg border bg-popover/95 p-2 text-xs shadow-lg backdrop-blur md:w-80"
+      className="flex w-full flex-col gap-2 rounded-lg border bg-popover/95 p-2 text-xs shadow-lg backdrop-blur roomy:w-80"
       onSubmit={(e) => {
         e.preventDefault();
         if (valid && !busy) onPlace();
@@ -180,6 +246,7 @@ export function OrderTicket({
       }}
     >
       <div className="flex items-center gap-1">
+        {toggle}
         <Segmented
           label="Side"
           value={ticket.side}
@@ -254,7 +321,7 @@ export function OrderTicket({
           </span>
         </div>
       </div>
-      <div className="flex items-center gap-1">
+      <div className="flex flex-wrap items-center gap-1">
         <span className="w-11 text-muted-foreground">Size</span>
         <SizeControls sizing={sizing} onSizing={onSizing} />
         <span className="num ml-auto text-muted-foreground">
@@ -279,7 +346,9 @@ export function OrderTicket({
         {title} {m.lots} {instrument.code}
         <span className="ml-2 font-normal opacity-80">RR 1:{m.rr}</span>
       </button>
-      <p className="hidden text-muted-foreground md:block">Drag the lines on the chart · Enter places · Esc closes</p>
+      <p className="hidden text-muted-foreground roomy:block">
+        Drag the lines on the chart · Enter places · Esc closes
+      </p>
     </form>
   );
 }

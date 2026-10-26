@@ -52,6 +52,10 @@ export const RESTART_BLOCKED = 'Close or cancel your open trades before replayin
 /** Refills a step may wait for before it gives up (each covers up to two weeks). */
 const MAX_REFILLS = 4;
 
+/** How long a key pressed while the chart loads a new window waits for it before it is dropped. */
+const SETTLE_TIMEOUT_MS = 10_000;
+const SETTLE_POLL_MS = 50;
+
 /**
  * The chart one step back, from bars already on screen (spec §3.1). A bar step drops the newest bar and parks
  * the cursor on the last minute of the one before, so every press removes exactly one bar, weekends included.
@@ -96,6 +100,7 @@ export function useReplay({ instrument, tf, initialCursor, onCursor, restartBloc
   const cursorRef = useRef<number | null>(initialCursor);
   const [cursor, setCursor] = useState<number | null>(initialCursor);
   const [reloadKey, setReloadKey] = useState(0);
+  const reloadKeyRef = useRef(0);
   const [playing, setPlaying] = useState(false);
   const [speed, setSpeed] = useState<Speed>(2);
   const [message, setMessage] = useState<string | null>(null);
@@ -105,6 +110,36 @@ export function useReplay({ instrument, tf, initialCursor, onCursor, restartBloc
   const refilling = useRef<Promise<void> | null>(null);
   const none = useRef<string | null>(null);
   const blockedRef = restartBlocked ?? none;
+  const waiting = useRef(false);
+
+  /**
+   * The chart once it has finished loading (a new date or a reload): its bars are the old window until then. A
+   * step pressed meanwhile waits for it instead of being dropped (audit 25 Oct, #5); one waits at a time, and
+   * null means give up (still loading, or another step is already waiting).
+   */
+  const settled = useCallback(async (): Promise<ChartApi | null> => {
+    const ready = () => {
+      const api = chartApi.current;
+      // Right after a start the chart hasn't even begun the new load: wait until it has shown that window.
+      return api && !api.reloading() && api.loadedKey() === reloadKeyRef.current ? api : null;
+    };
+    const now = ready();
+    if (now || waiting.current || chartApi.current?.loadFailed()) return now;
+    waiting.current = true;
+    try {
+      const deadline = Date.now() + SETTLE_TIMEOUT_MS;
+      while (Date.now() < deadline) {
+        await new Promise((resolve) => setTimeout(resolve, SETTLE_POLL_MS));
+        const api = ready();
+        if (api) return api;
+        // A failed load waits for Retry: the press is dropped rather than firing long after.
+        if (chartApi.current?.loadFailed()) return null;
+      }
+      return null;
+    } finally {
+      waiting.current = false;
+    }
+  }, []);
 
   /** Tops up the tape after the cursor; one request at a time. Resolves when the tape has grown. */
   const refill = useCallback((): Promise<void> => {
@@ -141,7 +176,8 @@ export function useReplay({ instrument, tf, initialCursor, onCursor, restartBloc
       onCursor(next);
       if (reload) {
         tape.current = null;
-        setReloadKey((k) => k + 1);
+        reloadKeyRef.current += 1;
+        setReloadKey(reloadKeyRef.current);
       }
     },
     [onCursor],
@@ -205,9 +241,10 @@ export function useReplay({ instrument, tf, initialCursor, onCursor, restartBloc
   const stepBack = useCallback(
     async (mode: StepMode, rule: { blocked: string | null; floor: number | null }): Promise<StepResult> => {
       const from = cursorRef.current;
-      const api = chartApi.current;
-      // While the chart reloads (a new date), its bars are the old window: wait for the new one.
-      if (from === null || !api || busy.current || api.reloading()) return 'busy';
+      if (from === null || busy.current) return 'busy';
+      const api = await settled();
+      // The replay may have moved (or exited) while the chart loaded.
+      if (!api || busy.current || cursorRef.current !== from) return 'busy';
       if (rule.blocked) {
         setMessage(rule.blocked);
         return 'busy';
@@ -251,7 +288,7 @@ export function useReplay({ instrument, tf, initialCursor, onCursor, restartBloc
         busy.current = false;
       }
     },
-    [instrument, tf, moveTo],
+    [instrument, tf, moveTo, settled],
   );
 
   /**
@@ -261,9 +298,9 @@ export function useReplay({ instrument, tf, initialCursor, onCursor, restartBloc
   const step = useCallback(
     async (mode: StepMode, count = 1): Promise<StepResult> => {
       const from = cursorRef.current;
-      const api = chartApi.current;
-      // While the chart reloads (a new date), its bars are the old window: wait for the new one.
-      if (from === null || !api || busy.current || api.reloading()) return 'busy';
+      if (from === null || busy.current) return 'busy';
+      const api = await settled();
+      if (!api || busy.current || cursorRef.current !== from) return 'busy';
       busy.current = true;
       try {
         let move: ReturnType<typeof stepFromTape> = 'more';
@@ -296,7 +333,7 @@ export function useReplay({ instrument, tf, initialCursor, onCursor, restartBloc
         busy.current = false;
       }
     },
-    [instrument, tf, moveTo, refill],
+    [instrument, tf, moveTo, refill, settled],
   );
 
   useEffect(() => {

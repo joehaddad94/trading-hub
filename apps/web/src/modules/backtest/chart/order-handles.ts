@@ -266,14 +266,31 @@ export function useOrderHandles(opts: {
       chart.removeOverlay({ id });
       ids.current.delete(key);
     }
-    // For the e2e tests: each line's price and pixel row on the chart.
-    const lines = [...ids.current].flatMap(([key, id]) => {
-      const point = chart.getOverlays({ id })[0]?.points[0];
-      if (point?.value === undefined) return [];
-      const px = chart.convertToPixel(point, { paneId: 'candle_pane' }) as { y?: number };
-      return [{ key, price: point.value, y: px.y ?? null }];
+    // For the e2e tests: each line's price and pixel row on the chart, again when the chart changes size (a
+    // phone's ticket opening under it), so the rows are never stale.
+    const report = () => {
+      const lines = [...ids.current].flatMap(([key, id]) => {
+        const point = chart.getOverlays({ id })[0]?.points[0];
+        if (point?.value === undefined) return [];
+        const px = chart.convertToPixel(point, { paneId: 'candle_pane' }) as { y?: number };
+        return [{ key, price: point.value, y: px.y ?? null }];
+      });
+      chart.getDom()?.setAttribute('data-order-lines', JSON.stringify(lines));
+    };
+    report();
+    const dom = chart.getDom();
+    if (!dom || typeof ResizeObserver === 'undefined') return;
+    let frame = 0;
+    const observer = new ResizeObserver(() => {
+      // After the chart's own observer has resized it.
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(report);
     });
-    chart.getDom()?.setAttribute('data-order-lines', JSON.stringify(lines));
+    observer.observe(dom);
+    return () => {
+      observer.disconnect();
+      cancelAnimationFrame(frame);
+    };
   }, [
     chart,
     orders,

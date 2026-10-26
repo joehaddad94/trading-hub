@@ -381,7 +381,9 @@ export function ChartWorkspace({
     [setTicket],
   );
   // Same spread the fill uses: the run's override, else the instrument's default (costsFor on the server).
-  const desktop = useDesktop();
+  const desktop = useMedia(ROOMY);
+  // Phone on its side: the ticket gets a column right of the chart instead of eating its height.
+  const short = useMedia(SHORT);
   // Stable, so it runs once when the phone ticket opens, not on every replay step.
   const revealTicket = useCallback((node: HTMLDivElement | null) => node?.scrollIntoView({ block: 'nearest' }), []);
   const ticketNode = ticket && (
@@ -396,6 +398,7 @@ export function ChartWorkspace({
       onSizing={setSizing}
       onPlace={() => void placeTicket()}
       onClose={() => setTicket(null)}
+      compact={!desktop && !short}
     />
   );
   const spread = initialTrading?.session.costs[instrument?.code ?? '']?.spreadPoints ?? instrument?.spreadPoints ?? '0';
@@ -479,90 +482,75 @@ export function ChartWorkspace({
         sizing,
       })
     : null;
+  // One listener for the page's life, always running the latest handler: re-adding it on every replay step
+  // could miss a key pressed between renders (audit 25 Oct, #5).
+  const onKeyRef = useRef<(event: KeyboardEvent) => void>(() => undefined);
+  onKeyRef.current = (event: KeyboardEvent) => {
+    const target = event.target as HTMLElement | null;
+    if (target && (target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName))) return;
+    const key = chartKeyFor(event, cursor !== null);
+    if (key) {
+      event.preventDefault();
+      // A focused button (Play, Bar…) would also react to Space on key up and undo the toggle.
+      if (target?.tagName === 'BUTTON') target.blur();
+      if (key.type === 'step') void step(key.mode);
+      else if (key.type === 'back') void replay.stepBack(key.mode, back);
+      else if (key.type === 'play') setPlaying(!playing);
+      else if (key.type === 'scroll') chartApi?.scrollBars(key.bars);
+      else if (key.type === 'zoom') chartApi?.zoom(key.in);
+      else if (key.type === 'reset') chartApi?.reset();
+      else if (key.type === 'undo') undo();
+      else redo();
+      return;
+    }
+    if (event.altKey && !event.metaKey && !event.ctrlKey) {
+      const tool = toolForKey(event.code);
+      if (tool) {
+        event.preventDefault();
+        startTool(tool.id);
+      }
+      return;
+    }
+    if (event.metaKey || event.ctrlKey || event.altKey) return;
+    if (event.key === 'Escape') {
+      if (ticketRef.current) setTicket(null);
+      else cancelTool();
+      return;
+    }
+    // Shift+B / Shift+S: buy or sell ticket (again to place it); Enter places an open ticket. Plain B is
+    // Select bar.
+    if (event.shiftKey && (event.code === 'KeyB' || event.code === 'KeyS')) {
+      event.preventDefault();
+      pressSide(event.code === 'KeyB' ? 'long' : 'short');
+      return;
+    }
+    if (event.key === 'Enter' && ticketRef.current && target?.tagName !== 'BUTTON') {
+      event.preventDefault();
+      void placeRef.current();
+      return;
+    }
+    if (event.shiftKey && (event.key === 'F' || event.key === 'f')) {
+      event.preventDefault();
+      toggleFull();
+      return;
+    }
+    if (event.key === 'Delete' || event.key === 'Backspace') {
+      removeSelected();
+      return;
+    }
+    // B toggles Select bar (Shift+B belongs to buy).
+    if (!event.shiftKey && (event.key === 'b' || event.key === 'B')) {
+      pick(!picking);
+      return;
+    }
+    const next = timeframeForKey(event.key);
+    if (next) void setTfParam(String(next));
+  };
   useEffect(() => {
-    const onKey = (event: KeyboardEvent) => {
-      const target = event.target as HTMLElement | null;
-      if (target && (target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName))) return;
-      const key = chartKeyFor(event, cursor !== null);
-      if (key) {
-        event.preventDefault();
-        // A focused button (Play, Bar…) would also react to Space on key up and undo the toggle.
-        if (target?.tagName === 'BUTTON') target.blur();
-        if (key.type === 'step') void step(key.mode);
-        else if (key.type === 'back') void replay.stepBack(key.mode, back);
-        else if (key.type === 'play') setPlaying(!playing);
-        else if (key.type === 'scroll') chartApi?.scrollBars(key.bars);
-        else if (key.type === 'zoom') chartApi?.zoom(key.in);
-        else if (key.type === 'reset') chartApi?.reset();
-        else if (key.type === 'undo') undo();
-        else redo();
-        return;
-      }
-      if (event.altKey && !event.metaKey && !event.ctrlKey) {
-        const tool = toolForKey(event.code);
-        if (tool) {
-          event.preventDefault();
-          startTool(tool.id);
-        }
-        return;
-      }
-      if (event.metaKey || event.ctrlKey || event.altKey) return;
-      if (event.key === 'Escape') {
-        if (ticketRef.current) setTicket(null);
-        else cancelTool();
-        return;
-      }
-      // Shift+B / Shift+S: buy or sell ticket (again to place it); Enter places an open ticket. Plain B is
-      // Select bar.
-      if (event.shiftKey && (event.code === 'KeyB' || event.code === 'KeyS')) {
-        event.preventDefault();
-        pressSide(event.code === 'KeyB' ? 'long' : 'short');
-        return;
-      }
-      if (event.key === 'Enter' && ticketRef.current && target?.tagName !== 'BUTTON') {
-        event.preventDefault();
-        void placeRef.current();
-        return;
-      }
-      if (event.shiftKey && (event.key === 'F' || event.key === 'f')) {
-        event.preventDefault();
-        toggleFull();
-        return;
-      }
-      if (event.key === 'Delete' || event.key === 'Backspace') {
-        removeSelected();
-        return;
-      }
-      // B toggles Select bar (Shift+B belongs to buy).
-      if (!event.shiftKey && (event.key === 'b' || event.key === 'B')) {
-        pick(!picking);
-        return;
-      }
-      const next = timeframeForKey(event.key);
-      if (next) void setTfParam(String(next));
-    };
+    const onKey = (event: KeyboardEvent) => onKeyRef.current(event);
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [
-    setTfParam,
-    cursor,
-    step,
-    setPlaying,
-    playing,
-    startTool,
-    cancelTool,
-    removeSelected,
-    toggleFull,
-    back,
-    replay.stepBack,
-    chartApi,
-    undo,
-    redo,
-    pressSide,
-    setTicket,
-    pick,
-    picking,
-  ]);
+  }, []);
 
   if (!instrument) {
     return <p className="p-4 text-muted-foreground text-sm">No instruments are set up yet.</p>;
@@ -592,7 +580,7 @@ export function ChartWorkspace({
                 onClick={() => void setCode(i.code)}
                 title={`${i.displayName} · ${symbolWithAlias(i.code)}`}
                 className={cn(
-                  'h-9 rounded-md px-3 font-semibold tracking-tight',
+                  'h-9 rounded-md px-3 font-semibold tracking-tight short:px-2',
                   i.code === instrument.code
                     ? 'bg-accent text-accent-foreground'
                     : 'text-muted-foreground hover:bg-accent/60',
@@ -613,7 +601,7 @@ export function ChartWorkspace({
                 aria-keyshortcuts={t === 15 ? 'F' : String(t)}
                 onClick={() => void setTfParam(String(t))}
                 className={cn(
-                  'h-9 min-w-11 rounded-md px-2 num',
+                  'h-9 min-w-11 rounded-md px-2 num short:min-w-9',
                   t === tf ? 'bg-accent text-accent-foreground' : 'text-muted-foreground hover:bg-accent/60',
                 )}
               >
@@ -736,7 +724,7 @@ export function ChartWorkspace({
           back={back}
         />
       </div>
-      <div className="flex min-h-0 flex-1 flex-col-reverse md:flex-row">
+      <div className="flex min-h-0 flex-1 flex-col-reverse short:flex-row md:flex-row">
         <DrawingToolbar drawings={drawings} />
         <div
           className={cn('relative min-h-0 flex-1', picking && 'cursor-crosshair')}
@@ -885,10 +873,15 @@ export function ChartWorkspace({
             onPickPlace={setPlaced}
           />
         </div>
+        {!desktop && short && ticketNode && (
+          <div className="w-60 shrink-0 overflow-y-auto border-l p-1.5" data-testid="ticket-column">
+            {ticketNode}
+          </div>
+        )}
       </div>
-      {!desktop && ticketNode && (
+      {!desktop && !short && ticketNode && (
         <div
-          className="max-h-[50dvh] shrink-0 overflow-y-auto border-t p-2"
+          className="max-h-[50dvh] shrink-0 overflow-y-auto border-t p-1.5"
           // Brought into view when it opens: on a phone it sits under the chart.
           ref={revealTicket}
         >
@@ -916,22 +909,26 @@ export function ChartWorkspace({
   );
 }
 
-/** Wide enough for the desktop layout (Tailwind's md); false until mounted. */
-function useDesktop() {
-  const [desktop, setDesktop] = useState(false);
+/** Same queries as the `roomy` and `short` variants in globals.css, so the script and the CSS pick one layout. */
+const ROOMY = '(width >= 48rem) and (height > 520px)';
+const SHORT = '(height <= 520px)';
+
+/** Whether a media query matches; false until mounted. */
+function useMedia(query: string) {
+  const [matches, setMatches] = useState(false);
   useEffect(() => {
-    const query = window.matchMedia('(min-width: 768px)');
-    const update = () => setDesktop(query.matches);
+    const list = window.matchMedia(query);
+    const update = () => setMatches(list.matches);
     update();
-    query.addEventListener('change', update);
-    return () => query.removeEventListener('change', update);
-  }, []);
-  return desktop;
+    list.addEventListener('change', update);
+    return () => list.removeEventListener('change', update);
+  }, [query]);
+  return matches;
 }
 
 /** Vertical separator between toolbar groups, as on TradingView's top bar. */
 function Divider() {
-  return <span aria-hidden className="mx-1 hidden h-6 w-px bg-border md:block" />;
+  return <span aria-hidden className="mx-1 hidden h-6 w-px bg-border short:hidden! md:block" />;
 }
 
 /**

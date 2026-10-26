@@ -45,6 +45,10 @@ export type ChartApi = {
   rewind(bars: Bar[]): void;
   /** True while a replay start, jump or switch reloads the window, or that load failed: steps wait for it. */
   reloading(): boolean;
+  /** The `reloadKey` of the window on screen: a start is still on its way until this catches up. */
+  loadedKey(): number;
+  /** The last window load failed (a Retry is offered): nothing to wait for. */
+  loadFailed(): boolean;
   /** TradingView's Alt+R: default zoom, auto scale, newest bar in view. */
   reset(): void;
   /** Scrolls so the newest bar is in view (the » button). */
@@ -189,6 +193,8 @@ export function KLineChart(props: ChartProps) {
     setPick(null);
   }, [picking]);
   const lastReloadKey = useRef(reloadKey);
+  const loadedKeyRef = useRef(-1);
+  const failedRef = useRef(false);
   /** Re-reads what the buttons on the chart depend on (after scrolls, zooms, axis drags, new bars). */
   const measure = useCallback(() => {
     const chart = chartRef.current;
@@ -353,6 +359,8 @@ export function KLineChart(props: ChartProps) {
       },
       bars: () => chart.getDataList().map(toBar),
       reloading: () => reloadingRef.current,
+      loadedKey: () => loadedKeyRef.current,
+      loadFailed: () => failedRef.current,
       rewind: (bars) => {
         // The last bar kept stays at the same x, so stepping back never moves the view.
         const ref = bars.at(-1);
@@ -399,6 +407,7 @@ export function KLineChart(props: ChartProps) {
       !restarted && list.length > 0 && range.realTo < list.length ? (list[range.realTo - 1]?.timestamp ?? null) : null;
     const gen = ++generation.current;
     setError(null);
+    failedRef.current = false;
     setLoading('init');
     reloadingRef.current = true;
     const syncLast = () => {
@@ -420,6 +429,7 @@ export function KLineChart(props: ChartProps) {
             syncLast();
             setLoading(null);
             reloadingRef.current = false;
+            loadedKeyRef.current = reloadKey;
           } else if (type === 'init' && cursorRef.current !== null) {
             // Replay: always the newest page up to the cursor, so new bars join the chart without a gap; the
             // anchor, when it falls inside that page, is scrolled back into view.
@@ -431,6 +441,7 @@ export function KLineChart(props: ChartProps) {
             syncLast();
             setLoading(null);
             reloadingRef.current = false;
+            loadedKeyRef.current = reloadKey;
           } else if (type === 'init') {
             const before = anchor ? new Date(anchor + RIGHT_OF_ANCHOR * tf * MINUTE_MS) : undefined;
             const page = await fetchBars({ instrument: instrument.code, tf, until, before, count: PAGE });
@@ -440,6 +451,7 @@ export function KLineChart(props: ChartProps) {
             syncLast();
             setLoading(null);
             reloadingRef.current = false;
+            loadedKeyRef.current = reloadKey;
           } else if (type === 'forward' && timestamp) {
             setLoading('page');
             const page = await fetchBars({
@@ -465,6 +477,7 @@ export function KLineChart(props: ChartProps) {
           }
         } catch (e) {
           if (gen !== generation.current) return;
+          failedRef.current = true;
           setError((e as Error).message);
           setLoading(null);
           callback([], false);
