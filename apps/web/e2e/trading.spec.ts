@@ -13,6 +13,35 @@ async function orderLines(page: Page): Promise<{ key: string; price: number; y: 
   return JSON.parse(raw ?? '[]');
 }
 
+/** The selected long/short box's [entry, stop, target] prices, as the chart reports its drawings. */
+async function boxPrices(page: Page): Promise<number[]> {
+  const raw = (await page.getByTestId('chart-area').getAttribute('data-drawings')) ?? '[]';
+  const [box] = JSON.parse(raw) as { points: { price: number }[] }[];
+  return (box?.points ?? []).map((p) => p.price);
+}
+
+/** Drags an order line (`<orderId>:sl` / `:tp`) by `dy` pixels. */
+async function dragLine(page: Page, level: 'sl' | 'tp', dy: number) {
+  // On a phone the trade list opens under the chart and the chart gets shorter: wait for the line to settle.
+  let last: string | null = null;
+  await expect
+    .poll(async () => {
+      const y = (await orderLines(page)).find((l) => l.key.endsWith(`:${level}`))?.y ?? null;
+      const now = `${y}/${(await page.getByTestId('kline-chart').boundingBox())?.height}`;
+      const settled = y !== null && now === last;
+      last = now;
+      return settled;
+    })
+    .toBe(true);
+  const line = (await orderLines(page)).find((l) => l.key.endsWith(`:${level}`));
+  const box = await page.getByTestId('kline-chart').boundingBox();
+  if (!line?.y || !box) throw new Error(`no ${level} line`);
+  await page.mouse.move(box.x + box.width * 0.6, box.y + line.y);
+  await page.mouse.down();
+  await page.mouse.move(box.x + box.width * 0.6, box.y + line.y + dy, { steps: 5 });
+  await page.mouse.up();
+}
+
 async function clickChart(page: Page, fx: number, fy: number) {
   await page.getByTestId('kline-chart').scrollIntoViewIfNeeded();
   const box = await page.getByTestId('kline-chart').boundingBox();
@@ -40,7 +69,7 @@ test.describe('simulated trading (M20)', () => {
     await signIn(context, baseURL ?? '');
   });
 
-  test('a long placed from the tool fills on the next bar, closes, shows in the tracker, and deletes with undo', async ({
+  test('a long box opens at exactly its drawn levels, SL/TP drag, closes, shows in the tracker, deletes with undo', async ({
     page,
   }) => {
     await page.goto('/tracker/trades');
@@ -51,21 +80,33 @@ test.describe('simulated trading (M20)', () => {
       .poll(async () => (await page.getByTestId('kline-chart').getAttribute('data-last-bar')) ?? '')
       .not.toBe('');
 
+    // Drawn away from the last close: the trade must still open exactly where it was drawn (Joe, 26 Oct 2026).
     await page.keyboard.press('Alt+KeyL');
-    await clickChart(page, 0.7, 0.5);
-    await page.getByRole('button', { name: 'Buy market' }).click();
-    // The trade list opens by itself on a new order.
+    await clickChart(page, 0.7, 0.55);
+    const [entry, stop, target] = (await boxPrices(page)).map((p) => p.toFixed(2));
+    const buy = page.getByRole('button', { name: new RegExp(`^Buy ${entry} · [\\d.]+ lots$`) });
+    await expect(buy).toBeVisible();
+    await buy.click();
+    // The trade list opens by itself on a new order: open at once, at the drawn levels, nothing moved.
     await expect(rows(page)).toHaveCount(1);
-    await expect(rows(page).first()).toHaveAttribute('data-status', 'pending');
+    await expect(rows(page).first()).toHaveAttribute('data-status', 'open');
+    await expect(rows(page).first()).toContainText(`@ ${entry}`);
+    await expect(rows(page).first()).toContainText(`SL ${stop} · TP ${target}`);
     // The tool became the order.
     await expect
       .poll(async () => JSON.parse((await page.getByTestId('chart-area').getAttribute('data-drawings')) ?? '[]'))
       .toEqual([]);
     await expect(page.getByTestId('kline-chart')).toHaveAttribute('data-order-marks', '1');
-
-    // Next bar: filled at its open plus the spread.
-    await page.keyboard.press('ArrowRight');
-    await expect(rows(page).first()).toHaveAttribute('data-status', 'open');
+    // Its stop and target move by dragging their lines.
+    await expect
+      .poll(async () => (await orderLines(page)).map((l) => l.key.split(':')[1]).sort())
+      .toEqual(['sl', 'tp']);
+    await dragLine(page, 'tp', -25);
+    await expect(rows(page).first()).not.toContainText(`TP ${target}`);
+    expect(Number((await rows(page).first().textContent())?.match(/TP ([\d.]+)/)?.[1])).toBeGreaterThan(Number(target));
+    await dragLine(page, 'sl', 15);
+    await expect(rows(page).first()).not.toContainText(`SL ${stop}`);
+    expect(Number((await rows(page).first().textContent())?.match(/SL ([\d.]+)/)?.[1])).toBeLessThan(Number(stop));
     // No stepping back with a trade open.
     const before = await page.getByTestId('replay-cursor').getAttribute('data-cursor');
     await page.keyboard.press('ArrowLeft');
@@ -117,7 +158,7 @@ test.describe('simulated trading (M20)', () => {
 
     await page.keyboard.press('Alt+KeyS');
     await clickChart(page, 0.7, 0.15);
-    await page.getByRole('button', { name: 'Place pending' }).click();
+    await page.getByRole('button', { name: /^Sell (limit|stop) order$/ }).click();
     await expect(rows(page).first()).toHaveAttribute('data-status', 'pending');
     // A pending order shows draggable entry, SL and TP lines.
     await expect.poll(async () => (await orderLines(page)).length).toBe(3);
@@ -126,8 +167,7 @@ test.describe('simulated trading (M20)', () => {
 
     await page.keyboard.press('Alt+KeyL');
     await clickChart(page, 0.7, 0.5);
-    await page.getByRole('button', { name: 'Buy market' }).click();
-    await page.keyboard.press('ArrowRight');
+    await page.getByRole('button', { name: /^Buy [\d.]+ · [\d.]+ lots$/ }).click();
     await expect(rows(page).first()).toHaveAttribute('data-status', 'open');
     await rows(page).first().getByRole('button', { name: 'Break-even' }).click();
     await expect(rows(page).first()).toContainText(/SL (\S+) · TP/);
@@ -139,9 +179,9 @@ test.describe('simulated trading (M20)', () => {
     const tp = (await orderLines(page)).find((l) => l.key.endsWith(':tp'));
     const box = await page.getByTestId('kline-chart').boundingBox();
     if (!tp?.y || !box) throw new Error('no TP line');
-    await page.mouse.move(box.x + box.width * 0.3, box.y + tp.y);
+    await page.mouse.move(box.x + box.width * 0.6, box.y + tp.y);
     await page.mouse.down();
-    await page.mouse.move(box.x + box.width * 0.3, box.y + tp.y - 25, { steps: 5 });
+    await page.mouse.move(box.x + box.width * 0.6, box.y + tp.y - 25, { steps: 5 });
     await page.mouse.up();
     await expect(rows(page).first()).not.toContainText(`TP ${tpBefore}`);
     const tpAfter = Number((await rows(page).first().textContent())?.match(/TP ([\d.]+)/)?.[1]);

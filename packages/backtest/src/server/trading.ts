@@ -210,8 +210,10 @@ const toBar = (r: typeof candles1m.$inferSelect): Bar => ({
 const side = (s: 'buy' | 'sell') => (s === 'buy' ? 'long' : 'short') as 'long' | 'short';
 
 /**
- * Places an order from a long/short tool. Market orders fill at the next 1m bar's open; a pending order is a
- * limit when its entry is on the better side of the cursor bar's close, else a stop. Never looks past `at`.
+ * Places an order. Market orders fill at the next 1m bar's open; a pending order is a limit when its entry is
+ * on the better side of the cursor bar's close, else a stop. A `drawn` order (a long/short box) is open at once
+ * at exactly its drawn entry, stop and target: no spread or slippage on the entry (Joe, 26 Oct 2026). Never
+ * looks past `at`.
  */
 export async function placeOrder(db: Executor, sessionId: string, input: PlaceOrderInput): Promise<OrderView> {
   const session = await getSession(db, sessionId);
@@ -231,6 +233,17 @@ export async function placeOrder(db: Executor, sessionId: string, input: PlaceOr
   if (input.kind === 'pending') {
     type = pendingType(input.side, input.entry, now.close);
   }
+  // A drawn box opens at its own levels on the cursor bar; exits are checked from the next bar on.
+  const opened =
+    input.kind === 'drawn'
+      ? {
+          status: 'open' as const,
+          fillPrice: input.entry,
+          filledAt: new Date(now.ts),
+          initialSl: input.sl,
+          initialTp: input.tp,
+        }
+      : {};
   const [row] = await db
     .insert(backtestOrders)
     .values({
@@ -245,6 +258,7 @@ export async function placeOrder(db: Executor, sessionId: string, input: PlaceOr
       tp: input.tp,
       placedAt: new Date(now.ts),
       processedUntil: new Date(now.ts),
+      ...opened,
     })
     .returning();
   if (!row) throw new Error('Could not place the order');

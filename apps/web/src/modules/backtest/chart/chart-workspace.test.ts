@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { atMarket, stepBackRule, timeframeForKey } from './chart-workspace';
+import { stepBackRule, timeframeForKey } from './chart-workspace';
 import { barsUrl, toKLine } from './loader';
 
 describe('chart helpers', () => {
@@ -12,16 +12,6 @@ describe('chart helpers', () => {
         { status: 'closed', closedAt: 300 },
       ]),
     ).toEqual({ blocked: null, floor: 300 });
-  });
-
-  it('moves a market position to the price on screen, keeping stop and target distances', () => {
-    const box = [
-      { ts: 1, price: 100 },
-      { ts: 2, price: 90 },
-      { ts: 2, price: 120 },
-    ];
-    expect(atMarket(box, 104).map((p) => p.price)).toEqual([104, 94, 124]);
-    expect(atMarket(box, null)).toBe(box);
   });
 
   it('maps the timeframe shortcuts', () => {

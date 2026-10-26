@@ -6,6 +6,7 @@ import {
   followPrice,
   newTicket,
   parseTimeframe,
+  pendingType,
   positionMetrics,
   type Side,
   type Sizing,
@@ -27,7 +28,7 @@ import { BARS_PAGE, liveUntil, prefetchBars } from './loader';
 import { NewsPanel } from './news-panel';
 import { type DraftLines, useOrderHandles } from './order-handles';
 import { orderMarks } from './order-lines';
-import { OrderTicket, quotes, readSizing, saveSizing, TradeButtons, ticketTitle } from './order-ticket';
+import { OrderTicket, quotes, readSizing, SizeControls, saveSizing, TradeButtons, ticketTitle } from './order-ticket';
 import { PickBar } from './pick-line';
 import { ReplayControls } from './replay-controls';
 import { toolForKey } from './tools/registry';
@@ -97,17 +98,6 @@ function readPrefs(): Prefs {
 /** US30 first when it exists (Joe's main market), else the first instrument. */
 function defaultInstrument(list: WorkspaceInstrument[]): string {
   return list.find((i) => i.code === 'US30')?.code ?? list[0]?.code ?? 'US30';
-}
-
-/**
- * A position's [entry, stop, target] moved so the entry sits at `price` (the last close), keeping the stop and
- * target distances; unchanged when there is no price.
- */
-export function atMarket<P extends { price: number }>(points: P[], price: number | null): P[] {
-  const entry = points[0];
-  if (price === null || !entry) return points;
-  const shift = price - entry.price;
-  return points.map((p) => ({ ...p, price: p.price + shift }));
 }
 
 /**
@@ -191,6 +181,20 @@ export function ChartWorkspace({
     },
     [replay.onChartReady],
   );
+  // One remembered size for the order ticket and every long/short box.
+  const riskPct = initialTrading?.session.riskPct ?? '0.5';
+  const [sizing, setSizingState] = useState<Sizing>({ mode: 'risk_pct', value: riskPct });
+  const sizingRef = useRef(sizing);
+  useEffect(() => {
+    const stored = readSizing(riskPct);
+    sizingRef.current = stored;
+    setSizingState(stored);
+  }, [riskPct]);
+  const setSizing = useCallback((next: Sizing) => {
+    sizingRef.current = next;
+    setSizingState(next);
+    saveSizing(next);
+  }, []);
   const drawings = useDrawings(
     chartApi?.chart ?? null,
     {
@@ -199,6 +203,7 @@ export function ChartWorkspace({
       priceDigits: instrument?.priceDigits ?? 2,
       tf,
       balance: initialTrading?.session.startingBalance ?? DEFAULT_BALANCE,
+      sizing,
     },
     initialDrawings,
     drawingActions,
@@ -282,19 +287,6 @@ export function ChartWorkspace({
   const setTicket = useCallback((next: Ticket | null) => {
     ticketRef.current = next;
     setTicketState(next);
-  }, []);
-  const riskPct = initialTrading?.session.riskPct ?? '0.5';
-  const [sizing, setSizingState] = useState<Sizing>({ mode: 'risk_pct', value: riskPct });
-  const sizingRef = useRef(sizing);
-  useEffect(() => {
-    const stored = readSizing(riskPct);
-    sizingRef.current = stored;
-    setSizingState(stored);
-  }, [riskPct]);
-  const setSizing = useCallback((next: Sizing) => {
-    sizingRef.current = next;
-    setSizingState(next);
-    saveSizing(next);
   }, []);
   const [placing, setPlacing] = useState(false);
   const placingRef = useRef(false);
@@ -457,25 +449,36 @@ export function ChartWorkspace({
     [trading.orders, instrument?.code, tf, pointValue],
   );
   const selected = drawings.selected;
-  const placeFromSelected = async (kind: 'market' | 'pending') => {
-    if (!selected || (selected.tool !== 'long' && selected.tool !== 'short')) return;
-    const placed = await trading.place(
-      {
-        side: selected.tool,
-        // A market order fills at the next candle's open, not where the box was drawn: move the box to the
-        // price on screen first (stop and target keep their distances), so the trade doesn't jump on the fill.
-        points: atMarket(
-          selected.points.map((p) => ({ ts: p.ts, price: p.price })),
-          kind === 'market' ? (chartApi?.lastBar()?.close ?? null) : null,
-        ),
-        sizing: selected.style.sizing,
-      },
-      kind,
-      selected.drawingId,
-    );
-    // The drawing has become the order (spec §6.1).
-    if (placed) drawings.removeSelected();
-  };
+  const selectedBox = selected && (selected.tool === 'long' || selected.tool === 'short') ? selected : null;
+  /**
+   * A long/short box trades exactly as drawn (Joe, 26 Oct 2026): `drawn` opens now at its entry, stop and target;
+   * `pending` waits for price to reach the entry as a limit or stop. Nothing is moved before or after.
+   */
+  const placeFromBox = useCallback(
+    async (kind: 'drawn' | 'pending') => {
+      const box = drawings.selected;
+      if (!box || (box.tool !== 'long' && box.tool !== 'short')) return;
+      const placed = await trading.place(
+        { side: box.tool, points: box.points.map((p) => ({ ts: p.ts, price: p.price })), sizing: sizingRef.current },
+        kind,
+        box.drawingId,
+      );
+      // The drawing has become the order (spec §6.1).
+      if (placed) drawings.removeSelected();
+    },
+    [drawings.selected, drawings.removeSelected, trading.place],
+  );
+  const boxMetrics = selectedBox
+    ? positionMetrics({
+        side: selectedBox.tool as Side,
+        entry: selectedBox.points[0]?.price ?? 0,
+        stop: selectedBox.points[1]?.price ?? 0,
+        target: selectedBox.points[2]?.price ?? 0,
+        pointValue,
+        balance,
+        sizing,
+      })
+    : null;
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       const target = event.target as HTMLElement | null;
@@ -821,33 +824,41 @@ export function ChartWorkspace({
           )}
           {!ticket && (
             <DrawingProperties drawings={drawings}>
-              {cursor === null && (selected?.tool === 'long' || selected?.tool === 'short') && (
+              {selectedBox && <SizeControls sizing={sizing} onSizing={setSizing} />}
+              {selectedBox && cursor === null && (
                 <span className="px-1 text-muted-foreground text-xs">Start replay to place it</span>
               )}
-              {trading.session &&
-                cursor !== null &&
-                selected &&
-                (selected.tool === 'long' || selected.tool === 'short') && (
-                  <>
+              {selectedBox && boxMetrics && trading.session && cursor !== null && (
+                <>
+                  <button
+                    type="button"
+                    disabled={!boxMetrics.valid}
+                    onClick={() => void placeFromBox('drawn')}
+                    title="Opens now at exactly the drawn entry, stop and target"
+                    className={cn(
+                      'h-8 whitespace-nowrap rounded-md px-3 font-semibold disabled:opacity-50',
+                      selectedBox.tool === 'long' ? 'bg-profit text-background' : 'bg-loss text-background',
+                    )}
+                  >
+                    <span className="num">
+                      {selectedBox.tool === 'long' ? 'Buy' : 'Sell'}{' '}
+                      {(selectedBox.points[0]?.price ?? 0).toFixed(priceDigits)} · {boxMetrics.lots} lots
+                    </span>
+                  </button>
+                  {lastClose !== null && (
                     <button
                       type="button"
-                      onClick={() => void placeFromSelected('market')}
-                      className={cn(
-                        'h-8 rounded-md px-2 font-medium',
-                        selected.tool === 'long' ? 'bg-profit/20 text-profit' : 'bg-loss/20 text-loss',
-                      )}
+                      disabled={!boxMetrics.valid}
+                      onClick={() => void placeFromBox('pending')}
+                      title="Waits for price to reach the entry"
+                      className="h-8 rounded-md px-2 hover:bg-accent/60 disabled:opacity-50"
                     >
-                      {selected.tool === 'long' ? 'Buy market' : 'Sell market'}
+                      {selectedBox.tool === 'long' ? 'Buy' : 'Sell'}{' '}
+                      {pendingType(selectedBox.tool as Side, selectedBox.points[0]?.price ?? 0, lastClose)} order
                     </button>
-                    <button
-                      type="button"
-                      onClick={() => void placeFromSelected('pending')}
-                      className="h-8 rounded-md px-2 hover:bg-accent/60"
-                    >
-                      Place pending
-                    </button>
-                  </>
-                )}
+                  )}
+                </>
+              )}
             </DrawingProperties>
           )}
           {drawings.error && (

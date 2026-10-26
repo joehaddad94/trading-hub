@@ -199,34 +199,6 @@ export function DrawingProperties({ drawings, children }: { drawings: Drawings; 
           <option value="both">Extend both</option>
         </select>
       )}
-      {(sel.tool === 'long' || sel.tool === 'short') && (
-        <>
-          <select
-            aria-label="Size by"
-            value={sel.style.sizing?.mode ?? 'risk_pct'}
-            onChange={(e) =>
-              set({ sizing: { mode: e.target.value as 'lots', value: sel.style.sizing?.value ?? '0.5' } })
-            }
-            className="h-8 rounded-md border bg-background px-1"
-          >
-            <option value="risk_pct">Risk %</option>
-            <option value="risk_usd">Risk $</option>
-            <option value="lots">Lots</option>
-          </select>
-          <input
-            aria-label="Size"
-            inputMode="decimal"
-            defaultValue={sel.style.sizing?.value ?? '0.5'}
-            key={`${sel.id}-${sel.style.sizing?.mode}`}
-            onBlur={(e) => {
-              const value = e.target.value.trim();
-              if (/^\d{1,9}(\.\d{1,4})?$/.test(value))
-                set({ sizing: { mode: sel.style.sizing?.mode ?? 'risk_pct', value } });
-            }}
-            className="h-8 w-16 rounded-md border bg-background px-1"
-          />
-        </>
-      )}
       {sel.tool === 'horizontal' && (
         <input
           aria-label="Label"
