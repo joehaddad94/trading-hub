@@ -93,9 +93,9 @@ test.describe('Backtest Lab for invited users', () => {
       await expect(page).toHaveURL(/\/backtest$/);
     }
     expect((await page.request.get('/api/tracker/trades.csv')).status()).toBe(403);
-    expect((await page.request.get('/api/backtest/events?from=2026-10-06&to=2026-10-08&until=2026-10-08')).status()).not.toBe(
-      403,
-    );
+    expect(
+      (await page.request.get('/api/backtest/events?from=2026-10-06&to=2026-10-08&until=2026-10-08')).status(),
+    ).not.toBe(403);
 
     await createRun(page, 'Guest run');
     await page.goto('/backtest');
@@ -109,7 +109,10 @@ test.describe('Backtest Lab for invited users', () => {
 
     // Removing them cuts access on their next request; their run stays for when they're added back.
     await ownerPage.goto('/settings/users');
-    await ownerPage.getByRole('form', { name: `Remove ${GUEST}` }).getByRole('button', { name: 'Remove' }).click();
+    await ownerPage
+      .getByRole('form', { name: `Remove ${GUEST}` })
+      .getByRole('button', { name: 'Remove' })
+      .click();
     await expect(ownerPage.getByText('Nobody else yet.')).toBeVisible();
     await page.goto('/backtest');
     await expect(page).toHaveURL(/\/login/);
@@ -121,6 +124,11 @@ test.describe('Backtest Lab for invited users', () => {
     // Their session cookie is still valid, so they're straight back in.
     await page.goto('/backtest');
     await expect(page.getByText('Guest run')).toBeVisible();
+
+    await page.getByRole('button', { name: 'Log out' }).locator('visible=true').click();
+    await expect(page).toHaveURL(/\/login/);
+    await page.goto('/backtest');
+    await expect(page).toHaveURL(/\/login/);
 
     await guest.close();
     await owner.close();

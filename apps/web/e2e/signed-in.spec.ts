@@ -16,6 +16,15 @@ test.describe('signed in', () => {
     }
   });
 
+  test('log out signs out and goes to the sign-in page', async ({ page, isMobile }) => {
+    await page.goto('/news');
+    if (isMobile) await page.getByText('More', { exact: true }).click();
+    await page.getByRole('button', { name: 'Log out' }).locator('visible=true').click();
+    await expect(page).toHaveURL(/\/login/);
+    await page.goto('/tracker');
+    await expect(page).toHaveURL(/\/login/);
+  });
+
   test('login redirects to the hub', async ({ page }) => {
     await page.goto('/login');
     await expect(page).toHaveURL(/\/$/);
