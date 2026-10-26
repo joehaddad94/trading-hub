@@ -1,7 +1,7 @@
 'use client';
 
 import type { Drawing, DrawingInput, DrawingPoint, DrawingStyle, DrawingTool } from '@trading/backtest';
-import type { Timeframe } from '@trading/backtest-engine';
+import type { Sizing, Timeframe } from '@trading/backtest-engine';
 import type { Chart, Overlay, OverlayCreate, OverlayEvent, OverlayMode, Point } from 'klinecharts';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { ActionResult } from '@/lib/action-result';
@@ -23,6 +23,8 @@ export type DrawingContext = {
   tf: Timeframe;
   /** Account balance for position sizing (backtest session's, M21; 25,000 by default). */
   balance: string;
+  /** Size every long/short box shows and trades with (the order ticket's remembered size). */
+  sizing: Sizing;
 };
 
 const BASE_STYLE: DrawingStyle = { color: '#60a5fa', width: 1, lock: false };
@@ -172,6 +174,7 @@ export function useDrawings(chart: Chart | null, ctx: DrawingContext, initial: D
       pointValue: ctxRef.current.pointValue,
       balance: ctxRef.current.balance,
       priceDigits: ctxRef.current.priceDigits,
+      sizing: ctxRef.current.sizing,
     }),
     [],
   );
@@ -300,6 +303,18 @@ export function useDrawings(chart: Chart | null, ctx: DrawingContext, initial: D
     if (!chart) return;
     for (const o of overlays()) chart.overrideOverlay({ id: o.id, mode });
   }, [chart, mode, overlays]);
+
+  // Boxes show the shared size: redraw their labels when it changes.
+  const { mode: sizeMode, value: sizeValue } = ctx.sizing;
+  useEffect(() => {
+    if (!chart) return;
+    const sizing = { mode: sizeMode, value: sizeValue };
+    for (const o of overlays()) {
+      const tool = toolOf(o);
+      if (tool === 'long' || tool === 'short')
+        chart.overrideOverlay({ id: o.id, extendData: { ...o.extendData, sizing } });
+    }
+  }, [chart, sizeMode, sizeValue, overlays]);
 
   const overlayFor = useCallback(
     (drawingId: string) => overlays().find((o) => o.extendData?.drawingId === drawingId) ?? null,

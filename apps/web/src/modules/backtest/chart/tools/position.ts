@@ -41,7 +41,7 @@ function positionTool(side: Side): ToolModule {
         const [e, s, t] = coordinates;
         const [pe, ps, pt] = overlay.points;
         if (!e || !s || !t || pe?.value === undefined || ps?.value === undefined || pt?.value === undefined) return [];
-        const { style, pointValue, balance, priceDigits } = overlay.extendData;
+        const { style, pointValue, balance, priceDigits, sizing } = overlay.extendData;
         const m = positionMetrics({
           side,
           entry: pe.value,
@@ -49,7 +49,7 @@ function positionTool(side: Side): ToolModule {
           target: pt.value,
           pointValue,
           balance,
-          sizing: style.sizing ?? { mode: 'risk_pct', value: '0.5' },
+          sizing: sizing ?? style.sizing ?? { mode: 'risk_pct', value: '0.5' },
         });
         const x = Math.min(e.x, s.x);
         const width = Math.max(Math.abs(s.x - e.x), 8);

@@ -19,11 +19,14 @@ const instant = z.union([z.number(), z.string()]).transform((v, ctx) => {
   return new Date(ms);
 });
 
-/** "Place trade" from a long/short tool (backtester spec §6.1). `pending` becomes a limit or stop order. */
+/**
+ * "Place trade" (backtester spec §6.1). `pending` becomes a limit or stop order. `drawn` opens a position from a
+ * long/short box at exactly its entry, stop and target at the replay cursor (Joe, 26 Oct 2026).
+ */
 export const placeOrderSchema = z.object({
   instrument: z.string().min(1).max(20),
   side: z.enum(['long', 'short']),
-  kind: z.enum(['market', 'pending']),
+  kind: z.enum(['market', 'pending', 'drawn']),
   entry: priceString,
   sl: priceString,
   tp: priceString,

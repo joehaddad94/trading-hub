@@ -1,5 +1,5 @@
 import type { DrawingPoint, DrawingStyle, DrawingTool } from '@trading/backtest';
-import type { Timeframe } from '@trading/backtest-engine';
+import type { Sizing, Timeframe } from '@trading/backtest-engine';
 import type { OverlayTemplate } from 'klinecharts';
 
 /** Context every overlay can read from `extendData` (set by the workspace). */
@@ -10,6 +10,8 @@ export type ToolData = {
   pointValue: string;
   balance: string;
   priceDigits: number;
+  /** Position size for long/short boxes: the order ticket's remembered size, shared by every box. */
+  sizing?: Sizing;
   /** Measure drawings that aren't kept vanish on the next click. */
   temporary?: boolean;
 };

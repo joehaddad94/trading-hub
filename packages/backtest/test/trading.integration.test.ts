@@ -120,6 +120,30 @@ describe.skipIf(!url)('simulated trading', () => {
     });
   });
 
+  it('a drawn box opens at exactly its levels on the cursor bar; exits start on the next bar', async () => {
+    await inTx(async (tx) => {
+      await seedBars(tx, [
+        [100, 101, 85, 100], // cursor bar: its low is under the stop but predates the trade
+        [100, 104, 99, 103],
+        [103, 121, 101, 120], // TP 120
+      ]);
+      const session = await createSession(tx, { name: 'Drawn' });
+      const placed = await placeOrder(tx, session.id, order({ kind: 'drawn', entry: '96', sl: '90', tp: '120' }));
+      expect(placed).toMatchObject({ status: 'open', fillPrice: '96.00000', sl: '90.00000', tp: '120.00000' });
+
+      await advanceSession(tx, session.id, at(1));
+      let [o] = await listOrders(tx, session.id);
+      expect(o).toMatchObject({ status: 'open', fillPrice: '96.00000', sl: '90.00000', tp: '120.00000' });
+
+      await advanceSession(tx, session.id, at(2));
+      [o] = await listOrders(tx, session.id);
+      expect(o).toMatchObject({ status: 'closed', exitReason: 'tp', closePrice: '120.00000' });
+      // (120 − 96) × 10 × 0.5 = 120; risk (96 − 90) × 10 × 0.5 = 30 → 4R.
+      expect(o?.net).toBe('120.00');
+      expect(o?.r).toBe('4.00');
+    });
+  });
+
   it('pending orders: limit vs stop from the cursor price; cancel; modify is logged', async () => {
     await inTx(async (tx) => {
       await seedBars(tx, [

@@ -83,7 +83,7 @@ export function useTrading(opts: {
   }, [session, cursor, live, actions, apply]);
 
   const place = useCallback(
-    async (drawing: PositionDrawing, kind: 'market' | 'pending', drawingId: string | null) => {
+    async (drawing: PositionDrawing, kind: 'market' | 'pending' | 'drawn', drawingId: string | null) => {
       if (!session || cursor === null) {
         setError('Start replay to place a simulated trade.');
         return false;

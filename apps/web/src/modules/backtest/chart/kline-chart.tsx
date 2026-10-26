@@ -521,12 +521,19 @@ export function KLineChart(props: ChartProps) {
     const chart = chartRef.current;
     if (!ready || !chart) return;
     const marks = orderMarks ?? [];
+    // Auto scale keeps every live order's stop and target on screen, as TradingView does, so their lines are
+    // never off the chart or under the price legend and can always be dragged.
+    const levels = marks.flatMap((m) => (m.kind === 'live' ? [m.sl, m.tp, m.entry] : []));
+    const range = {
+      minValue: levels.length > 0 ? Math.min(...levels) : null,
+      maxValue: levels.length > 0 ? Math.max(...levels) : null,
+    };
     if (marks.length === 0) {
       chart.removeIndicator({ name: ORDERS_INDICATOR });
     } else if (chart.getIndicators({ name: ORDERS_INDICATOR }).length === 0) {
-      chart.createIndicator({ name: ORDERS_INDICATOR, paneId: 'candle_pane', extendData: { marks } }, true);
+      chart.createIndicator({ name: ORDERS_INDICATOR, paneId: 'candle_pane', extendData: { marks }, ...range }, true);
     } else {
-      chart.overrideIndicator({ name: ORDERS_INDICATOR, extendData: { marks } });
+      chart.overrideIndicator({ name: ORDERS_INDICATOR, extendData: { marks }, ...range });
     }
   }, [ready, orderMarks]);
 

@@ -256,17 +256,7 @@ export function OrderTicket({
       </div>
       <div className="flex items-center gap-1">
         <span className="w-11 text-muted-foreground">Size</span>
-        <select
-          aria-label="Size by"
-          value={sizing.mode}
-          onChange={(e) => onSizing({ mode: e.target.value as Sizing['mode'], value: sizing.value })}
-          className="h-8 rounded-md border bg-background px-1"
-        >
-          <option value="risk_pct">Risk %</option>
-          <option value="risk_usd">Risk $</option>
-          <option value="lots">Lots</option>
-        </select>
-        <SizeField value={sizing.value} onCommit={(value) => onSizing({ mode: sizing.mode, value })} />
+        <SizeControls sizing={sizing} onSizing={onSizing} />
         <span className="num ml-auto text-muted-foreground">
           {m.lots} lots · {m.riskPct}%
         </span>
@@ -366,6 +356,25 @@ function PriceField({
       }}
       className="h-8 w-full min-w-0 rounded-md border bg-background px-2 num"
     />
+  );
+}
+
+/** Size by (Risk % / Risk $ / Lots) and its value: one remembered size for the ticket and every box. */
+export function SizeControls({ sizing, onSizing }: { sizing: Sizing; onSizing: (next: Sizing) => void }) {
+  return (
+    <>
+      <select
+        aria-label="Size by"
+        value={sizing.mode}
+        onChange={(e) => onSizing({ mode: e.target.value as Sizing['mode'], value: sizing.value })}
+        className="h-8 rounded-md border bg-background px-1"
+      >
+        <option value="risk_pct">Risk %</option>
+        <option value="risk_usd">Risk $</option>
+        <option value="lots">Lots</option>
+      </select>
+      <SizeField value={sizing.value} onCommit={(value) => onSizing({ mode: sizing.mode, value })} />
+    </>
   );
 }
 
