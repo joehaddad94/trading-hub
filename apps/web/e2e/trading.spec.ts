@@ -98,7 +98,9 @@ test.describe('simulated trading (M20)', () => {
       .toEqual([]);
     await expect(page.getByTestId('kline-chart')).toHaveAttribute('data-order-marks', '1');
     // Its stop and target move by dragging their lines.
-    await expect.poll(async () => (await orderLines(page)).map((l) => l.key.split(':')[1]).sort()).toEqual(['sl', 'tp']);
+    await expect
+      .poll(async () => (await orderLines(page)).map((l) => l.key.split(':')[1]).sort())
+      .toEqual(['sl', 'tp']);
     await dragLine(page, 'tp', -25);
     await expect(rows(page).first()).not.toContainText(`TP ${target}`);
     expect(Number((await rows(page).first().textContent())?.match(/TP ([\d.]+)/)?.[1])).toBeGreaterThan(Number(target));
