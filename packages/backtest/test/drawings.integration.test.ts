@@ -48,25 +48,25 @@ const long = drawingInputSchema.parse({
 describe.skipIf(!db)('drawings', () => {
   it('creates, lists per chart, moves and deletes drawings', async () => {
     await inTx(async (tx) => {
-      const a = await createDrawing(tx, 'US30', hline);
-      const b = await createDrawing(tx, 'NAS100', long);
-      expect((await listDrawings(tx)).map((d) => [d.instrument, d.tool])).toEqual([
+      const a = await createDrawing(tx, null, 'US30', hline);
+      const b = await createDrawing(tx, null, 'NAS100', long);
+      expect((await listDrawings(tx, null)).map((d) => [d.instrument, d.tool])).toEqual([
         ['US30', 'horizontal'],
         ['NAS100', 'long'],
       ]);
-      await updateDrawing(tx, a.id, {
+      await updateDrawing(tx, null, a.id, {
         ...hline,
         points: [{ ts: 1, price: 46100 }],
         style: { ...hline.style, color: '#f87171' },
       });
-      const [moved] = await listDrawings(tx);
+      const moved = (await listDrawings(tx, null)).find((d) => d.id === a.id);
       expect(moved?.points).toEqual([{ ts: 1, price: 46100 }]);
       expect(moved?.style.color).toBe('#f87171');
-      await expect(updateDrawing(tx, a.id, { ...long })).rejects.toThrow(DrawingError);
-      await deleteDrawing(tx, b.id);
-      expect(await listDrawings(tx)).toHaveLength(1);
-      expect(await deleteAllDrawings(tx, 'US30')).toBe(1);
-      await expect(createDrawing(tx, 'XAU', hline)).rejects.toThrow('Unknown instrument XAU.');
+      await expect(updateDrawing(tx, null, a.id, { ...long })).rejects.toThrow(DrawingError);
+      await deleteDrawing(tx, null, b.id);
+      expect(await listDrawings(tx, null)).toHaveLength(1);
+      expect(await deleteAllDrawings(tx, null, 'US30')).toBe(1);
+      await expect(createDrawing(tx, null, 'XAU', hline)).rejects.toThrow('Unknown instrument XAU.');
     });
   });
 });

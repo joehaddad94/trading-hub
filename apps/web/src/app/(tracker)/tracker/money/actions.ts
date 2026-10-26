@@ -7,6 +7,7 @@ import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import type { ActionResult } from '@/lib/action-result';
 import { DISPLAY_TZ } from '@/lib/format';
+import { ownerOnly } from '@/lib/server/viewer';
 import { removeManualCashflow, writeManualCashflow } from '@/modules/tracker/server/money';
 
 /** Kinds that bring money in; everything else is a cost and stored negative (tracker spec §5). */
@@ -33,6 +34,8 @@ export async function addCashflowAction(
   _prev: ActionResult<string> | null,
   form: FormData,
 ): Promise<ActionResult<string>> {
+  const denied = await ownerOnly();
+  if (denied) return denied;
   const parsed = cashflow.safeParse({
     kind: form.get('kind'),
     amount: form.get('amount') ?? '',
@@ -63,6 +66,8 @@ export async function deleteCashflowAction(
   _prev: ActionResult<string> | null,
   form: FormData,
 ): Promise<ActionResult<string>> {
+  const denied = await ownerOnly();
+  if (denied) return denied;
   const id = z.uuid().safeParse(form.get('id'));
   if (!id.success) return { ok: false, error: 'Unknown cashflow.' };
   try {

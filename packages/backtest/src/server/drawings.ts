@@ -2,6 +2,7 @@ import type { Executor } from '@trading/db';
 import { and, asc, eq, isNull } from '@trading/db/orm';
 import { drawings, instruments } from '@trading/db/schema';
 import type { Drawing, DrawingInput } from '../drawings';
+import { type Owner, ownedBy } from './owned-by';
 
 export class DrawingError extends Error {}
 
@@ -26,13 +27,15 @@ type Row = {
 };
 const toDrawing = (r: Row) => r as Drawing;
 
-/** Drawings of every instrument for the chart (no session = the free chart). Small: loaded in one go. */
-export async function listDrawings(db: Executor, sessionId: string | null = null): Promise<Drawing[]> {
+/** The owner's drawings of every instrument (no session = the free chart). Small: loaded in one go. */
+export async function listDrawings(db: Executor, owner: Owner, sessionId: string | null = null): Promise<Drawing[]> {
   const rows = await db
     .select(columns)
     .from(drawings)
     .innerJoin(instruments, eq(instruments.id, drawings.instrumentId))
-    .where(sessionId ? eq(drawings.sessionId, sessionId) : isNull(drawings.sessionId))
+    .where(
+      and(ownedBy(drawings.ownerId, owner), sessionId ? eq(drawings.sessionId, sessionId) : isNull(drawings.sessionId)),
+    )
     .orderBy(asc(drawings.createdAt));
   return rows.map(toDrawing);
 }
@@ -45,39 +48,49 @@ async function instrumentId(db: Executor, code: string) {
 
 export async function createDrawing(
   db: Executor,
+  owner: Owner,
   code: string,
   input: DrawingInput,
   sessionId: string | null = null,
 ): Promise<Drawing> {
   const [row] = await db
     .insert(drawings)
-    .values({ instrumentId: await instrumentId(db, code), sessionId, ...input })
+    .values({ instrumentId: await instrumentId(db, code), sessionId, ownerId: owner, ...input })
     .returning({ id: drawings.id });
   if (!row) throw new DrawingError('Could not save the drawing.');
   return { id: row.id, instrument: code, sessionId, ...input };
 }
 
 /** Moves/restyles a drawing; its tool and instrument never change. */
-export async function updateDrawing(db: Executor, id: string, input: DrawingInput): Promise<void> {
+export async function updateDrawing(db: Executor, owner: Owner, id: string, input: DrawingInput): Promise<void> {
   const updated = await db
     .update(drawings)
     .set({ points: input.points, style: input.style, label: input.label })
-    .where(and(eq(drawings.id, id), eq(drawings.tool, input.tool)))
+    .where(and(eq(drawings.id, id), eq(drawings.tool, input.tool), ownedBy(drawings.ownerId, owner)))
     .returning({ id: drawings.id });
   if (updated.length === 0) throw new DrawingError('Drawing not found.');
 }
 
-export async function deleteDrawing(db: Executor, id: string): Promise<void> {
-  await db.delete(drawings).where(eq(drawings.id, id));
+export async function deleteDrawing(db: Executor, owner: Owner, id: string): Promise<void> {
+  await db.delete(drawings).where(and(eq(drawings.id, id), ownedBy(drawings.ownerId, owner)));
 }
 
 /** "Delete all" for one instrument's chart (same session scope). */
-export async function deleteAllDrawings(db: Executor, code: string, sessionId: string | null = null): Promise<number> {
+export async function deleteAllDrawings(
+  db: Executor,
+  owner: Owner,
+  code: string,
+  sessionId: string | null = null,
+): Promise<number> {
   const id = await instrumentId(db, code);
   const removed = await db
     .delete(drawings)
     .where(
-      and(eq(drawings.instrumentId, id), sessionId ? eq(drawings.sessionId, sessionId) : isNull(drawings.sessionId)),
+      and(
+        eq(drawings.instrumentId, id),
+        ownedBy(drawings.ownerId, owner),
+        sessionId ? eq(drawings.sessionId, sessionId) : isNull(drawings.sessionId),
+      ),
     )
     .returning({ id: drawings.id });
   return removed.length;

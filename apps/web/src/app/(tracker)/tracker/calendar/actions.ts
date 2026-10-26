@@ -4,6 +4,7 @@ import * as Sentry from '@sentry/nextjs';
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import type { ActionResult } from '@/lib/action-result';
+import { ownerOnly } from '@/lib/server/viewer';
 import { writeDailyNote } from '@/modules/tracker/server/calendar';
 
 const optionalText = (max: number) =>
@@ -25,6 +26,8 @@ export async function saveDailyNoteAction(
   _prev: ActionResult<string> | null,
   form: FormData,
 ): Promise<ActionResult<string>> {
+  const denied = await ownerOnly();
+  if (denied) return denied;
   const parsed = dailyNote.safeParse({
     date: form.get('date'),
     notes: form.get('notes') ?? '',

@@ -1,4 +1,6 @@
 export { createDrawing, DrawingError, deleteAllDrawings, deleteDrawing, listDrawings, updateDrawing } from './drawings';
+export { type Owner, ownedBy } from './owned-by';
+export { assertOwnsOrder, assertOwnsSession, assertOwnsSnapshot, assertOwnsTrade } from './owner';
 export {
   advanceSession,
   BACKTEST_FIRM,
@@ -24,3 +26,16 @@ export {
   TradingError,
   updateSession,
 } from './trading';
+export {
+  addBacktestUser,
+  type BacktestUser,
+  BacktestUserError,
+  isBacktestUser,
+  listBacktestUsers,
+  MAX_BACKTEST_USERS,
+  MAX_SIGN_IN_FAILURES,
+  recordBacktestSignIn,
+  recordSignInFailure,
+  removeBacktestUser,
+  signInThrottled,
+} from './users';

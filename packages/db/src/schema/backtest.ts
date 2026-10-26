@@ -1,5 +1,17 @@
 import { sql } from 'drizzle-orm';
-import { type AnyPgColumn, boolean, index, jsonb, numeric, pgEnum, pgTable, text, uuid } from 'drizzle-orm/pg-core';
+import {
+  type AnyPgColumn,
+  boolean,
+  check,
+  index,
+  jsonb,
+  numeric,
+  pgEnum,
+  pgTable,
+  text,
+  timestamp,
+  uuid,
+} from 'drizzle-orm/pg-core';
 import { id, money, price, timestamps, tstz } from './_shared';
 import { accounts } from './accounts';
 import { tradeSide } from './enums';
@@ -24,6 +36,8 @@ export const backtestSessions = pgTable(
       .notNull()
       .unique()
       .references(() => accounts.id),
+    /** Auth user id of an invited Backtest Lab user; null = the app owner (Joe). */
+    ownerId: uuid(),
     name: text().notNull(),
     instrumentIds: uuid().array().notNull().default(sql`'{}'::uuid[]`),
     startTs: tstz(),
@@ -39,7 +53,7 @@ export const backtestSessions = pgTable(
     status: backtestSessionStatus().notNull().default('in_progress'),
     ...timestamps,
   },
-  (t) => [index().on(t.status)],
+  (t) => [index().on(t.status), index().on(t.ownerId)],
 );
 
 export const drawingTool = pgEnum('drawing_tool', ['horizontal', 'trend', 'long', 'short', 'measure']);
@@ -57,6 +71,8 @@ export const drawings = pgTable(
       .notNull()
       .references(() => instruments.id),
     sessionId: uuid().references((): AnyPgColumn => backtestSessions.id, { onDelete: 'cascade' }),
+    /** Auth user id of an invited Backtest Lab user; null = the app owner (Joe). */
+    ownerId: uuid(),
     tool: drawingTool().notNull(),
     points: jsonb().notNull(),
     style: jsonb().notNull().default({}),
@@ -102,4 +118,30 @@ export const backtestOrders = pgTable(
     ...timestamps,
   },
   (t) => [index().on(t.sessionId, t.status)],
+);
+
+/**
+ * Emails the owner lets into the Backtest Lab (Settings › Users), at most 10. They sign in with the email
+ * alone; removing a row cuts access but keeps their runs (keyed by `user_id`, set on first sign-in).
+ */
+export const backtestUsers = pgTable(
+  'backtest_users',
+  {
+    email: text().primaryKey(),
+    userId: uuid().unique(),
+    lastSignInAt: tstz(),
+    ...timestamps,
+  },
+  (t) => [check('backtest_users_email_lower', sql`${t.email} = lower(${t.email})`)],
+);
+
+/** Failed email-only sign-ins per client IP, for throttling guesses (rows older than a day are pruned). */
+export const signInFailures = pgTable(
+  'sign_in_failures',
+  {
+    id: id(),
+    ip: text().notNull(),
+    at: timestamp({ withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index().on(t.ip, t.at)],
 );

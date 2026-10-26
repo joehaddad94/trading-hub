@@ -4,6 +4,7 @@ import * as Sentry from '@sentry/nextjs';
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import type { ActionResult } from '@/lib/action-result';
+import { ownerOnly } from '@/lib/server/viewer';
 import { tagSchema } from '@/modules/tracker/journal/schema';
 import { removeTag, writeTag, writeTagName } from '@/modules/tracker/server/journal';
 import {
@@ -52,6 +53,8 @@ async function run(work: () => Promise<string>): Promise<Result> {
 }
 
 export async function saveGeneralSettings(_prev: Result | null, form: FormData): Promise<Result> {
+  const denied = await ownerOnly();
+  if (denied) return denied;
   const parsed = general.safeParse(Object.fromEntries(form));
   if (!parsed.success) return { ok: false, error: z.prettifyError(parsed.error) };
   return run(async () => {
@@ -61,6 +64,8 @@ export async function saveGeneralSettings(_prev: Result | null, form: FormData):
 }
 
 export async function saveSymbolSpecAction(_prev: Result | null, form: FormData): Promise<Result> {
+  const denied = await ownerOnly();
+  if (denied) return denied;
   const parsed = symbol.safeParse(Object.fromEntries(form));
   if (!parsed.success) return { ok: false, error: z.prettifyError(parsed.error) };
   return run(async () => {
@@ -70,6 +75,8 @@ export async function saveSymbolSpecAction(_prev: Result | null, form: FormData)
 }
 
 export async function saveAccountRiskAction(_prev: Result | null, form: FormData): Promise<Result> {
+  const denied = await ownerOnly();
+  if (denied) return denied;
   const parsed = risk.safeParse(Object.fromEntries(form));
   if (!parsed.success) return { ok: false, error: z.prettifyError(parsed.error) };
   return run(async () => {
@@ -79,6 +86,8 @@ export async function saveAccountRiskAction(_prev: Result | null, form: FormData
 }
 
 export async function createTagAction(_prev: Result | null, form: FormData): Promise<Result> {
+  const denied = await ownerOnly();
+  if (denied) return denied;
   const parsed = tagSchema.safeParse(Object.fromEntries(form));
   if (!parsed.success) return { ok: false, error: z.prettifyError(parsed.error) };
   return run(async () => {
@@ -95,6 +104,8 @@ const tagEdit = z.object({
 
 /** Rename or delete a tag. Deleting removes it from every trade's journal; trades themselves are untouched. */
 export async function editTagAction(_prev: Result | null, form: FormData): Promise<Result> {
+  const denied = await ownerOnly();
+  if (denied) return denied;
   const parsed = tagEdit.safeParse(Object.fromEntries(form));
   if (!parsed.success) return { ok: false, error: z.prettifyError(parsed.error) };
   return run(async () => {
@@ -109,6 +120,8 @@ export async function editTagAction(_prev: Result | null, form: FormData): Promi
 
 /** Links an account to the phase it came from, so P1 → P2 → Funded shows as one journey. */
 export async function savePreviousPhaseAction(_prev: Result | null, form: FormData): Promise<Result> {
+  const denied = await ownerOnly();
+  if (denied) return denied;
   const parsed = previousPhase.safeParse(Object.fromEntries(form));
   if (!parsed.success) return { ok: false, error: z.prettifyError(parsed.error) };
   try {

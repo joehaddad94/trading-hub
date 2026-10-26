@@ -4,10 +4,10 @@ import { useActionState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { sendMagicLink } from './actions';
+import { signInAction } from './actions';
 
 export function LoginForm() {
-  const [state, action, pending] = useActionState(sendMagicLink, null);
+  const [state, action, pending] = useActionState(signInAction, null);
 
   if (state?.ok) {
     return <p role="status">Check your inbox for a sign-in link.</p>;
@@ -25,7 +25,7 @@ export function LoginForm() {
         </p>
       )}
       <Button type="submit" disabled={pending}>
-        {pending ? 'Sending…' : 'Send sign-in link'}
+        {pending ? 'Signing in…' : 'Continue'}
       </Button>
     </form>
   );

@@ -49,8 +49,9 @@ function Badge({ count, className }: { count: number; className?: string }) {
 /**
  * Desktop: slim icon rail; labels show as tooltips on hover and focus. The rail is its own stacking context
  * (sticky + backdrop blur), so it needs z-40 to keep those labels above the glass cards and sticky header.
+ * An invited user (`guest`) only has the Backtest Lab.
  */
-export function AppRail({ journalBadge = 0 }: { journalBadge?: number }) {
+export function AppRail({ journalBadge = 0, guest = false }: { journalBadge?: number; guest?: boolean }) {
   const active = activeId(usePathname());
   const item = (link: AppLink) => {
     const Icon = link.icon;
@@ -80,16 +81,16 @@ export function AppRail({ journalBadge = 0 }: { journalBadge?: number }) {
   return (
     <aside className="sticky top-0 z-40 hidden h-dvh w-16 shrink-0 flex-col items-center gap-2 border-r bg-chrome py-3 backdrop-blur-xl md:flex">
       <Link
-        href="/"
-        aria-label="Back to hub"
+        href={guest ? '/backtest' : '/'}
+        aria-label={guest ? 'Backtest Lab' : 'Back to hub'}
         className="mb-2 flex size-10 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-[#b4a2ff] font-bold text-primary-foreground text-sm shadow-[0_6px_20px_-6px_rgb(79_209_224/0.7)]"
       >
         TH
       </Link>
       <nav aria-label="Modules" className="flex flex-col items-center gap-1.5">
-        {[HUB, TRACKER, JOURNAL, NEWS, BACKTEST].map(item)}
+        {(guest ? [BACKTEST] : [HUB, TRACKER, JOURNAL, NEWS, BACKTEST]).map(item)}
       </nav>
-      <div className="mt-auto">{item(SETTINGS)}</div>
+      {!guest && <div className="mt-auto">{item(SETTINGS)}</div>}
     </aside>
   );
 }

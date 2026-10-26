@@ -4,6 +4,7 @@ import * as Sentry from '@sentry/nextjs';
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import type { ActionResult } from '@/lib/action-result';
+import { ownerOnly } from '@/lib/server/viewer';
 import {
   type QuickJournalInput,
   quickJournalSchema,
@@ -14,6 +15,8 @@ import { JournalError, writeQuickJournal, writeTradeRisk } from '@/modules/track
 
 /** Risk queue: tags (or clears) the % risked on one trade, which replaces its estimated R. */
 export async function tagRiskAction(input: RiskTagInput): Promise<ActionResult<null>> {
+  const denied = await ownerOnly();
+  if (denied) return denied;
   const parsed = riskTagSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: z.prettifyError(parsed.error) };
   const { tradeId, pct } = parsed.data;
@@ -30,6 +33,8 @@ export async function tagRiskAction(input: RiskTagInput): Promise<ActionResult<n
 
 /** Quick journal card: plan, setup and optional initial SL for one unjournaled trade. */
 export async function quickJournalAction(input: QuickJournalInput): Promise<ActionResult<null>> {
+  const denied = await ownerOnly();
+  if (denied) return denied;
   const parsed = quickJournalSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: z.prettifyError(parsed.error) };
   const { tradeId, ...quick } = parsed.data;

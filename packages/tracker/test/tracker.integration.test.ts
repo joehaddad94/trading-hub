@@ -1,7 +1,8 @@
 import { readFileSync } from 'node:fs';
 import { parseScope, tradeStats } from '@trading/core';
 import { createDb, type Tx } from '@trading/db';
-import { sql } from '@trading/db/orm';
+import { eq, sql } from '@trading/db/orm';
+import { accounts, backtestSessions, firms } from '@trading/db/schema';
 import { processExportFile } from '@trading/importer/server';
 import { afterAll, describe, expect, it } from 'vitest';
 import {
@@ -70,6 +71,33 @@ describe.skipIf(!url)('resolveScope', () => {
       const backtest = await resolveScope(tx, parseScope('backtest'));
       expect(backtest.source).toBe('backtest');
       expect(await scopedTrades(tx, backtest)).toEqual([]);
+    });
+  });
+
+  it("never shows an invited Backtest Lab user's runs, only the owner's", async () => {
+    await withFixture(async (tx) => {
+      const [firm] = await tx.select({ id: firms.id }).from(firms).where(eq(firms.name, 'Backtest Lab'));
+      const run = async (login: number, ownerId: string | null) => {
+        const [account] = await tx
+          .insert(accounts)
+          .values({
+            firmId: firm?.id as string,
+            externalId: login,
+            login,
+            phase: 'other',
+            isDemo: true,
+            isBacktest: true,
+            startingBalance: '25000',
+          })
+          .returning({ id: accounts.id });
+        await tx.insert(backtestSessions).values({ accountId: account?.id as string, name: `R${login}`, ownerId });
+        return account?.id as string;
+      };
+      const joes = await run(900001, null);
+      const guests = await run(900002, '00000000-0000-4000-8000-0000000000aa');
+      const scope = await resolveScope(tx, parseScope('backtest'));
+      expect(scope.accountIds).toContain(joes);
+      expect(scope.accountIds).not.toContain(guests);
     });
   });
 

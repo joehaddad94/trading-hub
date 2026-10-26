@@ -28,7 +28,8 @@ export function SessionForm({
   submit: string;
   label: string;
   session?: SessionView;
-  tags: { id: string; name: string }[];
+  /** Null hides the Setup field (invited users). */
+  tags: { id: string; name: string }[] | null;
   instruments: { code: string; defaultSpreadPoints: string }[];
   idPrefix: string;
 }) {
@@ -65,17 +66,19 @@ export function SessionForm({
             defaultValue={session ? Number(session.riskPct).toString() : '0.5'}
           />
         </div>
-        <div className="col-span-2 flex flex-col gap-1">
-          <Label htmlFor={id('tag')}>Setup</Label>
-          <select id={id('tag')} name="setupTagId" defaultValue={session?.setupTagId ?? ''} className={select}>
-            <option value="">No setup tag</option>
-            {tags.map((t) => (
-              <option key={t.id} value={t.id}>
-                {t.name}
-              </option>
-            ))}
-          </select>
-        </div>
+        {tags && (
+          <div className="col-span-2 flex flex-col gap-1">
+            <Label htmlFor={id('tag')}>Setup</Label>
+            <select id={id('tag')} name="setupTagId" defaultValue={session?.setupTagId ?? ''} className={select}>
+              <option value="">No setup tag</option>
+              {tags.map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.name}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
         <div className="col-span-2 flex flex-col gap-1">
           <Label htmlFor={id('notes')}>Notes</Label>
           <Input id={id('notes')} name="notes" maxLength={2000} defaultValue={session?.notes ?? ''} />

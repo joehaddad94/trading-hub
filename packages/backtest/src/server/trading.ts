@@ -34,6 +34,7 @@ import type {
   SessionSummary,
   SessionView,
 } from '../trading';
+import { type Owner, ownedBy } from './owned-by';
 
 /** A refusal the user should see (bad levels, closed order, live trade). */
 export class TradingError extends Error {}
@@ -87,6 +88,7 @@ const toSession = (s: SessionRow): SessionView => ({
  */
 export async function createSession(
   db: Executor,
+  owner: Owner,
   input: { name: string; startingBalance?: string; riskPct?: string } & Partial<
     Pick<SessionInput, 'costs' | 'setupTagId' | 'notes'>
   >,
@@ -121,6 +123,7 @@ export async function createSession(
       .insert(backtestSessions)
       .values({
         accountId: account.id,
+        ownerId: owner,
         name: input.name,
         startingBalance,
         riskPct,
@@ -135,23 +138,27 @@ export async function createSession(
 }
 
 /**
- * The session the chart trades in: `id` when given (and still there), else the newest in-progress one,
- * created on first use.
+ * The owner's session the chart trades in: `id` when given (and still there), else their newest in-progress
+ * one, created on first use.
  */
-export async function currentSession(db: Executor, id?: string | null): Promise<SessionView> {
+export async function currentSession(db: Executor, owner: Owner, id?: string | null): Promise<SessionView> {
+  const mine = ownedBy(backtestSessions.ownerId, owner);
   if (id) {
-    const [chosen] = await db.select().from(backtestSessions).where(eq(backtestSessions.id, id));
+    const [chosen] = await db
+      .select()
+      .from(backtestSessions)
+      .where(and(eq(backtestSessions.id, id), mine));
     if (chosen) return toSession(chosen);
   }
   const [row] = await db
     .select()
     .from(backtestSessions)
-    .where(eq(backtestSessions.status, 'in_progress'))
+    .where(and(eq(backtestSessions.status, 'in_progress'), mine))
     .orderBy(desc(backtestSessions.createdAt))
     .limit(1);
   if (row) return toSession(row);
-  const [{ n } = { n: 0 }] = await db.select({ n: sql<number>`count(*)::int` }).from(backtestSessions);
-  return createSession(db, { name: `Run ${n + 1}` });
+  const [{ n } = { n: 0 }] = await db.select({ n: sql<number>`count(*)::int` }).from(backtestSessions).where(mine);
+  return createSession(db, owner, { name: `Run ${n + 1}` });
 }
 
 async function getSession(db: Executor, id: string): Promise<SessionRow> {
@@ -621,8 +628,8 @@ export async function deleteSession(db: Executor, sessionId: string): Promise<vo
   });
 }
 
-/** Every session, newest first, with its trade count, net P/L, open orders and ambiguous-bar count. */
-export async function listSessions(db: Executor): Promise<SessionSummary[]> {
+/** The owner's sessions, newest first, with trade count, net P/L, open orders and ambiguous-bar count. */
+export async function listSessions(db: Executor, owner: Owner): Promise<SessionSummary[]> {
   const rows = await db
     .select({
       session: backtestSessions,
@@ -635,6 +642,7 @@ export async function listSessions(db: Executor): Promise<SessionSummary[]> {
       >`(select coalesce(array_agg(i.code order by i.code), '{}') from instruments i where i.id = any(backtest_sessions.instrument_ids))`,
     })
     .from(backtestSessions)
+    .where(ownedBy(backtestSessions.ownerId, owner))
     .orderBy(desc(backtestSessions.updatedAt));
   return rows.map((r) => ({
     ...toSession(r.session),

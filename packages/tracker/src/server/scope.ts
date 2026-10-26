@@ -1,6 +1,6 @@
 import { DEFAULT_SCOPE, type Scope } from '@trading/core';
 import type { Executor } from '@trading/db';
-import { asc, eq, sql } from '@trading/db/orm';
+import { and, asc, eq, sql } from '@trading/db/orm';
 import { accounts } from '@trading/db/schema';
 
 export type ScopeAccount = {
@@ -28,8 +28,8 @@ export type ResolvedScope = {
 };
 
 /**
- * Every live account with its journey root, for the scope selector and pickers; `includeBacktest` adds
- * backtest sessions' synthetic accounts.
+ * Every live account with its journey root, for the scope selector and pickers; `includeBacktest` adds the
+ * owner's backtest sessions' synthetic accounts (never an invited Backtest Lab user's).
  */
 export async function listScopeAccounts(
   db: Executor,
@@ -50,7 +50,12 @@ export async function listScopeAccounts(
       )`.mapWith(Number),
     })
     .from(accounts)
-    .where(includeBacktest ? undefined : eq(accounts.isBacktest, false))
+    .where(
+      and(
+        includeBacktest ? undefined : eq(accounts.isBacktest, false),
+        sql`not exists (select 1 from backtest_sessions s where s.account_id = "accounts"."id" and s.owner_id is not null)`,
+      ),
+    )
     .orderBy(asc(accounts.firstSeenAt), asc(accounts.login));
   return rows.map((r) => ({ ...r, journeyRootLogin: r.journeyRootLogin || r.login }));
 }
