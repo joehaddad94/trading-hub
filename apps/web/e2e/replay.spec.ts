@@ -242,10 +242,7 @@ test.describe('replay (M16)', () => {
     ).toBeVisible();
   });
 
-  test('Select bar: before and during replay, a time flag on the line, right-click or B cancels', async ({
-    page,
-    isMobile,
-  }) => {
+  test('Select bar: before and during replay, a time flag on the line, right-click or B cancels', async ({ page }) => {
     await page.goto('/backtest/chart?i=US30&tf=5');
     await page.getByRole('button', { name: 'Select bar' }).click();
     await expect(page.getByTestId('replay-pick-hint')).toHaveText(/Click a bar/); // U8
@@ -260,13 +257,8 @@ test.describe('replay (M16)', () => {
     expect((first / 60_000) % 5).toBe(4); // last minute of the clicked 5m bar
     await expect(page.getByTestId('replay-pick-hint')).toBeHidden();
 
-    // During replay: the toolbar button (in the 📅 panel on a phone), and right-click cancels instead of opening the menu.
-    if (isMobile) {
-      await page.getByRole('button', { name: 'Change replay date' }).click();
-      await page.getByRole('button', { name: /Select bar on chart/ }).click();
-    } else {
-      await page.getByRole('button', { name: 'Select bar' }).click();
-    }
+    // During replay: the toolbar button (phones too), and right-click cancels instead of opening the menu.
+    await page.getByRole('button', { name: 'Select bar' }).click();
     await expect(page.getByTestId('replay-pick-hint')).toBeVisible();
     await page.mouse.click(box.x + box.width * 0.3, box.y + box.height / 2, { button: 'right' });
     await expect(page.getByTestId('replay-pick-hint')).toBeHidden();

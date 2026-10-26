@@ -50,6 +50,7 @@ export function TradePanel({
   instrument: Instrument;
 }) {
   const [open, setOpen] = useState(false);
+  const dialogs = useDialogs();
   const live = trading.orders.filter((o) => o.status === 'pending' || o.status === 'open');
   const closed = trading.orders.filter((o) => o.status === 'closed');
   const total = openTotal(trading.orders, instrument, price);
@@ -89,7 +90,22 @@ export function TradePanel({
             type="button"
             className="flex h-9 items-center border-l px-3 text-muted-foreground hover:bg-accent/40 hover:text-foreground"
             title="Close every open position and cancel every pending order"
-            onClick={() => void trading.closeAll()}
+            onClick={async () => {
+              // Real fills at the next open, so no undo: ask first (audit 25 Oct, #7).
+              const positions = live.filter((o) => o.status === 'open').length;
+              const pending = live.length - positions;
+              const parts = [
+                positions > 0 && `close ${positions} position${positions === 1 ? '' : 's'} at market`,
+                pending > 0 && `cancel ${pending} pending order${pending === 1 ? '' : 's'}`,
+              ].filter(Boolean);
+              const ok = await dialogs.confirm({
+                title: `Close all ${live.length} trades?`,
+                message: `This will ${parts.join(' and ')}. It can’t be undone.`,
+                confirmLabel: 'Close all',
+                tone: 'destructive',
+              });
+              if (ok) void trading.closeAll();
+            }}
           >
             Close all
           </button>

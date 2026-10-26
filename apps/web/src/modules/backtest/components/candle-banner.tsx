@@ -3,7 +3,7 @@ import { StatusStrip } from '@/shell/status-strip';
 import { getCandleCoverage, getCandleHealth } from '../server/market-data';
 
 /** Backtest Lab: candle data problems (backtester spec §1.3). Amber: the lab still works on older data. */
-export async function CandleBanner() {
+export async function CandleBanner({ dock = false }: { dock?: boolean }) {
   const conditions = await getCandleHealth();
   if (!conditions || conditions.length === 0) return null;
   return (
@@ -11,6 +11,7 @@ export async function CandleBanner() {
       tone="warning"
       title="Market data needs attention"
       items={conditions.map((c) => ({ key: c.message, message: c.message, since: c.since }))}
+      dock={dock}
     />
   );
 }

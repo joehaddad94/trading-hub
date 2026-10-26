@@ -1,6 +1,7 @@
 import { expect, type Page, test } from '@playwright/test';
 import { requireAuth, signIn } from './support/auth';
 import { clearBacktestSessions, clearDrawings, seedCandles } from './support/candles';
+import { chartReady } from './support/chart';
 
 requireAuth();
 
@@ -75,7 +76,7 @@ test.describe('simulated trading (M20)', () => {
     await page.goto('/tracker/trades');
     const liveSummary = (await page.getByTestId('trades-summary').textContent()) ?? '';
     await page.goto(`/backtest/chart?i=US30&tf=5&at=${AT}`);
-    await expect(page.getByTestId('kline-chart')).toHaveAttribute('data-ready', 'true');
+    await chartReady(page);
     await expect
       .poll(async () => (await page.getByTestId('kline-chart').getAttribute('data-last-bar')) ?? '')
       .not.toBe('');
@@ -151,7 +152,7 @@ test.describe('simulated trading (M20)', () => {
 
   test('a pending order can be cancelled and an open one closed at market', async ({ page }) => {
     await page.goto(`/backtest/chart?i=US30&tf=5&at=${AT}`);
-    await expect(page.getByTestId('kline-chart')).toHaveAttribute('data-ready', 'true');
+    await chartReady(page);
     await expect
       .poll(async () => (await page.getByTestId('kline-chart').getAttribute('data-last-bar')) ?? '')
       .not.toBe('');
@@ -203,7 +204,7 @@ test.describe('simulated trading (M20)', () => {
     page,
   }) => {
     await page.goto(`/backtest/chart?i=US30&tf=5&at=${AT}`);
-    await expect(page.getByTestId('kline-chart')).toHaveAttribute('data-ready', 'true');
+    await chartReady(page);
     await expect
       .poll(async () => (await page.getByTestId('kline-chart').getAttribute('data-last-bar')) ?? '')
       .not.toBe('');
@@ -215,6 +216,8 @@ test.describe('simulated trading (M20)', () => {
     await trade.getByRole('button', { name: /^Buy/ }).click();
     const ticket = page.getByTestId('order-ticket');
     await expect(ticket).toHaveAttribute('data-kind', 'market');
+    // An upright phone gets the one-row ticket: open it to type a stop.
+    if (await ticket.getAttribute('data-compact')) await ticket.getByRole('button', { name: 'Edit order' }).click();
     // Entry, stop and target preview lines, before anything is placed.
     await expect.poll(async () => (await orderLines(page)).filter((l) => l.key.startsWith('draft:')).length).toBe(3);
     await expect(rows(page)).toHaveCount(0);
@@ -255,7 +258,7 @@ test.describe('simulated trading (M20)', () => {
     page,
   }) => {
     await page.goto(`/backtest/chart?i=US30&tf=5&at=${AT}`);
-    await expect(page.getByTestId('kline-chart')).toHaveAttribute('data-ready', 'true');
+    await chartReady(page);
     await expect
       .poll(async () => (await page.getByTestId('kline-chart').getAttribute('data-last-bar')) ?? '')
       .not.toBe('');
@@ -281,12 +284,17 @@ test.describe('simulated trading (M20)', () => {
     const entry = (await orderLines(page)).find((l) => l.key === 'draft:entry');
     const box = await page.getByTestId('kline-chart').boundingBox();
     if (!entry?.y || !box) throw new Error('no entry line');
+    // Below the price makes a buy limit; when the price sits on the time axis (a tall phone chart after a fall),
+    // there is no room below it, so drag above for a buy stop.
+    const down = entry.y + 50 < box.height;
     await page.mouse.move(box.x + box.width * 0.4, box.y + entry.y);
     await page.mouse.down();
-    await page.mouse.move(box.x + box.width * 0.4, box.y + entry.y + 20, { steps: 5 });
+    await page.mouse.move(box.x + box.width * 0.4, box.y + entry.y + (down ? 20 : -20), { steps: 5 });
     await page.mouse.up();
     await expect(page.getByTestId('order-ticket')).toHaveAttribute('data-kind', 'pending');
-    await expect(page.getByTestId('order-ticket').getByRole('button', { name: /^Buy limit/ })).toBeVisible();
+    await expect(
+      page.getByTestId('order-ticket').getByRole('button', { name: down ? /^Buy limit/ : /^Buy stop/ }),
+    ).toBeVisible();
     await page.keyboard.press('Escape');
 
     await page.keyboard.press('Shift+S');

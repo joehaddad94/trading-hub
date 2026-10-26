@@ -61,7 +61,7 @@
 - **Session shading** (optional toggle): Asia, London, NY AM, NY PM kill zones, defined once in the tracker spec §6 (ET) — do not redefine here.
 - Lazy loading: fetch candles in windows (e.g. 3 trading days around the view) as the user scrolls back; never load the full year into the browser.
 - **Module placement:** Backtest Lab is a separate module reached from the hub (tracker spec §8.0), with its own full-screen layout and no app sidebar.
-- **Full screen** (button or `Shift+F`): only the chart, replay bar and drawing tools; browser full screen where supported.
+- **Full screen** (button or `Shift+F`): on desktop only the chart, replay bar and drawing tools; on a phone it also keeps the chart toolbar and the trades list, so nothing is out of reach. Browser full screen where supported; the choice is remembered per browser.
 - Switching instrument or timeframe shows a loading bar and dims the chart until the new window arrives.
 - Mobile: chart must be usable on a phone (pinch zoom, pan, tap to select drawings), but **desktop is the primary target** for backtesting.
 

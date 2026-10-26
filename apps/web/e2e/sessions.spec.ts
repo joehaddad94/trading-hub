@@ -1,6 +1,7 @@
 import { expect, test } from '@playwright/test';
 import { requireAuth, signIn } from './support/auth';
 import { clearBacktestSessions, clearDrawings, seedCandles } from './support/candles';
+import { chartReady } from './support/chart';
 
 requireAuth();
 
@@ -35,7 +36,7 @@ test.describe('backtest sessions (M21)', () => {
 
     // Replay a few bars; with nothing open the cursor is saved once replay is still.
     await page.goto(`${page.url()}&i=US30&tf=5&at=${AT}`);
-    await expect(page.getByTestId('kline-chart')).toHaveAttribute('data-ready', 'true');
+    await chartReady(page);
     await page.keyboard.press('ArrowRight');
     await page.keyboard.press('ArrowRight');
     await page.waitForTimeout(1_800);

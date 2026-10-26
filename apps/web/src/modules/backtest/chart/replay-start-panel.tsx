@@ -204,6 +204,8 @@ export function ReplayStartPanel({
         className={cn(
           'fixed inset-x-0 bottom-[calc(4rem+env(safe-area-inset-bottom,0px))] z-50 max-h-[80dvh] overflow-y-auto rounded-t-xl border-t bg-popover text-popover-foreground shadow-2xl',
           'md:absolute md:inset-x-auto md:top-full md:bottom-auto md:left-2 md:mt-1 md:max-h-none md:w-[38rem] md:rounded-lg md:border',
+          // Phone on its side: the whole screen, scrolling, with Start pinned at the bottom (audit 25 Oct, #2).
+          'short:fixed! short:inset-0! short:mt-0! short:max-h-none! short:w-auto! short:rounded-none! short:border-0!',
         )}
         // Keep the chart's shortcuts (timeframe keys, replay steps) out while choosing.
         onKeyDown={(e) => {
@@ -214,7 +216,7 @@ export function ReplayStartPanel({
           submit();
         }}
       >
-        <div className="mx-auto mt-2 h-1 w-9 rounded-full bg-input md:hidden" aria-hidden />
+        <div className="mx-auto mt-2 h-1 w-9 rounded-full bg-input short:hidden md:hidden" aria-hidden />
         <div className="flex items-center justify-between gap-2 px-3 pt-2">
           <h2 className="font-semibold text-sm">{replaying ? 'Replay from another date' : 'Start replay'}</h2>
           <div className="flex items-center gap-1">
@@ -232,7 +234,7 @@ export function ReplayStartPanel({
           </div>
         </div>
 
-        <div className="grid gap-4 p-3 md:grid-cols-[1fr_17rem]">
+        <div className="grid gap-4 p-3 short:grid-cols-[1fr_17rem] short:gap-3 short:py-2 md:grid-cols-[1fr_17rem]">
           <div className="grid content-start gap-1.5">
             <div className="flex items-center justify-between">
               <button
@@ -288,7 +290,7 @@ export function ReplayStartPanel({
                     tabIndex={selected ? 0 : -1}
                     onClick={() => chooseDay(d)}
                     className={cn(
-                      'relative h-9 rounded-md font-mono num md:h-8',
+                      'relative h-9 rounded-md font-mono num short:h-7! md:h-8',
                       why ? 'cursor-not-allowed text-muted-foreground/35' : 'hover:bg-accent',
                       selected && !why && 'bg-primary font-semibold text-primary-foreground hover:bg-primary',
                     )}
@@ -410,7 +412,7 @@ export function ReplayStartPanel({
           </p>
         )}
 
-        <div className="flex items-center justify-between gap-2 border-t px-3 py-2.5">
+        <div className="flex items-center justify-between gap-2 border-t bg-popover px-3 py-2.5 short:sticky short:bottom-0 short:py-1.5">
           <div className="grid min-w-0" data-testid="start-summary">
             <span className="truncate font-semibold text-sm">
               {format(new Date(day.y, day.m - 1, day.d), 'EEE d MMM yyyy')}

@@ -12,7 +12,7 @@ import { RESTART_BLOCKED, type useReplay } from './use-replay';
 type Replay = ReturnType<typeof useReplay>;
 
 const button =
-  'inline-flex h-9 shrink-0 items-center gap-1 rounded-md px-2 text-sm text-muted-foreground hover:bg-accent/60 disabled:opacity-50';
+  'inline-flex h-9 shrink-0 items-center gap-1 rounded-md px-2 text-sm text-muted-foreground hover:bg-accent/60 disabled:opacity-50 compact:px-1.5';
 
 /** Button text shown from tablet width up; phones (either way round) get the icon and the aria-label. */
 function Label({ children }: { children: string }) {
@@ -45,16 +45,12 @@ export function ReplayControls({
     else setPanel(panel ? null : { lastStart: readLastStart() });
   };
 
-  // TradingView's "Select bar", before and during replay: a line follows the pointer, a click starts there. On a
-  // phone in replay the row has no room for it, so it lives in the 📅 panel there.
+  // TradingView's "Select bar", before and during replay: a line follows the pointer, a click starts there. Phones
+  // get the icon only in replay, so it fits the row next to the step buttons (Joe: usable at any time).
   const selectBar = (
     <button
       type="button"
-      className={cn(
-        button,
-        replay.cursor !== null && 'hidden sm:inline-flex',
-        picking && 'bg-accent text-accent-foreground',
-      )}
+      className={cn(button, picking && 'bg-accent text-accent-foreground')}
       aria-pressed={picking}
       aria-label="Select bar"
       aria-keyshortcuts="B"
@@ -62,7 +58,7 @@ export function ReplayControls({
       onClick={() => onPick(!picking)}
     >
       <Scissors className="size-4 rotate-90" aria-hidden />
-      <span className={replay.cursor === null ? '' : 'hidden sm:inline'}>Select bar</span>
+      {replay.cursor === null ? <span>Select bar</span> : <Label>Select bar</Label>}
     </button>
   );
 
@@ -122,7 +118,8 @@ export function ReplayControls({
 
   return (
     <div className={cn('relative short:min-w-0 short:flex-1', panel ? 'z-40' : 'z-20')}>
-      {/* Phones: one row that scrolls sideways, icons only, short time — so the chart keeps its height. */}
+      {/* Phones: one row, icons only, short time, so the chart keeps its height. Exit stays pinned on the right
+        if the row ever has to scroll. */}
       <div
         className="flex flex-nowrap items-center gap-1 overflow-x-auto whitespace-nowrap border-b px-2 py-1.5 text-sm compact:py-0.5 md:flex-wrap md:px-4 short:flex-nowrap!"
         role="toolbar"
@@ -199,7 +196,12 @@ export function ReplayControls({
         >
           +1m
         </button>
-        <button type="button" className={cn(button, 'ml-auto')} onClick={replay.exit} aria-label="Exit replay">
+        <button
+          type="button"
+          className={cn(button, 'sticky right-0 ml-auto bg-background')}
+          onClick={replay.exit}
+          aria-label="Exit replay"
+        >
           <X className="size-4" aria-hidden /> <Label>Exit replay</Label>
         </button>
       </div>

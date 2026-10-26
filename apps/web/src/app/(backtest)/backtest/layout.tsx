@@ -7,8 +7,7 @@ import { getModule } from '@/shell/modules';
 export default function BacktestLayout({ children }: { children: ReactNode }) {
   const mod = getModule('backtest');
   return (
-    <AppShell title={mod.name} nav={mod.nav} rootHref={mod.href} fill>
-      <CandleBanner />
+    <AppShell title={mod.name} nav={mod.nav} rootHref={mod.href} fill status={<CandleBanner dock />}>
       <main className="flex min-h-0 flex-1 flex-col overflow-hidden">{children}</main>
     </AppShell>
   );
