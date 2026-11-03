@@ -1,5 +1,5 @@
 import type { Executor } from '@trading/db';
-import { and, asc, eq, isNull } from '@trading/db/orm';
+import { and, asc, eq, inArray, isNull } from '@trading/db/orm';
 import { drawings, instruments } from '@trading/db/schema';
 import type { Drawing, DrawingInput } from '../drawings';
 import { type Owner, ownedBy } from './owned-by';
@@ -75,19 +75,21 @@ export async function deleteDrawing(db: Executor, owner: Owner, id: string): Pro
   await db.delete(drawings).where(and(eq(drawings.id, id), ownedBy(drawings.ownerId, owner)));
 }
 
-/** "Delete all" for one instrument's chart (same session scope). */
+/** "Delete all" for one instrument's chart (same session scope). One statement: no separate instrument lookup. */
 export async function deleteAllDrawings(
   db: Executor,
   owner: Owner,
   code: string,
   sessionId: string | null = null,
 ): Promise<number> {
-  const id = await instrumentId(db, code);
   const removed = await db
     .delete(drawings)
     .where(
       and(
-        eq(drawings.instrumentId, id),
+        inArray(
+          drawings.instrumentId,
+          db.select({ id: instruments.id }).from(instruments).where(eq(instruments.code, code)),
+        ),
         ownedBy(drawings.ownerId, owner),
         sessionId ? eq(drawings.sessionId, sessionId) : isNull(drawings.sessionId),
       ),

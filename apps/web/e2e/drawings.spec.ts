@@ -117,20 +117,72 @@ test.describe('drawings (M18)', () => {
     await page.waitForTimeout(300);
     await clickChart(page, 0.7, 0.3);
     await expect(props).toBeVisible();
+    // The chart clears at once and the server deletes after: wait for that before reloading.
+    let saved = serverAction(page);
     await props.getByRole('button', { name: 'Delete drawing' }).click();
     await expect.poll(async () => (await shown(page)).length).toBe(1);
+    await saved;
 
     await page.reload();
     await expect.poll(async () => (await shown(page)).length).toBe(1);
 
     await page.getByRole('button', { name: 'Delete all drawings' }).click();
+    saved = serverAction(page);
     await page
       .getByRole('alertdialog', { name: 'Delete all drawings?' })
       .getByRole('button', { name: 'Delete all' })
       .click();
     await expect.poll(async () => (await shown(page)).length).toBe(0);
+    await saved;
     await page.reload();
     await chartReady(page);
     expect(await shown(page)).toHaveLength(0);
   });
+
+  test('delete all clears before the server answers, comes back if it fails, and undoes', async ({ page }) => {
+    await open(page);
+    await page.keyboard.press('Alt+KeyH');
+    await clickChart(page, 0.5, 0.4);
+    await expect.poll(async () => (await shown(page)).length).toBe(1);
+    const deleteAll = async () => {
+      await page.getByRole('button', { name: 'Delete all drawings' }).click();
+      await page
+        .getByRole('alertdialog', { name: 'Delete all drawings?' })
+        .getByRole('button', { name: 'Delete all' })
+        .click();
+    };
+
+    // The chart clears before the server answers; when the delete fails, the drawing comes back.
+    let fail = () => {};
+    const held = new Promise<void>((resolve) => {
+      fail = resolve;
+    });
+    await page.route('**/*', async (route) => {
+      if (route.request().method() !== 'POST' || !route.request().headers()['next-action']) return route.fallback();
+      await held;
+      await route.abort();
+    });
+    await deleteAll();
+    await expect.poll(async () => (await shown(page)).length).toBe(0);
+    fail();
+    await expect.poll(async () => (await shown(page)).length).toBe(1);
+    await page.unrouteAll({ behavior: 'wait' });
+
+    // Undo after a delete all re-creates the drawing.
+    let saved = serverAction(page);
+    await deleteAll();
+    await saved;
+    await expect.poll(async () => (await shown(page)).length).toBe(0);
+    saved = serverAction(page);
+    await page.keyboard.press('Control+KeyZ');
+    await expect.poll(async () => (await shown(page)).length).toBe(1);
+    await saved;
+    await page.reload();
+    await expect.poll(async () => (await shown(page)).length).toBe(1);
+  });
 });
+
+/** The next Server Action call's response (they POST with a `next-action` header). */
+function serverAction(page: Page) {
+  return page.waitForResponse((r) => r.request().method() === 'POST' && !!r.request().headers()['next-action']);
+}
