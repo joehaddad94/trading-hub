@@ -6,7 +6,6 @@ import {
   followPrice,
   newTicket,
   parseTimeframe,
-  pendingType,
   positionMetrics,
   type Side,
   type Sizing,
@@ -19,6 +18,7 @@ import { parseAsString, useQueryState } from 'nuqs';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { symbolWithAlias } from '@/lib/symbols';
 import { cn } from '@/lib/utils';
+import { APP_UPDATED, guardActions } from './action-guard';
 import { DrawingProperties, DrawingToolbar } from './drawing-toolbar';
 import { IndicatorMenu } from './indicator-menu';
 import { activeIndicators, type IndicatorPrefs, normalisePrefs } from './indicators';
@@ -28,7 +28,7 @@ import { BARS_PAGE, liveUntil, prefetchBars } from './loader';
 import { NewsPanel } from './news-panel';
 import { type DraftLines, useOrderHandles } from './order-handles';
 import { orderMarks } from './order-lines';
-import { OrderTicket, quotes, readSizing, SizeControls, saveSizing, TradeButtons, ticketTitle } from './order-ticket';
+import { BoxTicket, draftTitle, OrderTicket, quotes, readSizing, saveSizing, TradeButtons } from './order-ticket';
 import { PickBar } from './pick-line';
 import { ReplayControls } from './replay-controls';
 import { toolForKey } from './tools/registry';
@@ -195,6 +195,12 @@ export function ChartWorkspace({
     setSizingState(next);
     saveSizing(next);
   }, []);
+  // A tab left open across a deploy calls Server Actions that no longer exist: say so and offer a reload,
+  // instead of buttons that silently do nothing (Joe, 3 Nov 2026).
+  const [stale, setStale] = useState(false);
+  const markStale = useCallback(() => setStale(true), []);
+  const safeDrawingActions = useMemo(() => guardActions(drawingActions, markStale), [drawingActions, markStale]);
+  const safeTradingActions = useMemo(() => guardActions(tradingActions, markStale), [tradingActions, markStale]);
   const drawings = useDrawings(
     chartApi?.chart ?? null,
     {
@@ -206,7 +212,7 @@ export function ChartWorkspace({
       sizing,
     },
     initialDrawings,
-    drawingActions,
+    safeDrawingActions,
   );
   const { onChartClick } = drawings;
   const onBarClick = useCallback(
@@ -267,7 +273,7 @@ export function ChartWorkspace({
   const trading = useTrading({
     session: initialTrading?.session ?? null,
     initialOrders: initialTrading?.orders ?? [],
-    actions: tradingActions,
+    actions: safeTradingActions,
     cursor,
     instrument: {
       code: instrument?.code ?? 'US30',
@@ -366,11 +372,13 @@ export function ChartWorkspace({
             tp: ticket.tp,
             lots: ticketMetrics?.lots ?? '0.00',
             at: cursor,
-            title: `${ticketTitle(ticket, lastClose)} ${ticketMetrics?.lots ?? ''}`.trim(),
+            title: draftTitle(ticket, lastClose, ticketMetrics?.lots ?? '0.00'),
+            market: ticket.kind === 'market',
           }
         : null,
     [ticket, cursor, lastClose, ticketMetrics?.lots],
   );
+  const keepInView = useMemo(() => (ticket ? [ticket.entry, ticket.sl, ticket.tp] : undefined), [ticket]);
   const onDraftMove = useCallback(
     (level: 'entry' | 'sl' | 'tp', price: number) => {
       const t = ticketRef.current;
@@ -398,6 +406,7 @@ export function ChartWorkspace({
       onSizing={setSizing}
       onPlace={() => void placeTicket()}
       onClose={() => setTicket(null)}
+      error={trading.placeError}
       compact={!desktop && !short}
     />
   );
@@ -415,6 +424,7 @@ export function ChartWorkspace({
     },
     editable: cursor !== null,
     onMove: trading.modify,
+    short: !desktop,
   });
   const { full, toggleFull, rootRef } = useFullScreen();
   const back = useMemo(() => stepBackRule(trading.orders), [trading.orders]);
@@ -482,6 +492,28 @@ export function ChartWorkspace({
         sizing,
       })
     : null;
+  // The box's trade card takes the ticket's place: one spot on the screen for entering a trade.
+  const boxNode = !ticket && selectedBox && boxMetrics && trading.session && drawings.active === null && (
+    <BoxTicket
+      side={selectedBox.tool as Side}
+      entry={selectedBox.points[0]?.price ?? 0}
+      price={lastClose}
+      priceDigits={priceDigits}
+      lots={boxMetrics.lots}
+      valid={boxMetrics.valid}
+      tradable={cursor !== null}
+      sizing={sizing}
+      error={trading.placeError}
+      onSizing={setSizing}
+      onPlace={(kind) => void placeFromBox(kind)}
+    />
+  );
+  const entryNode = ticketNode || boxNode;
+  // A refused order's reason belongs to the ticket or box it came from.
+  const entryKey = ticket ? 'ticket' : (selectedBox?.id ?? null);
+  const clearPlaceError = trading.clearPlaceError;
+  // biome-ignore lint/correctness/useExhaustiveDependencies: a new ticket or box starts without the old reason.
+  useEffect(() => clearPlaceError(), [entryKey, clearPlaceError]);
   // One listener for the page's life, always running the latest handler: re-adding it on every replay step
   // could miss a key pressed between renders (audit 25 Oct, #5).
   const onKeyRef = useRef<(event: KeyboardEvent) => void>(() => undefined);
@@ -562,6 +594,18 @@ export function ChartWorkspace({
       className={cn('tv-dark isolate flex flex-1 flex-col md:h-full', full && 'fixed inset-0 z-50 h-dvh bg-background')}
       data-full-screen={full ? 'true' : 'false'}
     >
+      {stale && (
+        <div role="alert" className="flex items-center gap-3 border-b bg-loss/15 px-4 py-2 text-sm">
+          <span className="flex-1">{APP_UPDATED}</span>
+          <button
+            type="button"
+            onClick={() => window.location.reload()}
+            className="h-8 rounded-md bg-foreground px-3 font-medium text-background"
+          >
+            Reload
+          </button>
+        </div>
+      )}
       {/* Landscape phone: the chart toolbar and the replay bar share one row. */}
       <div className="flex flex-col short:flex-row">
         <div
@@ -748,7 +792,7 @@ export function ChartWorkspace({
                 <TradeButtons enabled={tradable} bid={bid} ask={ask} open={ticket?.side ?? null} onPress={pressSide} />
               </div>
               {/* A short screen (phone on its side) scrolls the ticket instead of cutting off its button. */}
-              {desktop && ticketNode && <div className="pointer-events-auto min-h-0 overflow-y-auto">{ticketNode}</div>}
+              {desktop && entryNode && <div className="pointer-events-auto min-h-0 overflow-y-auto">{entryNode}</div>}
             </div>
           )}
           {full && (
@@ -810,45 +854,7 @@ export function ChartWorkspace({
               </div>
             </>
           )}
-          {!ticket && (
-            <DrawingProperties drawings={drawings}>
-              {selectedBox && <SizeControls sizing={sizing} onSizing={setSizing} />}
-              {selectedBox && cursor === null && (
-                <span className="px-1 text-muted-foreground text-xs">Start replay to place it</span>
-              )}
-              {selectedBox && boxMetrics && trading.session && cursor !== null && (
-                <>
-                  <button
-                    type="button"
-                    disabled={!boxMetrics.valid}
-                    onClick={() => void placeFromBox('drawn')}
-                    title="Opens now at exactly the drawn entry, stop and target"
-                    className={cn(
-                      'h-8 whitespace-nowrap rounded-md px-3 font-semibold disabled:opacity-50',
-                      selectedBox.tool === 'long' ? 'bg-profit text-background' : 'bg-loss text-background',
-                    )}
-                  >
-                    <span className="num">
-                      {selectedBox.tool === 'long' ? 'Buy' : 'Sell'}{' '}
-                      {(selectedBox.points[0]?.price ?? 0).toFixed(priceDigits)} · {boxMetrics.lots} lots
-                    </span>
-                  </button>
-                  {lastClose !== null && (
-                    <button
-                      type="button"
-                      disabled={!boxMetrics.valid}
-                      onClick={() => void placeFromBox('pending')}
-                      title="Waits for price to reach the entry"
-                      className="h-8 rounded-md px-2 hover:bg-accent/60 disabled:opacity-50"
-                    >
-                      {selectedBox.tool === 'long' ? 'Buy' : 'Sell'}{' '}
-                      {pendingType(selectedBox.tool as Side, selectedBox.points[0]?.price ?? 0, lastClose)} order
-                    </button>
-                  )}
-                </>
-              )}
-            </DrawingProperties>
-          )}
+          {!ticket && <DrawingProperties drawings={drawings} />}
           {drawings.error && (
             <p role="alert" className="absolute top-2 left-2 z-10 rounded-md bg-loss/20 px-3 py-1 text-sm">
               {drawings.error}
@@ -868,24 +874,25 @@ export function ChartWorkspace({
             onCrosshair={setHoverBar}
             indicators={indicators}
             orderMarks={marks}
+            keepInView={keepInView}
             picking={picking}
             onLastBar={onLastBar}
             onPickPlace={setPlaced}
           />
         </div>
-        {!desktop && short && ticketNode && (
+        {!desktop && short && entryNode && (
           <div className="w-60 shrink-0 overflow-y-auto border-l p-1.5" data-testid="ticket-column">
-            {ticketNode}
+            {entryNode}
           </div>
         )}
       </div>
-      {!desktop && !short && ticketNode && (
+      {!desktop && !short && entryNode && (
         <div
           className="max-h-[50dvh] shrink-0 overflow-y-auto border-t p-1.5"
           // Brought into view when it opens: on a phone it sits under the chart.
           ref={revealTicket}
         >
-          {ticketNode}
+          {entryNode}
         </div>
       )}
       {/* Desktop full screen is the chart alone; on a phone it keeps the trades, so nothing is out of reach. */}

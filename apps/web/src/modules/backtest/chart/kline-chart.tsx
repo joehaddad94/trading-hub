@@ -82,6 +82,8 @@ export type ChartProps = {
   indicators?: ActiveIndicator[];
   /** Simulated orders and trades of this instrument. */
   orderMarks?: OrderMark[];
+  /** More prices auto scale keeps on screen: the order ticket's entry, stop and target before it is placed. */
+  keepInView?: number[] | undefined;
   /** Choosing a replay start: a line follows the pointer and the bars right of it are dimmed. */
   picking?: boolean;
   /** The newest bar on the chart changed (the cursor bar in replay): Buy/Sell prices and open P/L follow it. */
@@ -138,6 +140,7 @@ export function KLineChart(props: ChartProps) {
     onCrosshair,
     indicators,
     orderMarks,
+    keepInView,
     picking,
     onLastBar,
     onPickPlace,
@@ -535,20 +538,21 @@ export function KLineChart(props: ChartProps) {
     if (!ready || !chart) return;
     const marks = orderMarks ?? [];
     // Auto scale keeps every live order's stop and target on screen, as TradingView does, so their lines are
-    // never off the chart or under the price legend and can always be dragged.
-    const levels = marks.flatMap((m) => (m.kind === 'live' ? [m.sl, m.tp, m.entry] : []));
+    // never off the chart or under the price legend and can always be dragged. The ticket's lines too: its
+    // default stop could sit below a phone's chart, out of reach (audit 3 Nov 2026, #1).
+    const levels = [...marks.flatMap((m) => (m.kind === 'live' ? [m.sl, m.tp, m.entry] : [])), ...(keepInView ?? [])];
     const range = {
       minValue: levels.length > 0 ? Math.min(...levels) : null,
       maxValue: levels.length > 0 ? Math.max(...levels) : null,
     };
-    if (marks.length === 0) {
+    if (marks.length === 0 && levels.length === 0) {
       chart.removeIndicator({ name: ORDERS_INDICATOR });
     } else if (chart.getIndicators({ name: ORDERS_INDICATOR }).length === 0) {
       chart.createIndicator({ name: ORDERS_INDICATOR, paneId: 'candle_pane', extendData: { marks }, ...range }, true);
     } else {
       chart.overrideIndicator({ name: ORDERS_INDICATOR, extendData: { marks }, ...range });
     }
-  }, [ready, orderMarks]);
+  }, [ready, orderMarks, keepInView]);
 
   useEffect(() => {
     const chart = chartRef.current;

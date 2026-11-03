@@ -43,6 +43,9 @@ export function useTrading(opts: {
   const { session, actions, cursor, instrument } = opts;
   const [orders, setOrders] = useState<OrderView[]>(opts.initialOrders);
   const [error, setError] = useState<string | null>(null);
+  // Why the last place was refused. Kept apart from `error`, which the next replay step clears: shown on the
+  // ticket or box until the next attempt (Joe, 3 Nov 2026: "I click the button, nothing happens").
+  const [placeError, setPlaceError] = useState<string | null>(null);
   const [undo, setUndo] = useState<{ snapshot: DeletedSnapshot; label: string } | null>(null);
   const inFlight = useRef<Promise<unknown> | null>(null);
   const queued = useRef<number | null>(null);
@@ -86,6 +89,7 @@ export function useTrading(opts: {
     async (drawing: PositionDrawing, kind: 'market' | 'pending' | 'drawn', drawingId: string | null) => {
       if (!session || cursor === null) {
         setError('Start replay to place a simulated trade.');
+        setPlaceError('Start replay to place a simulated trade.');
         return false;
       }
       const [entry, stop, target] = drawing.points;
@@ -101,25 +105,27 @@ export function useTrading(opts: {
       });
       if (!metrics.valid || Number(metrics.lots) <= 0) {
         setError('This position has no valid size: check its stop, target and risk.');
+        setPlaceError('This position has no valid size: check its stop, target and risk.');
         return false;
       }
       const fixed = (n: number) => n.toFixed(instrument.priceDigits);
-      return apply(
-        await actions.place(session.id, {
-          instrument: instrument.code,
-          side: drawing.side,
-          kind,
-          entry: fixed(entry.price),
-          sl: fixed(stop.price),
-          tp: fixed(target.price),
-          lots: metrics.lots,
-          at: cursor,
-          drawingId,
-        }),
-      );
+      const result = await actions.place(session.id, {
+        instrument: instrument.code,
+        side: drawing.side,
+        kind,
+        entry: fixed(entry.price),
+        sl: fixed(stop.price),
+        tp: fixed(target.price),
+        lots: metrics.lots,
+        at: cursor,
+        drawingId,
+      });
+      setPlaceError(result.ok ? null : result.error);
+      return apply(result);
     },
     [session, cursor, instrument, actions, apply],
   );
+  const clearPlaceError = useCallback(() => setPlaceError(null), []);
 
   /** Closes at market; `lots` below the position size closes only that part. */
   const close = useCallback(
@@ -191,7 +197,21 @@ export function useTrading(opts: {
     return () => window.clearTimeout(t);
   }, [undo]);
 
-  return { session, orders, error, place, close, closeAll, cancel, modify, remove, undo, restore };
+  return {
+    session,
+    orders,
+    error,
+    placeError,
+    clearPlaceError,
+    place,
+    close,
+    closeAll,
+    cancel,
+    modify,
+    remove,
+    undo,
+    restore,
+  };
 }
 
 export type Trading = ReturnType<typeof useTrading>;

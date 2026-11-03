@@ -48,6 +48,43 @@ export function ticketTitle(ticket: Ticket, price: number | null): string {
   return `${verb} ${pendingType(ticket.side, ticket.entry, price)}`;
 }
 
+/**
+ * What the place button does, with the type and the price (audit 3 Nov 2026, #4): "Buy market 0.27 US30",
+ * "Sell stop 0.20 US30 @ 45938.78". `short` is the phone's one-row ticket: "Buy mkt 0.27", "Buy stop 0.20 @ 45938.78".
+ */
+export function placeLabel(
+  ticket: Ticket,
+  price: number | null,
+  lots: string,
+  priceDigits: number,
+  opts: { code?: string; short?: boolean } = {},
+): string {
+  const size = opts.code && !opts.short ? `${lots} ${opts.code}` : lots;
+  if (ticket.kind === 'market' || price === null) {
+    return `${ticket.side === 'long' ? 'Buy' : 'Sell'} ${opts.short ? 'mkt' : 'market'} ${size}`;
+  }
+  return `${ticketTitle(ticket, price)} ${size} @ ${ticket.entry.toFixed(priceDigits)}`;
+}
+
+/** The ticket's entry line on the chart: "Buy market 0.27 · next open", or "Buy stop 0.20" (its price follows). */
+export function draftTitle(ticket: Ticket, price: number | null, lots: string): string {
+  if (ticket.kind === 'market' || price === null) {
+    return `${ticket.side === 'long' ? 'Buy' : 'Sell'} market ${lots} · next open`;
+  }
+  return `${ticketTitle(ticket, price)} ${lots}`;
+}
+
+/** Why the place button is off, or null when it can place. */
+export function blockedReason(ticket: Ticket, lots: string): string | null {
+  if (!ticketValid(ticket)) {
+    return ticket.side === 'long'
+      ? 'A buy needs its stop below and target above the entry.'
+      : 'A sell needs its stop above and target below the entry.';
+  }
+  if (!(Number(lots) > 0)) return 'The size rounds to 0 lots: raise the risk or move the stop closer.';
+  return null;
+}
+
 /** Ask = last close + spread (what a market buy pays); bid = last close. */
 export function quotes(close: number | null, spreadPoints: string, priceDigits: number) {
   if (close === null) return { bid: null, ask: null };
@@ -133,6 +170,7 @@ export function OrderTicket({
   onSizing,
   onPlace,
   onClose,
+  error = null,
   compact = false,
 }: {
   ticket: Ticket;
@@ -146,6 +184,8 @@ export function OrderTicket({
   onSizing: (next: Sizing) => void;
   onPlace: () => void;
   onClose: () => void;
+  /** Why the last place was refused (shown on the ticket, so a refused order never looks like nothing happened). */
+  error?: string | null;
   /**
    * Phone held upright: one row (side, stop, target, size, place) that opens into the full ticket on a tap, so
    * the chart keeps most of its height (audit 25 Oct, #6). The lines on the chart still move stop and target.
@@ -162,7 +202,10 @@ export function OrderTicket({
     balance,
     sizing,
   });
-  const valid = ticketValid(ticket) && Number(m.lots) > 0;
+  // A disabled button always says why, also on the phone's one-row ticket (Joe, 3 Nov 2026: "nothing happens").
+  const reason = blockedReason(ticket, m.lots);
+  const valid = reason === null;
+  const message = reason ?? error;
   const buy = ticket.side === 'long';
   const title = ticketTitle(ticket, price);
   const set = (field: Field, value: number) => {
@@ -188,7 +231,7 @@ export function OrderTicket({
         data-testid="order-ticket"
         data-kind={ticket.kind}
         data-compact="true"
-        className="flex w-full items-center gap-2 rounded-lg border bg-popover/95 p-1.5 text-xs shadow-lg"
+        className="flex w-full flex-wrap items-center gap-2 rounded-lg border bg-popover/95 p-1.5 text-xs shadow-lg"
         onSubmit={(e) => {
           e.preventDefault();
           if (valid && !busy) onPlace();
@@ -214,7 +257,7 @@ export function OrderTicket({
             buy ? 'bg-profit text-background' : 'bg-loss text-background',
           )}
         >
-          {title} {m.lots}
+          {placeLabel(ticket, price, m.lots, instrument.priceDigits, { short: true })}
         </button>
         <button
           type="button"
@@ -225,6 +268,11 @@ export function OrderTicket({
           <X className="size-4" aria-hidden />
           <span className="sr-only">Close ticket</span>
         </button>
+        {message && (
+          <p role="alert" className="w-full px-1 text-loss">
+            {message}
+          </p>
+        )}
       </form>
     );
   }
@@ -328,11 +376,9 @@ export function OrderTicket({
           {m.lots} lots · {m.riskPct}%
         </span>
       </div>
-      {!ticketValid(ticket) && (
+      {message && (
         <p role="alert" className="text-loss">
-          {buy
-            ? 'A buy needs its stop below and target above the entry.'
-            : 'A sell needs its stop above and target below the entry.'}
+          {message}
         </p>
       )}
       <button
@@ -343,7 +389,7 @@ export function OrderTicket({
           buy ? 'bg-profit text-background' : 'bg-loss text-background',
         )}
       >
-        {title} {m.lots} {instrument.code}
+        {placeLabel(ticket, price, m.lots, instrument.priceDigits, { code: instrument.code })}
         <span className="ml-2 font-normal opacity-80">RR 1:{m.rr}</span>
       </button>
       <p className="hidden text-muted-foreground roomy:block">
@@ -468,5 +514,100 @@ function SizeField({ value, onCommit }: { value: string; onCommit: (v: string) =
       }}
       className="h-8 w-16 rounded-md border bg-background px-2 num"
     />
+  );
+}
+
+/** "72.05 pts above price": where a box's entry sits against the last close (audit 3 Nov 2026, #3). */
+export function entryDistance(entry: number, price: number, priceDigits: number): string {
+  const diff = new Decimal(String(entry)).minus(String(price));
+  if (diff.isZero()) return 'at the price';
+  return `${diff.abs().toFixed(priceDigits)} pts ${diff.isPositive() ? 'above' : 'below'} price`;
+}
+
+/**
+ * A selected long/short box's trade card, in the same place as the order ticket (audit 3 Nov 2026, #2): the main
+ * button opens at once at exactly the drawn levels (Joe, 26 Oct 2026), the second waits for price as a limit or
+ * stop. Colours and width stay on the drawing's own bar.
+ */
+export function BoxTicket({
+  side,
+  entry,
+  price,
+  priceDigits,
+  lots,
+  valid,
+  tradable,
+  sizing,
+  error,
+  onSizing,
+  onPlace,
+}: {
+  side: Side;
+  entry: number;
+  /** Last close, null outside replay. */
+  price: number | null;
+  priceDigits: number;
+  lots: string;
+  valid: boolean;
+  /** In replay with a run: the buttons can place. */
+  tradable: boolean;
+  sizing: Sizing;
+  error: string | null;
+  onSizing: (next: Sizing) => void;
+  onPlace: (kind: 'drawn' | 'pending') => void;
+}) {
+  const buy = side === 'long';
+  const verb = buy ? 'Buy' : 'Sell';
+  return (
+    <section
+      aria-label="Trade this box"
+      data-testid="box-ticket"
+      className="flex w-full flex-col gap-2 rounded-lg border bg-popover/95 p-2 text-xs shadow-lg backdrop-blur roomy:w-80"
+    >
+      <div className="flex flex-wrap items-center gap-1">
+        <span className={cn('w-11 font-medium', buy ? 'text-profit' : 'text-loss')}>{buy ? 'Long' : 'Short'}</span>
+        <SizeControls sizing={sizing} onSizing={onSizing} />
+        {tradable && <span className="num ml-auto text-muted-foreground">{lots} lots</span>}
+      </div>
+      {!tradable || price === null ? (
+        <p className="text-muted-foreground">Start replay to place it</p>
+      ) : (
+        <>
+          <div className="flex flex-col gap-0.5">
+            <button
+              type="button"
+              disabled={!valid}
+              onClick={() => onPlace('drawn')}
+              title="Opens now at exactly the drawn entry, stop and target"
+              className={cn(
+                'h-9 whitespace-nowrap rounded-md px-3 font-semibold text-sm disabled:opacity-50',
+                buy ? 'bg-profit text-background' : 'bg-loss text-background',
+              )}
+            >
+              <span className="num">
+                {verb} {entry.toFixed(priceDigits)} · {lots} lots
+              </span>
+            </button>
+            <span className="num text-muted-foreground" data-testid="box-distance">
+              {entryDistance(entry, price, priceDigits)} · opens at your price now
+            </span>
+          </div>
+          <button
+            type="button"
+            disabled={!valid}
+            onClick={() => onPlace('pending')}
+            title="Waits for price to reach the entry"
+            className="h-8 rounded-md border px-2 hover:bg-accent/60 disabled:opacity-50"
+          >
+            {verb} {pendingType(side, entry, price)} order
+          </button>
+        </>
+      )}
+      {(!valid || error) && (
+        <p role="alert" className="text-loss">
+          {valid ? error : `This ${buy ? 'long' : 'short'} needs its stop and target on either side of the entry.`}
+        </p>
+      )}
+    </section>
   );
 }

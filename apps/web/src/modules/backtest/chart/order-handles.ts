@@ -22,6 +22,10 @@ export type LevelData = {
   priceDigits: number;
   /** Entry line text instead of "Entry", e.g. "Buy limit 0.27" on the order ticket's preview. */
   title?: string;
+  /** A market ticket: the line shows no price, as it fills at the next open (audit 3 Nov 2026, #4). */
+  market?: boolean;
+  /** Phones: "TP +$248.40" instead of "TP 46088.05 · +$248.40"; full text while dragged (audit 3 Nov 2026, #6). */
+  short?: boolean;
 };
 
 /** The order ticket's preview (not yet an order): its entry, stop and target as draggable lines. */
@@ -34,6 +38,7 @@ export type DraftLines = {
   /** Where the lines are anchored in time: the replay cursor. */
   at: number;
   title: string;
+  market: boolean;
 };
 
 /** Key prefix of the ticket preview's lines (orders use their id). */
@@ -61,12 +66,13 @@ export function pnlAt(data: Pick<LevelData, 'entry' | 'long' | 'lots' | 'pointVa
 /** Label on a line, e.g. "SL 42100.00 · −$250.00" or "Entry 42010.00 · 0.50 lots". */
 export function levelLabel(data: LevelData, price: number): string {
   if (data.level === 'entry') {
-    return data.title
-      ? `${data.title} · ${price.toFixed(data.priceDigits)}`
-      : `Entry ${price.toFixed(data.priceDigits)} · ${data.lots} lots`;
+    if (data.title && data.market) return data.short ? data.title.replace(/ · next open$/, '') : data.title;
+    if (data.title) return data.short ? data.title : `${data.title} · ${price.toFixed(data.priceDigits)}`;
+    return data.short ? `Entry ${data.lots}` : `Entry ${price.toFixed(data.priceDigits)} · ${data.lots} lots`;
   }
   const pnl = pnlAt(data, price);
   const money = pnl.startsWith('-') ? `−$${pnl.slice(1)}` : `+$${pnl}`;
+  if (data.short) return `${data.level.toUpperCase()} ${money}`;
   return `${data.level.toUpperCase()} ${price.toFixed(data.priceDigits)} · ${money}`;
 }
 
@@ -154,8 +160,10 @@ export function useOrderHandles(opts: {
   /** The order ticket's preview; its lines move the ticket, not an order. */
   draft?: DraftLines | null;
   onDraftMove?: (level: Level, price: number) => void;
+  /** Phones: short line labels (full text while a line is dragged). */
+  short?: boolean;
 }) {
-  const { chart, orders, instrument, editable, onMove, draft = null } = opts;
+  const { chart, orders, instrument, editable, onMove, draft = null, short = false } = opts;
   const draftMoveRef = useRef(opts.onDraftMove);
   draftMoveRef.current = opts.onDraftMove;
   const ids = useRef(new Map<string, string>());
@@ -192,6 +200,7 @@ export function useOrderHandles(opts: {
           lots: o.lots,
           pointValue: instrument.pointValue,
           priceDigits: instrument.priceDigits,
+          short,
         },
         point: { timestamp: o.filledAt ?? o.placedAt, value: Number(o[level]) },
       }));
@@ -210,6 +219,8 @@ export function useOrderHandles(opts: {
             pointValue: instrument.pointValue,
             priceDigits: instrument.priceDigits,
             title: draft.title,
+            market: draft.market,
+            short,
           },
           point: { timestamp: draft.at, value: draft[level] },
         });
@@ -239,9 +250,12 @@ export function useOrderHandles(opts: {
           hover.current = false;
           setResize();
         },
-        onPressedMoveStart: () => {
+        onPressedMoveStart: (event: OverlayEvent<LevelData>) => {
           dragging.current = key;
           setResize();
+          // The full label (price and money) while the line moves, also on a phone.
+          const current = event.overlay.extendData;
+          if (current?.short) chart.overrideOverlay({ id: event.overlay.id, extendData: { ...current, short: false } });
         },
         onPressedMoveEnd: (event: OverlayEvent<LevelData>) => {
           dragging.current = null;
@@ -301,6 +315,7 @@ export function useOrderHandles(opts: {
     editable,
     revision,
     setResize,
+    short,
   ]);
 
   // Unmount: take the lines off the chart.

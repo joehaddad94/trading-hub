@@ -72,7 +72,7 @@ test.describe('Backtest Lab on a phone (audit 25 Oct)', () => {
     const ticket = page.getByTestId('ticket-column').getByTestId('order-ticket');
     await expect(ticket).toBeVisible();
     await expect(ticket).not.toHaveAttribute('data-compact', 'true');
-    const place = ticket.getByRole('button', { name: /^Buy \d/ });
+    const place = ticket.getByRole('button', { name: /^Buy (market|mkt) / });
     await place.scrollIntoViewIfNeeded();
     await onScreen(page, place);
     expect((await chart.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(before - 1);
@@ -104,14 +104,14 @@ test.describe('Backtest Lab on a phone (audit 25 Oct)', () => {
     await expect(ticket).toHaveAttribute('data-compact', 'true');
     // The audit measured 271px of 504 with the old ticket open.
     await expect.poll(async () => (await chart.boundingBox())?.height ?? 0).toBeGreaterThan(before - 90);
-    await onScreen(page, ticket.getByRole('button', { name: /^Buy \d/ }));
+    await onScreen(page, ticket.getByRole('button', { name: /^Buy (market|mkt) / }));
     await ticket.getByRole('button', { name: 'Edit order' }).click();
     await expect(page.getByRole('textbox', { name: 'Stop loss' })).toBeVisible();
     await page.getByRole('button', { name: 'Fewer details' }).click();
     await expect(page.getByTestId('order-ticket')).toHaveAttribute('data-compact', 'true');
     await page
       .getByTestId('order-ticket')
-      .getByRole('button', { name: /^Buy \d/ })
+      .getByRole('button', { name: /^Buy (market|mkt) / })
       .click();
     await expect(rows(page)).toHaveCount(1);
     await rows(page).first().getByRole('button', { name: 'Cancel' }).click();
