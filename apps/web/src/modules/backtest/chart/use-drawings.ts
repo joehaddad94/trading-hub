@@ -431,24 +431,39 @@ export function useDrawings(chart: Chart | null, ctx: DrawingContext, initial: D
     if (chart && selected) chart.removeOverlay({ id: selected });
   }, [chart, selected]);
 
+  /**
+   * Clears the chart at once and deletes on the server after, like a single delete. Waiting for the server
+   * first left the drawings up for a full round trip, longer while replay steps were queued ahead of it
+   * (Server Actions run one at a time). If the delete fails, the drawings come back.
+   */
   const removeAll = useCallback(async () => {
     if (!chart) return;
-    const result = await actions.removeAll(ctx.instrument);
-    if (!report(result)) return;
-    const gone = store.current.filter((d) => d.instrument === ctx.instrument);
+    const instrument = ctx.instrument;
+    const gone = store.current.filter((d) => d.instrument === instrument);
+    store.current = store.current.filter((d) => d.instrument !== instrument);
+    suppressRemove.current = true;
+    for (const o of overlays()) chart.removeOverlay({ id: o.id });
+    suppressRemove.current = false;
+    setSelected(null);
+    refresh();
+    const result = await actions
+      .removeAll(instrument)
+      .catch(
+        (): ActionResult<number> => ({ ok: false, error: 'Could not delete the drawings. Check your connection.' }),
+      );
+    if (!report(result)) {
+      store.current = [...store.current, ...gone];
+      if (ctxRef.current.instrument === instrument) for (const d of gone) draw(d);
+      refresh();
+      return;
+    }
     if (gone.length > 0) {
       record({
         kind: 'batch',
         changes: gone.map((d) => ({ kind: 'remove', ref: history.current.ref(d.id), drawing: d })),
       });
     }
-    store.current = store.current.filter((d) => d.instrument !== ctx.instrument);
-    suppressRemove.current = true;
-    for (const o of overlays()) chart.removeOverlay({ id: o.id });
-    suppressRemove.current = false;
-    setSelected(null);
-    refresh();
-  }, [chart, actions, ctx.instrument, report, refresh, overlays, record]);
+  }, [chart, actions, ctx.instrument, report, refresh, overlays, record, draw]);
 
   /** A plain chart click clears a temporary measure (not the click that just finished it). */
   const onChartClick = useCallback(() => {
