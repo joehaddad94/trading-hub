@@ -68,14 +68,12 @@ type Prefs = {
   timezone: string;
   sessions: boolean;
   impacts: Impact[];
-  allCurrencies: boolean;
   indicators: IndicatorPrefs;
 };
 const DEFAULT_PREFS: Prefs = {
   timezone: 'Asia/Beirut',
   sessions: true,
   impacts: ['high'],
-  allCurrencies: false,
   indicators: normalisePrefs(null),
 };
 const IMPACT_TOGGLES: { id: Impact; label: string }[] = [
@@ -134,7 +132,7 @@ export function ChartWorkspace({
   tradingActions,
 }: {
   instruments: WorkspaceInstrument[];
-  /** News › "currencies that count": the default marker filter. */
+  /** News › "currencies that count": the only currencies whose markers show. */
   currencies: string[];
   drawings: Drawing[];
   drawingActions: DrawingActions;
@@ -262,10 +260,7 @@ export function ChartWorkspace({
   const { cursor, step, setPlaying, playing } = replay;
   const { start: startTool, cancel: cancelTool, removeSelected, undo, redo } = drawings;
   const [hoverBar, setHoverBar] = useState<number | null>(null);
-  const filter = useMemo<NewsFilter>(
-    () => ({ impacts: prefs.impacts, currencies: prefs.allCurrencies ? [] : currencies }),
-    [prefs.impacts, prefs.allCurrencies, currencies],
-  );
+  const filter = useMemo<NewsFilter>(() => ({ impacts: prefs.impacts, currencies }), [prefs.impacts, currencies]);
   const events = useNewsEvents(cursor, filter, prefs.impacts.length > 0);
   const markers = useMemo(() => toMarkers(events, tf), [events, tf]);
   const hovered = eventsInBar(events, hoverBar, tf, cursor);
@@ -715,15 +710,6 @@ export function ChartWorkspace({
                   {t.label}
                 </button>
               ))}
-              <select
-                value={prefs.allCurrencies ? 'all' : 'counted'}
-                onChange={(e) => updatePrefs({ allCurrencies: e.target.value === 'all' })}
-                className="h-9 rounded-md border bg-background px-1 text-foreground"
-                aria-label="News currencies"
-              >
-                <option value="counted">{currencies.join(', ') || 'Counted'}</option>
-                <option value="all">All currencies</option>
-              </select>
             </fieldset>
             <div className="ml-auto flex items-center gap-2">
               <label className="flex h-9 items-center gap-2 text-muted-foreground">

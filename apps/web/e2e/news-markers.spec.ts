@@ -38,6 +38,8 @@ test.describe('news markers on replay (M17)', () => {
     expect(responses.flatMap((r) => r.actuals).every((a) => a === null)).toBe(true);
 
     await openChartSettings(page);
+    // No currency picker on the chart: markers always use News › counted currencies (Joe, 3 Nov).
+    await expect(page.getByLabel('News currencies')).toHaveCount(0);
     await page.getByRole('button', { name: 'Med impact news' }).click();
     await expect.poll(async () => Number(await chart.getAttribute('data-markers'))).toBeGreaterThan(1);
     await page.getByRole('button', { name: 'High impact news' }).click();
