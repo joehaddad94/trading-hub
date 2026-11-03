@@ -15,4 +15,13 @@ describe('order level lines', () => {
     expect(levelLabel(data, 41950)).toBe('SL 41950.00 · −$25.00');
     expect(levelLabel({ ...data, level: 'tp' }, 42100)).toBe('TP 42100.00 · +$50.00');
   });
+
+  it('phones get short labels; a market ticket line shows no price (audit 3 Nov, #4 #6)', () => {
+    const data = { ...long, orderId: 'o', level: 'tp' as const, priceDigits: 2, short: true };
+    expect(levelLabel(data, 42100)).toBe('TP +$50.00');
+    const entry = { ...data, orderId: 'draft', level: 'entry' as const, title: 'Buy market 0.50 · next open' };
+    expect(levelLabel({ ...entry, market: true, short: false }, 42000)).toBe('Buy market 0.50 · next open');
+    expect(levelLabel({ ...entry, market: true }, 42000)).toBe('Buy market 0.50');
+    expect(levelLabel({ ...entry, title: 'Buy stop 0.50', short: false }, 42010)).toBe('Buy stop 0.50 · 42010.00');
+  });
 });

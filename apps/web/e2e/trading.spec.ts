@@ -87,6 +87,8 @@ test.describe('simulated trading (M20)', () => {
     const [entry, stop, target] = (await boxPrices(page)).map((p) => p.toFixed(2));
     const buy = page.getByRole('button', { name: new RegExp(`^Buy ${entry} · [\\d.]+ lots$`) });
     await expect(buy).toBeVisible();
+    // The box's trade card says where the entry sits against the price before you press (audit 3 Nov 2026).
+    await expect(page.getByTestId('box-distance')).toContainText(/pts (above|below) price|at the price/);
     await buy.click();
     // The trade list opens by itself on a new order: open at once, at the drawn levels, nothing moved.
     await expect(rows(page)).toHaveCount(1);
@@ -221,6 +223,15 @@ test.describe('simulated trading (M20)', () => {
     // Entry, stop and target preview lines, before anything is placed.
     await expect.poll(async () => (await orderLines(page)).filter((l) => l.key.startsWith('draft:')).length).toBe(3);
     await expect(rows(page)).toHaveCount(0);
+    // All three are on the chart, so each can be dragged (the stop used to fall below a phone's chart).
+    await expect
+      .poll(async () => {
+        const height = (await page.getByTestId('kline-chart').boundingBox())?.height ?? 0;
+        return (await orderLines(page))
+          .filter((l) => l.key.startsWith('draft:'))
+          .every((l) => l.y !== null && l.y > 0 && l.y < height - 20);
+      })
+      .toBe(true);
 
     // Typing a stop updates the risk; Enter places the order.
     const stop = (Number(close) - 30).toFixed(2);
