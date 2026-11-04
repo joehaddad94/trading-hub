@@ -541,7 +541,10 @@ export function BoxTicket({
   error,
   onSizing,
   onPlace,
+  compact = false,
 }: {
+  /** Phones: a slim pill (button, distance, ⌃) that opens into the full card on a tap (Joe, 4 Nov 2026). */
+  compact?: boolean;
   side: Side;
   entry: number;
   /** Last close, null outside replay. */
@@ -558,6 +561,51 @@ export function BoxTicket({
 }) {
   const buy = side === 'long';
   const verb = buy ? 'Buy' : 'Sell';
+  const [expanded, setExpanded] = useState(false);
+  if (compact && !expanded && tradable && price !== null) {
+    const diff = new Decimal(String(entry)).minus(String(price));
+    return (
+      <section
+        aria-label="Trade this box"
+        data-testid="box-ticket"
+        data-compact="true"
+        className="flex w-full flex-wrap items-center gap-1.5 rounded-lg border bg-popover/95 p-1.5 text-xs shadow-lg backdrop-blur"
+      >
+        <button
+          type="button"
+          disabled={!valid}
+          onClick={() => onPlace('drawn')}
+          aria-label={`${verb} ${entry.toFixed(priceDigits)} · ${lots} lots`}
+          className={cn(
+            'h-9 min-w-0 flex-1 whitespace-nowrap rounded-md px-2 font-semibold disabled:opacity-50',
+            buy ? 'bg-profit text-background' : 'bg-loss text-background',
+          )}
+        >
+          <span className="num">
+            {verb} {entry.toFixed(priceDigits)} · {lots}
+          </span>
+        </button>
+        <span className="num shrink-0 text-muted-foreground leading-tight" data-testid="box-distance">
+          {diff.isZero() ? 'at price' : `${diff.isPositive() ? '+' : '−'}${diff.abs().toFixed(0)} pts`}
+        </span>
+        <button
+          type="button"
+          onClick={() => setExpanded(true)}
+          aria-expanded={false}
+          className="flex size-8 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-accent"
+          title="Size and limit/stop order"
+        >
+          <ChevronUp className="size-4" aria-hidden />
+          <span className="sr-only">More options</span>
+        </button>
+        {(!valid || error) && (
+          <p role="alert" className="w-full px-1 text-loss">
+            {valid ? error : 'Stop and target must be on either side of the entry.'}
+          </p>
+        )}
+      </section>
+    );
+  }
   return (
     <section
       aria-label="Trade this box"
@@ -565,6 +613,18 @@ export function BoxTicket({
       className="flex w-full flex-col gap-2 rounded-lg border bg-popover/95 p-2 text-xs shadow-lg backdrop-blur roomy:w-80"
     >
       <div className="flex flex-wrap items-center gap-1">
+        {compact && (
+          <button
+            type="button"
+            onClick={() => setExpanded(false)}
+            aria-expanded
+            className="flex size-8 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-accent"
+            title="Fewer details"
+          >
+            <ChevronDown className="size-4" aria-hidden />
+            <span className="sr-only">Fewer details</span>
+          </button>
+        )}
         <span className={cn('w-11 font-medium', buy ? 'text-profit' : 'text-loss')}>{buy ? 'Long' : 'Short'}</span>
         <SizeControls sizing={sizing} onSizing={onSizing} />
         {tradable && <span className="num ml-auto text-muted-foreground">{lots} lots</span>}

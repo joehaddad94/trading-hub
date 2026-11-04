@@ -501,8 +501,12 @@ export function ChartWorkspace({
       error={trading.placeError}
       onSizing={setSizing}
       onPlace={(kind) => void placeFromBox(kind)}
+      compact={!desktop}
     />
   );
+  // Phones: the box's card is a slim pill on the chart under Sell/Buy, so the chart keeps its full size
+  // (Joe, 4 Nov 2026, option B). The order ticket keeps its row under the chart or its landscape column.
+  const boxOnChart = desktop ? null : boxNode;
   const entryNode = ticketNode || boxNode;
   // A refused order's reason belongs to the ticket or box it came from.
   const entryKey = ticket ? 'ticket' : (selectedBox?.id ?? null);
@@ -779,6 +783,7 @@ export function ChartWorkspace({
               </div>
               {/* A short screen (phone on its side) scrolls the ticket instead of cutting off its button. */}
               {desktop && entryNode && <div className="pointer-events-auto min-h-0 overflow-y-auto">{entryNode}</div>}
+              {boxOnChart && <div className="pointer-events-auto min-h-0 w-64 overflow-y-auto">{boxOnChart}</div>}
             </div>
           )}
           {full && (
@@ -866,19 +871,19 @@ export function ChartWorkspace({
             onPickPlace={setPlaced}
           />
         </div>
-        {!desktop && short && entryNode && (
+        {!desktop && short && ticketNode && (
           <div className="w-60 shrink-0 overflow-y-auto border-l p-1.5" data-testid="ticket-column">
-            {entryNode}
+            {ticketNode}
           </div>
         )}
       </div>
-      {!desktop && !short && entryNode && (
+      {!desktop && !short && ticketNode && (
         <div
           className="max-h-[50dvh] shrink-0 overflow-y-auto border-t p-1.5"
           // Brought into view when it opens: on a phone it sits under the chart.
           ref={revealTicket}
         >
-          {entryNode}
+          {ticketNode}
         </div>
       )}
       {/* Desktop full screen is the chart alone; on a phone it keeps the trades, so nothing is out of reach. */}

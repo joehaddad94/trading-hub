@@ -88,7 +88,9 @@ test.describe('simulated trading (M20)', () => {
     const buy = page.getByRole('button', { name: new RegExp(`^Buy ${entry} · [\\d.]+ lots$`) });
     await expect(buy).toBeVisible();
     // The box's trade card says where the entry sits against the price before you press (audit 3 Nov 2026).
-    await expect(page.getByTestId('box-distance')).toContainText(/pts (above|below) price|at the price/);
+    await expect(page.getByTestId('box-distance')).toContainText(
+      /pts (above|below) price|at the price|^[+−]\d+ pts$|at price/,
+    );
     await buy.click();
     // The trade list opens by itself on a new order: open at once, at the drawn levels, nothing moved.
     await expect(rows(page)).toHaveCount(1);
@@ -161,6 +163,9 @@ test.describe('simulated trading (M20)', () => {
 
     await page.keyboard.press('Alt+KeyS');
     await clickChart(page, 0.7, 0.15);
+    // On a phone the box's card is a slim pill: ⌃ opens the limit/stop order.
+    const card = page.getByTestId('box-ticket');
+    if (await card.getAttribute('data-compact')) await card.getByRole('button', { name: 'More options' }).click();
     await page.getByRole('button', { name: /^Sell (limit|stop) order$/ }).click();
     await expect(rows(page).first()).toHaveAttribute('data-status', 'pending');
     // A pending order shows draggable entry, SL and TP lines.
