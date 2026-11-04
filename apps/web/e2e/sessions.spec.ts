@@ -83,6 +83,21 @@ test.describe('backtest sessions (M21)', () => {
     }
     await page.getByRole('link', { name: 'Compare with backtests' }).click();
     await expect(page.getByRole('heading', { name: 'Live vs backtest' })).toBeVisible();
-    await expect(page.getByText(/live trades \(the selected scope\) against 0 backtest trades/)).toBeVisible();
+    await expect(page.getByText(/Live trades from the selected scope against every backtest run/)).toBeVisible();
+    // Period stepper: Month by default; Week steps back one week at a time.
+    await page.getByRole('navigation', { name: 'Period' }).getByRole('link', { name: 'Week' }).click();
+    await expect(page).toHaveURL(/period=week/);
+    const label = page.getByTestId('lvb-period');
+    await expect(label).toHaveText(/\d+.*\d{4}/);
+    const before = await label.textContent();
+    const prev = page.getByRole('link', { name: 'Previous period' });
+    if (await prev.isVisible()) {
+      await prev.click();
+      await expect(label).not.toHaveText(before ?? '');
+    }
+    const views = page.getByRole('navigation', { name: 'Backtest counts' });
+    await expect(views.getByRole('link', { name: 'One pick' })).toHaveAttribute('aria-current', 'page');
+    await views.getByRole('link', { name: 'Portfolio' }).click();
+    await expect(views.getByRole('link', { name: 'Portfolio' })).toHaveAttribute('aria-current', 'page');
   });
 });

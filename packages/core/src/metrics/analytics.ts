@@ -1,5 +1,4 @@
 import { TZDate } from '@date-fns/tz';
-import type Decimal from 'decimal.js';
 import { SESSION_LABELS, type SessionName, sessionOf } from '../time/sessions';
 import {
   classify,
@@ -134,39 +133,4 @@ export function holdTimeStats(trades: AnalyticsTrade[], scratchThresholdR = DEFA
     HOLD_BUCKETS,
     scratchThresholdR,
   );
-}
-
-export type LiveVsBacktestRow = {
-  symbol: string;
-  live: TradeStats | null;
-  backtest: TradeStats | null;
-  /** Backtest expectancy R − live expectancy R, when both are known. */
-  expectancyGapR: Decimal | null;
-};
-
-/** Live vs backtest per symbol (screen 8): the same metrics side by side, symbols present in either. */
-export function liveVsBacktest(
-  live: AnalyticsTrade[],
-  backtest: AnalyticsTrade[],
-  scratchThresholdR = DEFAULT_SCRATCH_THRESHOLD_R,
-): LiveVsBacktestRow[] {
-  const symbols = [...new Set([...live, ...backtest].map((t) => t.symbol))].sort();
-  const rows = symbols.map((symbol) => {
-    const l = live.filter((t) => t.symbol === symbol);
-    const b = backtest.filter((t) => t.symbol === symbol);
-    const ls = l.length ? tradeStats(l, scratchThresholdR) : null;
-    const bs = b.length ? tradeStats(b, scratchThresholdR) : null;
-    const gap = ls?.expectancyR && bs?.expectancyR ? bs.expectancyR.minus(ls.expectancyR) : null;
-    return { symbol, live: ls, backtest: bs, expectancyGapR: gap };
-  });
-  const all = {
-    symbol: 'All symbols',
-    live: live.length ? tradeStats(live, scratchThresholdR) : null,
-    backtest: backtest.length ? tradeStats(backtest, scratchThresholdR) : null,
-    expectancyGapR: null as Decimal | null,
-  };
-  if (all.live?.expectancyR && all.backtest?.expectancyR) {
-    all.expectancyGapR = all.backtest.expectancyR.minus(all.live.expectancyR);
-  }
-  return symbols.length > 1 ? [...rows, all] : rows;
 }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { type AnalyticsTrade, breakdowns, holdTimeStats, liveVsBacktest, rDistribution, streaks } from './analytics';
+import { type AnalyticsTrade, breakdowns, holdTimeStats, rDistribution, streaks } from './analytics';
 
 const t = (net: string, risk: string | null, opts: Partial<AnalyticsTrade> = {}): AnalyticsTrade => ({
   netProfit: net,
@@ -75,23 +75,5 @@ describe('holdTimeStats', () => {
       t('10', '100', { openedAt: open, closedAt: new Date(open.getTime() + 9 * 3600_000) }),
     ]);
     expect(g.map((x) => x.label)).toEqual(['< 1 min', '1–4 h', '> 4 h']);
-  });
-});
-
-describe('liveVsBacktest', () => {
-  it('compares per symbol with an all-symbols row and the expectancy gap', () => {
-    const rows = liveVsBacktest(
-      [t('-100', '100'), t('100', '100', { symbol: 'NDX100' })],
-      [t('200', '100'), t('100', '100')],
-    );
-    expect(rows.map((r) => r.symbol)).toEqual(['NDX100', 'US30', 'All symbols']);
-    const us30 = rows[1];
-    expect(us30?.live?.expectancyR?.toNumber()).toBe(-1);
-    expect(us30?.backtest?.expectancyR?.toNumber()).toBe(1.5);
-    expect(us30?.expectancyGapR?.toNumber()).toBe(2.5);
-    expect(rows[0]?.backtest).toBeNull();
-    expect(rows[0]?.expectancyGapR).toBeNull();
-    expect(rows[2]?.expectancyGapR?.toNumber()).toBe(1.5);
-    expect(liveVsBacktest([t('1', '1')], [])).toHaveLength(1);
   });
 });

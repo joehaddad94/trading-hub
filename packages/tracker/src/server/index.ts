@@ -10,7 +10,13 @@ export {
   setPreviousPhase,
   type TimelineEntry,
 } from './accounts';
-export { type AnalyticsData, type AnalyticsOptions, analytics, liveVsBacktestReport } from './analytics';
+export {
+  type AnalyticsData,
+  type AnalyticsOptions,
+  analytics,
+  type LiveVsBacktestReport,
+  liveVsBacktestReport,
+} from './analytics';
 export {
   type CalendarMonthData,
   calendarDay,
