@@ -555,6 +555,7 @@ export function KLineChart(props: ChartProps) {
     };
     if (marks.length === 0 && levels.length === 0) {
       chart.removeIndicator({ name: ORDERS_INDICATOR });
+      chart.getDom()?.setAttribute('data-order-boxes', '[]');
     } else if (chart.getIndicators({ name: ORDERS_INDICATOR }).length === 0) {
       chart.createIndicator({ name: ORDERS_INDICATOR, paneId: 'candle_pane', extendData: { marks }, ...range }, true);
     } else {

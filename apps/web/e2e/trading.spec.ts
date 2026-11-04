@@ -14,6 +14,28 @@ async function orderLines(page: Page): Promise<{ key: string; price: number; y: 
   return JSON.parse(raw ?? '[]');
 }
 
+type Box = { id: string; closed: boolean; left: number; right: number; sl: number; tp: number };
+
+/** Every trade's long/short box as the chart drew it: pixel edges of its stop and target. */
+async function orderBoxes(page: Page): Promise<Box[]> {
+  const raw = await page.locator('[data-order-boxes]').first().getAttribute('data-order-boxes');
+  return JSON.parse(raw ?? '[]');
+}
+
+/** The box's stop and target edges sit on the order's stop and target lines. */
+async function expectBoxOnLines(page: Page) {
+  await expect
+    .poll(async () => {
+      const lines = await orderLines(page);
+      const [box] = await orderBoxes(page);
+      const sl = lines.find((l) => l.key.endsWith(':sl'))?.y;
+      const tp = lines.find((l) => l.key.endsWith(':tp'))?.y;
+      if (!box || sl == null || tp == null) return false;
+      return Math.abs(box.sl - sl) <= 1.5 && Math.abs(box.tp - tp) <= 1.5;
+    })
+    .toBe(true);
+}
+
 /** The selected long/short box's [entry, stop, target] prices, as the chart reports its drawings. */
 async function boxPrices(page: Page): Promise<number[]> {
   const raw = (await page.getByTestId('chart-area').getAttribute('data-drawings')) ?? '[]';
@@ -106,12 +128,17 @@ test.describe('simulated trading (M20)', () => {
     await expect
       .poll(async () => (await orderLines(page)).map((l) => l.key.split(':')[1]).sort())
       .toEqual(['sl', 'tp']);
+    // The drawn box stays on the chart as the trade's box: its edges are the stop and target (Joe, 4 Nov 2026).
+    await expect.poll(async () => (await orderBoxes(page)).length).toBe(1);
+    await expectBoxOnLines(page);
     await dragLine(page, 'tp', -25);
     await expect(rows(page).first()).not.toContainText(`TP ${target}`);
     expect(Number((await rows(page).first().textContent())?.match(/TP ([\d.]+)/)?.[1])).toBeGreaterThan(Number(target));
     await dragLine(page, 'sl', 15);
     await expect(rows(page).first()).not.toContainText(`SL ${stop}`);
     expect(Number((await rows(page).first().textContent())?.match(/SL ([\d.]+)/)?.[1])).toBeLessThan(Number(stop));
+    // The box moved with its lines.
+    await expectBoxOnLines(page);
     // No stepping back with a trade open.
     const before = await page.getByTestId('replay-cursor').getAttribute('data-cursor');
     await page.keyboard.press('ArrowLeft');
@@ -124,6 +151,8 @@ test.describe('simulated trading (M20)', () => {
     await expect(rows(page).first()).toHaveAttribute('data-status', 'closed', { timeout: 60_000 });
     await page.getByRole('button', { name: 'Pause', exact: true }).click();
     await expect(rows(page).first()).toContainText(/R\)/);
+    // Closed, the box stays, frozen at the exit.
+    await expect.poll(async () => (await orderBoxes(page)).map((b) => b.closed)).toEqual([true]);
 
     // The trade is a backtest trade in the tracker, not a live one.
     await page.goto('/tracker/trades?scope=backtest');
@@ -238,6 +267,9 @@ test.describe('simulated trading (M20)', () => {
       })
       .toBe(true);
 
+    // The ticket's preview is already a long box.
+    await expect.poll(async () => (await orderBoxes(page)).map((b) => b.id)).toEqual(['draft']);
+
     // Typing a stop updates the risk; Enter places the order.
     const stop = (Number(close) - 30).toFixed(2);
     await ticket.getByRole('textbox', { name: 'Stop loss' }).fill(stop);
@@ -262,12 +294,18 @@ test.describe('simulated trading (M20)', () => {
     await expect(page.getByRole('textbox', { name: 'SL' })).toHaveValue(sl ?? '');
     await rows(page).first().getByRole('button', { name: 'SL/TP' }).click();
 
-    // 50% in one tap, then the rest.
+    // Entered without a drawing, the trade still gets a box on its stop and target.
+    await expect.poll(async () => (await orderBoxes(page)).map((b) => b.closed)).toEqual([false]);
+    await expectBoxOnLines(page);
+
+    // 50% in one tap, then the rest. A partly closed position is still one box.
     await rows(page).first().getByRole('button', { name: 'Part' }).click();
     await page.getByRole('form', { name: 'Partial close' }).getByRole('button', { name: '50%' }).click();
     await expect(rows(page)).toHaveCount(2);
+    await expect.poll(async () => (await orderBoxes(page)).map((b) => b.closed)).toEqual([false]);
     await page.locator('[data-testid="order-row"][data-status="open"]').getByRole('button', { name: 'Close' }).click();
     await expect(page.locator('[data-testid="order-row"][data-status="closed"]')).toHaveCount(2);
+    await expect.poll(async () => (await orderBoxes(page)).map((b) => b.closed)).toEqual([true]);
   });
 
   test('Shift+S twice sells at market; a ticket dragged off the price becomes a limit, Esc closes it', async ({
