@@ -1,6 +1,7 @@
 import type { DrawingPoint } from '@trading/backtest';
 import { defaultLevels, defaultStopPoints, MINUTE_MS, positionMetrics, type Side } from '@trading/backtest-engine';
 import type { OverlayFigure } from 'klinecharts';
+import { ink } from '../chart-theme';
 import { overlayName, type ToolModule } from './types';
 
 /** A new position box spans this many bars. */
@@ -91,7 +92,7 @@ function positionTool(side: Side): ToolModule {
                 { x: x + width, y: e.y },
               ],
             },
-            styles: { color: style.color, size: style.width },
+            styles: { color: ink(style.color), size: style.width },
           },
           text(
             targetAbove ? upper - 4 : lower + 4,

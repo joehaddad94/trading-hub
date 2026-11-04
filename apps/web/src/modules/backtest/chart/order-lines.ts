@@ -1,6 +1,7 @@
 import type { OrderView } from '@trading/backtest';
 import { bucketStart, openPnl, signedUsd, type Timeframe } from '@trading/backtest-engine';
 import type { IndicatorTemplate } from 'klinecharts';
+import { chartPalette } from './chart-theme';
 
 export const ORDERS_INDICATOR = 'BT_ORDERS';
 
@@ -56,8 +57,6 @@ export function orderMarks(orders: OrderView[], instrument: string, tf: Timefram
     });
 }
 
-const COLOURS = { entry: '#60a5fa', win: '#4ade80', loss: '#f87171' };
-
 /** Simulated orders on the price pane: the entry line for live orders, entry→exit for closed trades. */
 export const orderLines: IndicatorTemplate<unknown, unknown, { marks: OrderMark[] }> = {
   name: ORDERS_INDICATOR,
@@ -88,7 +87,7 @@ export const orderLines: IndicatorTemplate<unknown, unknown, { marks: OrderMark[
             : ` · ${signedUsd(openPnl({ side: m.long ? 'long' : 'short', fill: String(m.entry), lots: m.lots }, close, m.pointValue))}`;
         const label = `${side}${pnl}`;
         const py = y(m.entry);
-        ctx.strokeStyle = COLOURS.entry;
+        ctx.strokeStyle = chartPalette().order.entry;
         ctx.setLineDash([]);
         ctx.beginPath();
         ctx.moveTo(left, py);
@@ -104,7 +103,7 @@ export const orderLines: IndicatorTemplate<unknown, unknown, { marks: OrderMark[
         ctx.fillText(label, tx + 6, py);
         ctx.textBaseline = 'alphabetic';
       } else {
-        const colour = m.win ? COLOURS.win : COLOURS.loss;
+        const colour = m.win ? chartPalette().order.win : chartPalette().order.loss;
         ctx.strokeStyle = colour;
         ctx.fillStyle = colour;
         ctx.setLineDash([3, 3]);

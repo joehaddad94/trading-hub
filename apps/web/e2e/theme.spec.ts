@@ -1,0 +1,62 @@
+import { expect, type Page, test } from '@playwright/test';
+import { requireAuth, signIn } from './support/auth';
+import { seedCandles } from './support/candles';
+import { chartReady } from './support/chart';
+
+requireAuth();
+
+const html = (page: Page) => page.locator('html');
+const bodyBackground = (page: Page) => page.evaluate(() => getComputedStyle(document.body).backgroundColor);
+
+test.describe('light and dark mode', () => {
+  test.beforeAll(async () => {
+    await seedCandles(['2026-10-07']);
+  });
+
+  test.beforeEach(async ({ context, baseURL }) => {
+    await signIn(context, baseURL ?? '');
+  });
+
+  test('follows the device setting from the first paint', async ({ page }) => {
+    await page.emulateMedia({ colorScheme: 'light' });
+    // The class must be on <html> in the served document's first script run, before React loads.
+    await page.goto('/settings', { waitUntil: 'commit' });
+    await page.waitForFunction(() => document.documentElement.classList.length > 0);
+    await expect(html(page)).toHaveClass(/\blight\b/);
+    expect(await bodyBackground(page)).toBe('rgb(241, 244, 248)');
+
+    await page.emulateMedia({ colorScheme: 'dark' });
+    await expect(html(page)).toHaveClass(/\bdark\b/);
+    expect(await bodyBackground(page)).toBe('rgb(59, 66, 80)');
+  });
+
+  test('a choice in Settings beats the device setting and survives a reload', async ({ page }) => {
+    await page.emulateMedia({ colorScheme: 'dark' });
+    await page.goto('/settings');
+    const theme = page.getByRole('group', { name: 'Theme' });
+    await theme.getByText('Light', { exact: true }).click();
+    await expect(html(page)).toHaveClass(/\blight\b/);
+    await expect(theme.getByRole('radio', { name: 'Light' })).toBeChecked();
+
+    await page.reload();
+    await expect(html(page)).toHaveClass(/\blight\b/);
+    await expect(page.getByRole('group', { name: 'Theme' }).getByRole('radio', { name: 'Light' })).toBeChecked();
+
+    await page.getByRole('group', { name: 'Theme' }).getByText('System', { exact: true }).click();
+    await expect(html(page)).toHaveClass(/\bdark\b/);
+  });
+
+  test('the backtest chart switches palette with the app', async ({ page, isMobile }) => {
+    test.skip(isMobile, 'the one-tap button lives in the desktop rail');
+    await page.emulateMedia({ colorScheme: 'dark' });
+    await page.goto('/backtest/chart?i=US30&tf=5&at=2026-10-07T14:00:00.000Z');
+    await chartReady(page);
+    const chart = page.getByTestId('kline-chart');
+    await expect(chart).toHaveAttribute('data-theme', 'dark');
+
+    await page.getByRole('button', { name: 'Light mode' }).click();
+    await expect(chart).toHaveAttribute('data-theme', 'light');
+    const pane = await chart.evaluate((el) => getComputedStyle(el.closest('.chart-pane') as Element).backgroundColor);
+    expect(pane).toBe('rgb(255, 255, 255)');
+  });
+});

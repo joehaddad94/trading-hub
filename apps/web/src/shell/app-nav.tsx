@@ -16,6 +16,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { signOutAction } from '@/app/(auth)/sign-out-actions';
 import { cn } from '@/lib/utils';
+import { ThemeButton, ThemeSwitch } from './theme/theme-toggle';
 
 type AppLink = { id: string; href: Route; label: string; icon: LucideIcon };
 
@@ -59,7 +60,7 @@ function Badge({ count, className }: { count: number; className?: string }) {
   return (
     <span
       className={cn(
-        'num absolute rounded-full bg-warning px-1 font-semibold text-[10px] text-[#2a1c00] leading-4',
+        'num absolute rounded-full bg-warning px-1 font-semibold text-[10px] text-warning-foreground leading-4',
         className,
       )}
     >
@@ -105,7 +106,7 @@ export function AppRail({ journalBadge = 0, guest = false }: { journalBadge?: nu
       <Link
         href={guest ? '/backtest' : '/'}
         aria-label={guest ? 'Backtest Lab' : 'Back to hub'}
-        className="mb-2 flex size-10 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-[#b4a2ff] font-bold text-primary-foreground text-sm shadow-[0_6px_20px_-6px_rgb(79_209_224/0.7)]"
+        className="mb-2 flex size-10 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-chart-3 font-bold text-primary-foreground text-sm shadow-[0_6px_20px_-6px_color-mix(in_srgb,var(--primary)_70%,transparent)]"
       >
         TH
       </Link>
@@ -113,6 +114,7 @@ export function AppRail({ journalBadge = 0, guest = false }: { journalBadge?: nu
         {(guest ? [BACKTEST] : [HUB, TRACKER, JOURNAL, NEWS, BACKTEST]).map(item)}
       </nav>
       <div className="mt-auto flex flex-col items-center gap-1.5">
+        <ThemeButton className="flex size-11 items-center justify-center rounded-xl text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:ring-[3px] focus-visible:ring-ring/50" />
         {!guest && item(SETTINGS)}
         <LogOutButton
           label={false}
@@ -151,9 +153,13 @@ export function AppBottomBar({ journalBadge = 0, guest = false }: { journalBadge
     return (
       <nav
         aria-label="Modules"
-        className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-2 border-t bg-[#2b313c]/90 pb-[env(safe-area-inset-bottom,0px)] backdrop-blur-xl md:hidden"
+        className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-3 border-t bg-bar pb-[env(safe-area-inset-bottom,0px)] backdrop-blur-xl md:hidden"
       >
         {tab(BACKTEST)}
+        <ThemeButton
+          label
+          className="flex h-16 w-full flex-col items-center justify-center gap-1 text-[11px] text-muted-foreground"
+        />
         <LogOutButton className="flex h-16 w-full flex-col items-center justify-center gap-1 text-[11px] text-muted-foreground" />
       </nav>
     );
@@ -161,7 +167,7 @@ export function AppBottomBar({ journalBadge = 0, guest = false }: { journalBadge
   return (
     <nav
       aria-label="Modules"
-      className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-5 border-t bg-[#2b313c]/90 pb-[env(safe-area-inset-bottom,0px)] backdrop-blur-xl md:hidden"
+      className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-5 border-t bg-bar pb-[env(safe-area-inset-bottom,0px)] backdrop-blur-xl md:hidden"
     >
       {tab(HUB, 'Back to hub')}
       {tab(TRACKER)}
@@ -177,7 +183,8 @@ export function AppBottomBar({ journalBadge = 0, guest = false }: { journalBadge
           <Ellipsis className="size-5" aria-hidden strokeWidth={1.8} />
           More
         </summary>
-        <div className="absolute right-2 bottom-[4.5rem] flex min-w-44 flex-col rounded-xl border bg-popover p-1 shadow-xl">
+        <div className="absolute right-2 bottom-[4.5rem] flex min-w-56 flex-col rounded-xl border bg-popover p-1 shadow-xl">
+          <ThemeSwitch className="mb-1" />
           {[BACKTEST, SETTINGS].map((link) => {
             const Icon = link.icon;
             return (

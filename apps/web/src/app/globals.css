@@ -1,16 +1,61 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 
-@custom-variant dark (&:is(.dark *));
+@custom-variant dark (&:where(.dark, .dark *));
 /* Backtest chart chrome: "compact" is a phone held either way (narrow, or a short landscape screen), "roomy" the rest. */
 @custom-variant compact (@media not all and (width >= 48rem) and (height > 520px));
 @custom-variant roomy (@media (width >= 48rem) and (height > 520px));
 /* A phone on its side: the chart toolbars share one row. */
 @custom-variant short (@media (height <= 520px));
 
-/* One theme: the "Fog" mid-tone with frosted glass cards (docs/specs/design-spec.md). shadcn/ui token names. */
+/*
+ * Two themes (docs/specs/design-spec.md). shadcn/ui token names; components only ever use these tokens.
+ * Light is the :root default; `.dark` on <html> is the "Fog" mid-tone with frosted glass. The inline script in
+ * the root layout sets the class before first paint (src/lib/theme.ts), from the saved choice or the OS setting.
+ */
 :root {
   --radius: 0.625rem;
+  --background: #f1f4f8;
+  --foreground: #0f172a;
+  --card: rgb(255 255 255 / 0.66);
+  --card-foreground: #0f172a;
+  --popover: #ffffff;
+  --popover-foreground: #0f172a;
+  --primary: #0a7385;
+  --primary-foreground: #ffffff;
+  --secondary: rgb(15 23 42 / 0.05);
+  --secondary-foreground: #0f172a;
+  --muted: rgb(15 23 42 / 0.045);
+  --muted-foreground: #525c6b;
+  --accent: rgb(15 23 42 / 0.06);
+  --accent-foreground: #0f172a;
+  --destructive: #c82a49;
+  --destructive-foreground: #ffffff;
+  --border: rgb(15 23 42 / 0.1);
+  --input: rgb(15 23 42 / 0.18);
+  --field: rgb(255 255 255 / 0.8);
+  --ring: #0a7385;
+  --profit: #077a4f;
+  --loss: #c82a49;
+  --warning: #9a5b00;
+  --warning-foreground: #ffffff;
+  --chrome: rgb(255 255 255 / 0.62);
+  --bar: rgb(255 255 255 / 0.88);
+  --glass-edge: rgb(255 255 255 / 0.7);
+  --glass-shadow: rgb(15 23 42 / 0.1);
+  --glow-1: rgb(10 115 133 / 0.1);
+  --glow-2: rgb(124 92 255 / 0.07);
+  /* Account colours for multi-account charts: never profit or loss hues, so they can't read as P&L. */
+  --chart-1: #0a8fa3;
+  --chart-2: #b7791f;
+  --chart-3: #7c5cff;
+  --chart-4: #d9468f;
+  --chart-5: #5b8c0a;
+  --chart-6: #e0661f;
+  color-scheme: light;
+}
+
+.dark {
   --background: #3b4250;
   --foreground: #f6f8fb;
   --card: rgb(22 27 36 / 0.3);
@@ -26,14 +71,21 @@
   --accent: rgb(255 255 255 / 0.09);
   --accent-foreground: #f6f8fb;
   --destructive: #ff8da1;
+  --destructive-foreground: #3a0a14;
   --border: rgb(255 255 255 / 0.11);
   --input: rgb(255 255 255 / 0.16);
+  --field: rgb(0 0 0 / 0.15);
   --ring: #4fd1e0;
   --profit: #3ecf8e;
   --loss: #ff8da1;
   --warning: #f5c26b;
+  --warning-foreground: #2a1c00;
   --chrome: rgb(26 31 40 / 0.55);
-  /* Account colours for multi-account charts: never mint or rose, so they can't read as profit/loss. */
+  --bar: rgb(43 49 60 / 0.9);
+  --glass-edge: rgb(255 255 255 / 0.06);
+  --glass-shadow: rgb(0 0 0 / 0.35);
+  --glow-1: rgb(79 209 224 / 0.16);
+  --glow-2: rgb(180 162 255 / 0.1);
   --chart-1: #4fd1e0;
   --chart-2: #f5c26b;
   --chart-3: #b4a2ff;
@@ -61,36 +113,64 @@
   --color-accent: var(--accent);
   --color-accent-foreground: var(--accent-foreground);
   --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
   --color-profit: var(--profit);
   --color-loss: var(--loss);
   --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
   --color-chrome: var(--chrome);
+  --color-bar: var(--bar);
+  --color-field: var(--field);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-chart-6: var(--chart-6);
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
 }
 
-/* Backtest Lab workspace: TradingView's dark chart palette (design spec). Re-points the shared tokens. */
-@utility tv-dark {
-  --background: #131722;
-  --foreground: #d1d4dc;
-  --card: #1e222d;
-  --popover: #1e222d;
-  --popover-foreground: #d1d4dc;
-  --muted: #2a2e39;
-  --muted-foreground: #868993;
-  --accent: #2a2e39;
-  --accent-foreground: #ffffff;
-  --border: #2a2e39;
-  --input: #363a45;
-  --profit: #089981;
-  --loss: #f23645;
-  background-color: #131722;
-  color: #d1d4dc;
+/* Backtest Lab workspace: TradingView's chart palettes (design spec), light and dark. Re-points the shared tokens. */
+@layer components {
+  .chart-pane {
+    --background: #ffffff;
+    --foreground: #131722;
+    --card: #ffffff;
+    --popover: #ffffff;
+    --popover-foreground: #131722;
+    --muted: #f0f3fa;
+    --muted-foreground: #6a6d78;
+    --accent: #f0f3fa;
+    --accent-foreground: #131722;
+    --border: #e0e3eb;
+    --input: #d1d4dc;
+    --field: #ffffff;
+    --profit: #089981;
+    --loss: #f23645;
+    background-color: var(--background);
+    color: var(--foreground);
+  }
+
+  .dark .chart-pane {
+    --background: #131722;
+    --foreground: #d1d4dc;
+    --card: #1e222d;
+    --popover: #1e222d;
+    --popover-foreground: #d1d4dc;
+    --muted: #2a2e39;
+    --muted-foreground: #868993;
+    --accent: #2a2e39;
+    --accent-foreground: #ffffff;
+    --border: #2a2e39;
+    --input: #363a45;
+    --field: rgb(0 0 0 / 0.15);
+  }
 }
 
 /* Every number: Geist Mono with tabular figures. */
@@ -105,8 +185,8 @@
   border: 1px solid var(--border);
   backdrop-filter: blur(14px) saturate(1.15);
   box-shadow:
-    inset 0 1px 0 rgb(255 255 255 / 0.06),
-    0 10px 30px -12px rgb(0 0 0 / 0.35);
+    inset 0 1px 0 var(--glass-edge),
+    0 10px 30px -12px var(--glass-shadow);
 }
 
 /* Lively motion (design spec): cards rise in with a short stagger. Tables and inputs never animate. */
@@ -129,10 +209,10 @@
 @keyframes green-glow {
   0%,
   100% {
-    box-shadow: 0 0 0 0 rgb(62 207 142 / 0);
+    box-shadow: 0 0 0 0 transparent;
   }
   50% {
-    box-shadow: 0 0 40px -6px rgb(62 207 142 / 0.45);
+    box-shadow: 0 0 40px -6px color-mix(in srgb, var(--profit) 45%, transparent);
   }
 }
 
@@ -165,6 +245,8 @@
   }
   html {
     background-color: var(--background);
+    /* Native radios and checkboxes take the accent in both themes (not the browser's blue). */
+    accent-color: var(--primary);
   }
   /* Phones: the fixed bottom tab bar is 4rem tall, so scrolling to a control (focus, find, links) stops above it. */
   @media (width < 48rem) {
@@ -191,12 +273,12 @@
   body {
     @apply bg-background font-sans text-foreground antialiased;
     background-image:
-      radial-gradient(900px 600px at 0% -10%, rgb(79 209 224 / 0.16), transparent 60%),
-      radial-gradient(800px 600px at 100% 110%, rgb(180 162 255 / 0.1), transparent 60%);
+      radial-gradient(900px 600px at 0% -10%, var(--glow-1), transparent 60%),
+      radial-gradient(800px 600px at 100% 110%, var(--glow-2), transparent 60%);
     background-attachment: fixed;
   }
   ::selection {
-    background: rgb(79 209 224 / 0.35);
+    background: color-mix(in srgb, var(--primary) 35%, transparent);
   }
 }
 

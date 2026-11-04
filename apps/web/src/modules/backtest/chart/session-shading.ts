@@ -1,5 +1,6 @@
 import { SESSION_LABELS, sessionRuns } from '@trading/core';
 import type { IndicatorTemplate } from 'klinecharts';
+import { chartPalette } from './chart-theme';
 
 export const SESSION_INDICATOR = 'KILL_ZONES';
 
@@ -32,7 +33,7 @@ export const sessionShading: IndicatorTemplate = {
       ctx.fillStyle = FILL[run.name] ?? 'transparent';
       ctx.fillRect(x1, 0, x2 - x1, bounding.height);
       if (x2 - x1 > 48) {
-        ctx.fillStyle = 'rgba(229, 231, 235, 0.55)';
+        ctx.fillStyle = chartPalette().sessionText;
         ctx.fillText(SESSION_LABELS[run.name], x1 + 4, bounding.height - 4);
       }
     }

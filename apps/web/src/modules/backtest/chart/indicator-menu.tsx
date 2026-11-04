@@ -4,6 +4,7 @@ import { INDICATORS } from '@trading/indicators';
 import { ChartSpline, Settings2 } from 'lucide-react';
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
+import { INK } from './chart-theme';
 import { INDICATOR_COLOURS, type IndicatorPrefs } from './indicators';
 
 /** Indicator toggles plus a settings panel per indicator (length, colour; RSI levels). Spec §5. */
@@ -87,7 +88,7 @@ export function IndicatorMenu({
                   aria-pressed={current.color === c}
                   onClick={() => onChange(def.id, { color: c })}
                   className="size-6 rounded-full border-2 border-transparent aria-pressed:border-foreground"
-                  style={{ backgroundColor: c }}
+                  style={{ backgroundColor: c === INK ? 'var(--foreground)' : c }}
                 />
               ))}
             </span>

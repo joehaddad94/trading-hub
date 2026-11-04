@@ -8,7 +8,7 @@ function Skeleton({ className, ...props }: React.ComponentProps<'div'>) {
       data-slot="skeleton"
       aria-hidden
       className={cn(
-        'rounded-md bg-[linear-gradient(90deg,rgb(255_255_255/0.05),rgb(255_255_255/0.12),rgb(255_255_255/0.05))] bg-[length:200%_100%] [animation:shimmer_1.4s_linear_infinite]',
+        'rounded-md bg-[linear-gradient(90deg,color-mix(in_srgb,var(--foreground)_5%,transparent),color-mix(in_srgb,var(--foreground)_12%,transparent),color-mix(in_srgb,var(--foreground)_5%,transparent))] bg-[length:200%_100%] [animation:shimmer_1.4s_linear_infinite]',
         className,
       )}
       {...props}

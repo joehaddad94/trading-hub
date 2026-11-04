@@ -54,7 +54,7 @@ export function Sparkline({
           x2="100"
           y1={y}
           y2={y}
-          stroke="white"
+          stroke="var(--foreground)"
           strokeOpacity="0.06"
           vectorEffect="non-scaling-stroke"
         />
