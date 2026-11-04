@@ -44,6 +44,8 @@ export function ModuleHeader({
         className={cn(
           'flex h-11 shrink-0 items-center font-semibold text-base tracking-tight md:h-12 md:pr-2',
           leading ? 'pr-2 pl-1 md:pl-1' : 'px-4 md:pl-6',
+          // Backtest Lab on a phone: the tabs need the room next to the docked dots; the tab shows where you are.
+          dockedStatus && tabs && 'compact:sr-only',
         )}
       >
         {title}
