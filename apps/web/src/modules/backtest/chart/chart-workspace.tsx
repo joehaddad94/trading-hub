@@ -14,12 +14,13 @@ import {
   type Ticket,
   type Timeframe,
 } from '@trading/backtest-engine';
-import { Maximize2, Minimize2, Newspaper, SlidersHorizontal } from 'lucide-react';
+import { Maximize2, Minimize2, SlidersHorizontal } from 'lucide-react';
 import { parseAsString, useQueryState } from 'nuqs';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { symbolWithAlias } from '@/lib/symbols';
 import { cn } from '@/lib/utils';
 import { APP_UPDATED, guardActions } from './action-guard';
+import { control, fieldLabel, selectControl } from './controls';
 import { DrawingProperties, DrawingToolbar } from './drawing-toolbar';
 import { IndicatorMenu } from './indicator-menu';
 import { activeIndicators, type IndicatorPrefs, normalisePrefs } from './indicators';
@@ -643,12 +644,7 @@ export function ChartWorkspace({
                 aria-pressed={i.code === instrument.code}
                 onClick={() => void setCode(i.code)}
                 title={`${i.displayName} · ${symbolWithAlias(i.code)}`}
-                className={cn(
-                  'h-9 rounded-md px-3 font-semibold tracking-tight short:px-2',
-                  i.code === instrument.code
-                    ? 'bg-accent text-accent-foreground'
-                    : 'text-muted-foreground hover:bg-accent/60',
-                )}
+                className={cn(control, 'px-3 font-semibold tracking-tight short:px-2')}
               >
                 {i.code}
               </button>
@@ -664,10 +660,7 @@ export function ChartWorkspace({
                 aria-pressed={t === tf}
                 aria-keyshortcuts={t === 15 ? 'F' : String(t)}
                 onClick={() => void setTfParam(String(t))}
-                className={cn(
-                  'h-9 min-w-11 rounded-md px-2 num short:min-w-9',
-                  t === tf ? 'bg-accent text-accent-foreground' : 'text-muted-foreground hover:bg-accent/60',
-                )}
+                className={cn(control, 'min-w-11 num short:min-w-9')}
               >
                 {t}m
               </button>
@@ -676,7 +669,7 @@ export function ChartWorkspace({
           <div className="ml-auto flex items-center gap-1 roomy:hidden">
             <button
               type="button"
-              className="flex h-9 items-center gap-1 rounded-md px-2 text-muted-foreground hover:bg-accent/60"
+              className={control}
               aria-expanded={moreOpen}
               aria-controls="chart-more"
               onClick={() => setMoreOpen(!moreOpen)}
@@ -708,9 +701,8 @@ export function ChartWorkspace({
             <Divider />
             <fieldset className="flex items-center gap-1">
               <legend className="sr-only">News markers</legend>
-              <span className="flex items-center gap-1 px-1 text-muted-foreground" title="News markers">
-                <Newspaper className="size-4" aria-hidden />
-                <span className="sr-only md:not-sr-only">News</span>
+              <span className={fieldLabel} title="News markers">
+                News
               </span>
               {IMPACT_TOGGLES.map((t) => (
                 <button
@@ -725,12 +717,7 @@ export function ChartWorkspace({
                         : [...prefs.impacts, t.id],
                     })
                   }
-                  className={cn(
-                    'h-9 rounded-md px-2',
-                    prefs.impacts.includes(t.id)
-                      ? 'bg-accent text-accent-foreground'
-                      : 'text-muted-foreground hover:bg-accent/60',
-                  )}
+                  className={control}
                 >
                   {t.label}
                 </button>
@@ -746,12 +733,12 @@ export function ChartWorkspace({
                 />
                 Sessions
               </label>
-              <label className="flex items-center gap-1 text-muted-foreground">
-                <span className="sr-only md:not-sr-only">Time</span>
+              <label className="flex items-center gap-1">
+                <span className={fieldLabel}>Time</span>
                 <select
                   value={prefs.timezone}
                   onChange={(e) => updatePrefs({ timezone: e.target.value })}
-                  className="h-9 rounded-md border bg-background px-2 text-foreground"
+                  className={cn(selectControl, 'px-2')}
                   aria-label="Chart time zone"
                 >
                   {TIMEZONES.map((z) => (
@@ -1008,10 +995,7 @@ function FullScreenButton({ full, onToggle, className }: { full: boolean; onTogg
       aria-pressed={full}
       aria-keyshortcuts="Shift+F"
       title={full ? 'Exit full screen (Shift+F)' : 'Full screen (Shift+F)'}
-      className={cn(
-        'flex size-9 items-center justify-center rounded-md bg-popover/80 text-muted-foreground hover:bg-accent hover:text-foreground',
-        className,
-      )}
+      className={cn(control, 'w-9 px-0', className)}
     >
       <Icon className="size-4" aria-hidden />
       <span className="sr-only">{full ? 'Exit full screen' : 'Full screen'}</span>

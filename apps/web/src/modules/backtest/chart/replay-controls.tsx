@@ -4,6 +4,7 @@ import { pickTime, SPEEDS, type Speed, type StartPick } from '@trading/backtest-
 import { CalendarDays, Pause, Play, Scissors, StepBack, StepForward, X } from 'lucide-react';
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
+import { control, controlPrimary, selectControl } from './controls';
 import { readLastStart } from './last-start';
 import { initialPick, ReplayStartPanel } from './replay-start-panel';
 import { formatCursor, formatCursorShort } from './replay-time';
@@ -11,8 +12,7 @@ import { RESTART_BLOCKED, type useReplay } from './use-replay';
 
 type Replay = ReturnType<typeof useReplay>;
 
-const button =
-  'inline-flex h-9 shrink-0 items-center gap-1 rounded-md px-2 text-sm text-muted-foreground hover:bg-accent/60 disabled:opacity-50 compact:px-1.5';
+const button = cn(control, 'compact:px-1');
 
 /** Button text shown from tablet width up; phones (either way round) get the icon and the aria-label. */
 function Label({ children }: { children: string }) {
@@ -50,7 +50,7 @@ export function ReplayControls({
   const selectBar = (
     <button
       type="button"
-      className={cn(button, picking && 'bg-accent text-accent-foreground')}
+      className={button}
       aria-pressed={picking}
       aria-label="Select bar"
       aria-keyshortcuts="B"
@@ -98,7 +98,7 @@ export function ReplayControls({
       >
         <button
           type="button"
-          className={cn(button, 'bg-accent text-accent-foreground')}
+          className={cn(button, controlPrimary)}
           aria-expanded={!!panel}
           aria-haspopup="dialog"
           onClick={toggle}
@@ -152,12 +152,12 @@ export function ReplayControls({
           {replay.playing ? <Pause className="size-4" aria-hidden /> : <Play className="size-4" aria-hidden />}
           <Label>{replay.playing ? 'Pause' : 'Play'}</Label>
         </button>
-        <label className="flex items-center text-muted-foreground">
+        <label className="flex shrink-0 items-center">
           <span className="sr-only">Speed</span>
           <select
             value={replay.speed}
             onChange={(e) => replay.setSpeed(Number(e.target.value) as Speed)}
-            className="h-9 rounded-md border bg-background px-1 text-foreground"
+            className={selectControl}
             aria-label="Bars per second"
           >
             {SPEEDS.map((s) => (
@@ -198,7 +198,7 @@ export function ReplayControls({
         </button>
         <button
           type="button"
-          className={cn(button, 'sticky right-0 ml-auto bg-background')}
+          className={cn(button, 'sticky right-0 ml-auto')}
           onClick={replay.exit}
           aria-label="Exit replay"
         >

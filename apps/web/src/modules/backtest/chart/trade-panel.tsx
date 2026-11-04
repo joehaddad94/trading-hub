@@ -10,6 +10,7 @@ import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useDialogs } from '@/components/dialogs';
 import { cn } from '@/lib/utils';
+import { controlSm } from './controls';
 import type { Trading } from './use-trading';
 
 const REASON: Record<string, string> = { tp: 'TP', sl: 'SL', breakeven: 'BE', manual: 'Closed' };
@@ -83,12 +84,12 @@ export function TradePanel({
               {signedUsd(total)}
             </span>
           )}
-          <span className="ml-auto">{open ? 'Hide' : 'Show'}</span>
+          <span className={cn(controlSm, 'ml-auto h-7 pointer-events-none')}>{open ? 'Hide' : 'Show'}</span>
         </button>
         {live.length > 1 && (
           <button
             type="button"
-            className="flex h-9 items-center border-l px-3 text-muted-foreground hover:bg-accent/40 hover:text-foreground"
+            className={cn(controlSm, 'mx-1 h-7')}
             title="Close every open position and cancel every pending order"
             onClick={async () => {
               // Real fills at the next open, so no undo: ask first (audit 25 Oct, #7).
@@ -110,10 +111,7 @@ export function TradePanel({
             Close all
           </button>
         )}
-        <Link
-          href={`/backtest/sessions/${trading.session.id}`}
-          className="flex h-9 items-center border-l px-3 text-muted-foreground hover:bg-accent/40 hover:text-foreground"
-        >
+        <Link href={`/backtest/sessions/${trading.session.id}`} className={cn(controlSm, 'mr-2 h-7 md:mr-4')}>
           Stats
         </Link>
       </div>
@@ -185,7 +183,7 @@ function OrderRow({
       ? openPnl({ side: o.side, fill: o.fillPrice, lots: o.lots }, price, instrument.pointValue)
       : null;
   const toggle = (next: 'edit' | 'part') => setPanel(panel === next ? null : next);
-  const btn = 'h-8 rounded-md px-2 hover:bg-accent/60';
+  const btn = controlSm;
   return (
     <li className="flex flex-wrap items-center gap-x-3 gap-y-1 py-1.5" data-testid="order-row" data-status={o.status}>
       <span className={cn('w-12 font-medium', o.side === 'long' ? 'text-profit' : 'text-loss')}>
@@ -224,7 +222,7 @@ function OrderRow({
           </span>
           <button
             type="button"
-            className="ml-auto h-8 rounded-md px-2 text-muted-foreground hover:bg-accent/60"
+            className={cn(controlSm, 'ml-auto text-loss')}
             onClick={async () => {
               const ok = await dialogs.confirm({
                 title: 'Delete this backtest trade?',
@@ -332,7 +330,7 @@ function PartClose({ lots, onClose }: { lots: string; onClose: (lots: string) =>
         <button
           key={s.label}
           type="button"
-          className="h-8 rounded-md border px-2 hover:bg-accent/60"
+          className={controlSm}
           title={`Close ${partOf(lots, s.share)} lots`}
           onClick={() => onClose(partOf(lots, s.share))}
         >

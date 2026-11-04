@@ -15,6 +15,7 @@ import Decimal from 'decimal.js';
 import { ChevronDown, ChevronUp, X } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { cn } from '@/lib/utils';
+import { controlSm } from './controls';
 
 const SIZING_KEY = 'backtest.sizing';
 const SIZE_VALUE = /^\d{1,9}(\.\d{1,4})?$/;
@@ -116,7 +117,7 @@ export function TradeButtons({
   return (
     <fieldset
       aria-label="Trade"
-      className="m-0 flex min-w-0 overflow-hidden rounded-md border bg-popover/90 text-xs shadow-md backdrop-blur"
+      className="m-0 flex min-w-0 overflow-hidden rounded-md border border-input bg-popover/90 text-xs shadow-md backdrop-blur"
       title={hint}
     >
       {(['short', 'long'] as const).map((side) => {
@@ -140,7 +141,8 @@ export function TradeButtons({
             className={cn(
               'flex min-w-[5.5rem] flex-col items-start px-3 py-1 leading-tight disabled:cursor-not-allowed disabled:opacity-50',
               buy ? 'items-end border-l text-right' : '',
-              buy ? 'text-profit hover:bg-profit/15' : 'text-loss hover:bg-loss/15',
+              // Tinted at rest so the quote reads as two buttons, not a price display (audit 4 Nov 2026).
+              buy ? 'bg-profit/10 text-profit hover:bg-profit/20' : 'bg-loss/10 text-loss hover:bg-loss/20',
               pressed && (buy ? 'bg-profit/25' : 'bg-loss/25'),
             )}
           >
@@ -217,7 +219,7 @@ export function OrderTicket({
       type="button"
       onClick={() => setExpanded(!expanded)}
       aria-expanded={expanded}
-      className="flex size-8 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-accent"
+      className={cn(controlSm, 'w-8 px-0')}
       title={expanded ? 'Fewer details' : 'Edit the order'}
     >
       {expanded ? <ChevronDown className="size-4" aria-hidden /> : <ChevronUp className="size-4" aria-hidden />}
@@ -241,7 +243,7 @@ export function OrderTicket({
         <button
           type="button"
           onClick={() => setExpanded(true)}
-          className="grid min-w-0 flex-1 grid-cols-2 gap-x-2 text-left num"
+          className="grid min-w-0 flex-1 grid-cols-2 gap-x-2 rounded-md border border-input bg-muted px-1.5 py-0.5 text-left num hover:border-muted-foreground/70"
           title="Edit the order"
         >
           <span className="truncate text-loss">SL {ticket.sl.toFixed(instrument.priceDigits)}</span>
@@ -259,12 +261,7 @@ export function OrderTicket({
         >
           {placeLabel(ticket, price, m.lots, instrument.priceDigits, { short: true })}
         </button>
-        <button
-          type="button"
-          onClick={onClose}
-          className="flex size-8 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-accent"
-          title="Close the ticket"
-        >
+        <button type="button" onClick={onClose} className={cn(controlSm, 'w-8 px-0')} title="Close the ticket">
           <X className="size-4" aria-hidden />
           <span className="sr-only">Close ticket</span>
         </button>
@@ -324,7 +321,7 @@ export function OrderTicket({
         <button
           type="button"
           onClick={onClose}
-          className="ml-auto flex size-7 items-center justify-center rounded-md text-muted-foreground hover:bg-accent"
+          className={cn(controlSm, 'ml-auto h-7 w-7 px-0')}
           title="Close the ticket (Esc)"
         >
           <X className="size-4" aria-hidden />
@@ -592,7 +589,7 @@ export function BoxTicket({
           type="button"
           onClick={() => setExpanded(true)}
           aria-expanded={false}
-          className="flex size-8 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-accent"
+          className={cn(controlSm, 'w-8 px-0')}
           title="Size and limit/stop order"
         >
           <ChevronUp className="size-4" aria-hidden />
@@ -618,7 +615,7 @@ export function BoxTicket({
             type="button"
             onClick={() => setExpanded(false)}
             aria-expanded
-            className="flex size-8 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-accent"
+            className={cn(controlSm, 'w-8 px-0')}
             title="Fewer details"
           >
             <ChevronDown className="size-4" aria-hidden />
@@ -657,7 +654,7 @@ export function BoxTicket({
             disabled={!valid}
             onClick={() => onPlace('pending')}
             title="Waits for price to reach the entry"
-            className="h-8 rounded-md border px-2 hover:bg-accent/60 disabled:opacity-50"
+            className={controlSm}
           >
             {verb} {pendingType(side, entry, price)} order
           </button>
