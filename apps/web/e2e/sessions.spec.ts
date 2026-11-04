@@ -83,7 +83,10 @@ test.describe('backtest sessions (M21)', () => {
     }
     await page.getByRole('link', { name: 'Compare with backtests' }).click();
     await expect(page.getByRole('heading', { name: 'Live vs backtest' })).toBeVisible();
-    await expect(page.getByText(/Live trades from the selected scope against every backtest run/)).toBeVisible();
+    await expect(
+      page.getByText(/Live trades from the selected scope against your backtests of the same days/),
+    ).toBeVisible();
+    await expect(page.getByTestId('lvb-coverage')).toBeVisible();
     // Period stepper: Month by default; Week steps back one week at a time.
     await page.getByRole('navigation', { name: 'Period' }).getByRole('link', { name: 'Week' }).click();
     await expect(page).toHaveURL(/period=week/);

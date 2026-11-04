@@ -56,6 +56,25 @@ export const backtestSessions = pgTable(
   (t) => [index().on(t.status), index().on(t.ownerId)],
 );
 
+/**
+ * Time ranges a run's replay moved through (Joe, 4 Nov 2026: live vs backtest compares only sessions that were
+ * backtested). A kill zone the cursor entered counts as backtested, even when the run took no trade there.
+ * Contiguous steps extend one row; a jump (new start date, skip) starts a new one.
+ */
+export const backtestReplaySpans = pgTable(
+  'backtest_replay_spans',
+  {
+    id: id(),
+    sessionId: uuid()
+      .notNull()
+      .references(() => backtestSessions.id, { onDelete: 'cascade' }),
+    fromTs: tstz().notNull(),
+    toTs: tstz().notNull(),
+    ...timestamps,
+  },
+  (t) => [index().on(t.sessionId, t.toTs), check('backtest_replay_spans_order', sql`${t.fromTs} <= ${t.toTs}`)],
+);
+
 export const drawingTool = pgEnum('drawing_tool', ['horizontal', 'trend', 'long', 'short', 'measure']);
 
 /**

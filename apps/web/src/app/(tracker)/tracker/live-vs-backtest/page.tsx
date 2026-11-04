@@ -3,6 +3,7 @@ import { loadLiveVsBacktestSearchParams } from '@/modules/tracker/live-vs-backte
 import {
   LvbAdherence,
   LvbControls,
+  LvbCoverage,
   LvbHeadline,
   type LvbLinks,
   LvbTable,
@@ -29,31 +30,25 @@ export default async function LiveVsBacktestPage({ searchParams }: { searchParam
     view: params.view,
   };
   const liveLabel = scope?.source === 'live' ? 'the selected scope' : 'all live accounts';
-  const unit = report.period.kind === 'week' ? 'week' : 'month';
+  const unit = report.period.kind === 'all' ? 'period' : report.period.kind;
   const verdict = rangeVerdict(report.rows[0]);
-  const hasTrades = report.rows.length > 1 || report.rows[0]?.live || report.rows[0]?.portfolio;
+  const hasTrades = report.coverage.backtestedSessions > 0;
   return (
     <div className="flex flex-col gap-4 p-4 md:p-6">
       <h2 className="font-semibold text-xl">Live vs backtest</h2>
       <p className="text-muted-foreground text-sm">
-        Live trades from {liveLabel} against every backtest run, compared by kill-zone session (New York time). Backtest
-        trades count in the week or month of their replay date. R only counts trades with a known risk.
+        Live trades from {liveLabel} against your backtests of the same days, kill-zone session by session (New York
+        time). Only backtested sessions are compared. R only counts trades with a known risk.
       </p>
       <LvbControls report={report} links={links} />
-      {report.basis === 'expected' && (
-        <p
-          className="w-fit rounded-full border border-warning/40 bg-warning/10 px-2.5 py-0.5 text-xs"
-          data-testid="lvb-expected"
-        >
-          No backtest in this {unit}. Backtest shows its average per {unit} over {report.expectedOver} backtested{' '}
-          {`${unit}s`} (expected).
-        </p>
-      )}
-      {report.basis === 'none' && (
+      {report.backtest === 0 && (
         <p className="text-muted-foreground text-sm">No backtest trades yet. Replay some sessions in Backtest Lab.</p>
       )}
+      <LvbCoverage report={report} unit={unit} />
       {!hasTrades ? (
-        <p className="text-muted-foreground text-sm">No closed trades in this period.</p>
+        <p className="text-muted-foreground text-sm">
+          Nothing to compare yet: no session in this {unit} was backtested.
+        </p>
       ) : (
         <>
           <LvbHeadline report={report} />

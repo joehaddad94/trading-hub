@@ -109,16 +109,19 @@ const signed = (r: Decimal | null) => cn('num', r?.gt(0) && 'text-profit', r?.lt
 /** Headline: live R against the backtest's range (one pick … portfolio), and index pick match. */
 export function LvbHeadline({ report }: { report: LiveVsBacktestReport }) {
   const all = report.rows[0];
-  const expected = report.basis === 'expected';
   const tiles = [
-    { label: 'Live R', value: all?.live?.netR ?? null, sub: `${fmtCount(all?.live?.trades)} trades` },
     {
-      label: expected ? 'Backtest one pick (expected)' : 'Backtest one pick',
+      label: 'Live R (backtested sessions)',
+      value: all?.live?.netR ?? null,
+      sub: `${fmtCount(all?.live?.trades)} trades`,
+    },
+    {
+      label: 'Backtest one pick',
       value: all?.onePick?.netR ?? null,
       sub: `${fmtCount(all?.onePick?.trades)} trades · lower bound`,
     },
     {
-      label: expected ? 'Backtest portfolio (expected)' : 'Backtest portfolio',
+      label: 'Backtest portfolio',
       value: all?.portfolio?.netR ?? null,
       sub: `${fmtCount(all?.portfolio?.trades)} trades · upper bound`,
     },
@@ -252,6 +255,51 @@ export function LvbAdherence({ report }: { report: LiveVsBacktestReport }) {
             </dd>
           </div>
         </dl>
+      )}
+    </section>
+  );
+}
+
+/**
+ * How much of the period was backtested: live sessions covered, trades left out, and a link that opens replay
+ * at the first live session nobody backtested yet.
+ */
+export function LvbCoverage({ report, unit }: { report: LiveVsBacktestReport; unit: string }) {
+  const c = report.coverage;
+  const full = c.liveSessions > 0 && c.coveredLiveSessions === c.liveSessions;
+  return (
+    <section
+      className={cn(
+        'flex flex-wrap items-center gap-x-4 gap-y-2 rounded-xl border p-3 text-sm',
+        full ? 'border-border' : 'border-warning/40 bg-warning/10',
+      )}
+      data-testid="lvb-coverage"
+      aria-label="Backtest coverage"
+    >
+      <div className="flex flex-col gap-0.5">
+        <span className="font-medium">
+          {c.liveSessions === 0
+            ? `No live trades this ${unit}`
+            : `${c.coveredLiveSessions} of ${c.liveSessions} live sessions backtested`}
+        </span>
+        <span className="text-muted-foreground text-xs">
+          {c.backtestedSessions === 0
+            ? `Nothing backtested this ${unit} yet`
+            : `Compares only the ${c.backtestedSessions} backtested ${c.backtestedSessions === 1 ? 'session' : 'sessions'}`}
+          {c.uncoveredLiveTrades > 0 &&
+            ` · ${c.uncoveredLiveTrades} live ${c.uncoveredLiveTrades === 1 ? 'trade' : 'trades'} left out`}
+          {c.missedByLive > 0 &&
+            ` · backtest traded ${c.missedByLive} ${c.missedByLive === 1 ? 'session' : 'sessions'} you didn't`}
+        </span>
+      </div>
+      {c.firstUncoveredAt && (
+        <Link
+          href={`/backtest/chart?at=${c.firstUncoveredAt.toISOString()}` as Route}
+          className="flex h-9 items-center rounded-md border bg-background px-3 font-medium text-xs sm:ml-auto"
+          data-testid="lvb-backtest-gap"
+        >
+          Backtest this {unit}
+        </Link>
       )}
     </section>
   );

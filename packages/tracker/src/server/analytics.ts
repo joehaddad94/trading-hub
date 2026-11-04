@@ -4,6 +4,7 @@ import {
   DEFAULT_SCOPE,
   holdTimeStats,
   isPeriodKey,
+  killZonesInSpan,
   type LiveVsBacktest,
   liveVsBacktestPeriod,
   type PeriodKind,
@@ -14,8 +15,8 @@ import {
   streaks,
 } from '@trading/core';
 import type { Executor } from '@trading/db';
-import { and, asc, eq, inArray } from '@trading/db/orm';
-import { journalEntries, trades } from '@trading/db/schema';
+import { and, asc, eq, inArray, isNull } from '@trading/db/orm';
+import { backtestReplaySpans, backtestSessions, journalEntries, trades } from '@trading/db/schema';
 import { type ResolvedScope, resolveScope } from './scope';
 import { scopedTrades } from './trades';
 
@@ -54,6 +55,16 @@ async function compareTrades(db: Executor, scope: ResolvedScope): Promise<Compar
     .orderBy(asc(trades.openedAt));
 }
 
+/** Kill-zone sessions the owner's backtest runs replayed (invited Backtest Lab users' runs never count). */
+async function replayedSessions(db: Executor): Promise<Set<string>> {
+  const spans = await db
+    .select({ from: backtestReplaySpans.fromTs, to: backtestReplaySpans.toTs })
+    .from(backtestReplaySpans)
+    .innerJoin(backtestSessions, eq(backtestSessions.id, backtestReplaySpans.sessionId))
+    .where(isNull(backtestSessions.ownerId));
+  return new Set(spans.flatMap((s) => killZonesInSpan(s.from, s.to)));
+}
+
 export type LiveVsBacktestReport = LiveVsBacktest & {
   period: { kind: PeriodKind; key: string; label: string; prev: string | null; next: string | null };
   /** Trade counts over all time, per side. */
@@ -73,9 +84,10 @@ export async function liveVsBacktestReport(
   { kind = 'all', key = null, now = new Date() }: { kind?: PeriodKind; key?: string | null; now?: Date } = {},
 ): Promise<LiveVsBacktestReport> {
   const liveResolved = liveScope.source === 'live' ? liveScope : await resolveScope(db, DEFAULT_SCOPE);
-  const [live, backtest] = await Promise.all([
+  const [live, backtest, replayed] = await Promise.all([
     compareTrades(db, liveResolved),
     compareTrades(db, await resolveScope(db, { kind: 'backtest' })),
+    replayedSessions(db),
   ]);
   const latest = live.at(-1)?.openedAt ?? backtest.at(-1)?.openedAt ?? now;
   const k = key && isPeriodKey(kind, key) ? key : periodKeyOf(kind, latest);
@@ -85,7 +97,7 @@ export async function liveVsBacktestReport(
   const prev = kind === 'all' ? null : shiftPeriod(kind, k, -1);
   const next = kind === 'all' ? null : shiftPeriod(kind, k, 1);
   return {
-    ...liveVsBacktestPeriod(live, backtest, kind, k, scratchThresholdR),
+    ...liveVsBacktestPeriod(live, backtest, kind, k, scratchThresholdR, replayed),
     period: {
       kind,
       key: k,
