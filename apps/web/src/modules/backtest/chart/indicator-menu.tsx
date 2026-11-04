@@ -1,10 +1,11 @@
 'use client';
 
 import { INDICATORS } from '@trading/indicators';
-import { ChartSpline, Settings2 } from 'lucide-react';
+import { Settings2 } from 'lucide-react';
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
 import { INK } from './chart-theme';
+import { control, fieldLabel } from './controls';
 import { INDICATOR_COLOURS, type IndicatorPrefs } from './indicators';
 
 /** Indicator toggles plus a settings panel per indicator (length, colour; RSI levels). Spec §5. */
@@ -21,9 +22,8 @@ export function IndicatorMenu({
   return (
     <fieldset className="relative flex items-center gap-1">
       <legend className="sr-only">Indicators</legend>
-      <span className="flex items-center gap-1 px-1 text-muted-foreground" title="Indicators">
-        <ChartSpline className="size-4" aria-hidden />
-        <span className="hidden lg:inline">Indicators</span>
+      <span className={fieldLabel} title="Indicators">
+        Indicators
       </span>
       {INDICATORS.map((d) => {
         const p = prefs[d.id];
@@ -33,10 +33,7 @@ export function IndicatorMenu({
               type="button"
               aria-pressed={p?.on ?? false}
               onClick={() => onChange(d.id, { on: !p?.on })}
-              className={cn(
-                'h-9 rounded-l-md px-2',
-                p?.on ? 'bg-accent text-accent-foreground' : 'text-muted-foreground hover:bg-accent/60',
-              )}
+              className={cn(control, 'rounded-r-none')}
             >
               {d.label}
             </button>
@@ -45,7 +42,7 @@ export function IndicatorMenu({
               aria-label={`${d.label} settings`}
               aria-expanded={editing === d.id}
               onClick={() => setEditing(editing === d.id ? null : d.id)}
-              className="h-9 rounded-r-md px-1 text-muted-foreground hover:bg-accent/60"
+              className={cn(control, '-ml-px rounded-l-none px-1.5 text-muted-foreground')}
             >
               <Settings2 className="size-4" aria-hidden />
             </button>
@@ -93,11 +90,7 @@ export function IndicatorMenu({
               ))}
             </span>
           </div>
-          <button
-            type="button"
-            onClick={() => setEditing(null)}
-            className="h-9 self-end rounded-md px-3 text-muted-foreground hover:bg-accent/60"
-          >
+          <button type="button" onClick={() => setEditing(null)} className={cn(control, 'self-end px-3')}>
             Done
           </button>
         </div>
