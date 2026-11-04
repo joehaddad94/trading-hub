@@ -15,7 +15,7 @@ import {
   streaks,
 } from '@trading/core';
 import type { Executor } from '@trading/db';
-import { and, asc, eq, inArray, isNull } from '@trading/db/orm';
+import { and, asc, eq, inArray, isNull, sql } from '@trading/db/orm';
 import { backtestReplaySpans, backtestSessions, journalEntries, trades } from '@trading/db/schema';
 import { type ResolvedScope, resolveScope } from './scope';
 import { scopedTrades } from './trades';
@@ -57,6 +57,11 @@ async function compareTrades(db: Executor, scope: ResolvedScope): Promise<Compar
 
 /** Kill-zone sessions the owner's backtest runs replayed (invited Backtest Lab users' runs never count). */
 async function replayedSessions(db: Executor): Promise<Set<string>> {
+  // Deployed before `db push`: no spans table yet, so only sessions with a backtest trade count.
+  const [table] = await db.execute<{ ok: boolean }>(
+    sql`select to_regclass('public.backtest_replay_spans') is not null as ok`,
+  );
+  if (table?.ok !== true) return new Set();
   const spans = await db
     .select({ from: backtestReplaySpans.fromTs, to: backtestReplaySpans.toTs })
     .from(backtestReplaySpans)

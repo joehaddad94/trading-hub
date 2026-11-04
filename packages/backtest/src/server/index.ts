@@ -14,6 +14,7 @@ export {
   deleteBacktestTrade,
   deleteSession,
   getSessionView,
+  hasReplaySpans,
   listOrders,
   listSessions,
   MAX_REPLAY_STEP_MS,
