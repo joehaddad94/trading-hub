@@ -112,7 +112,7 @@ function MaxLossRoom({ room, limit }: HubMaxLoss) {
           {formatMoney(room)} <span className="text-muted-foreground">of {formatMoney(limit)}</span>
         </span>
       </p>
-      <div className="h-2 overflow-hidden rounded-full bg-white/10">
+      <div className="h-2 overflow-hidden rounded-full bg-foreground/10">
         <span className="sr-only">{pct}% of the max-loss limit left</span>
         <div className={cn('h-full rounded-full transition-[width] duration-700', bar)} style={{ width: `${pct}%` }} />
       </div>
@@ -206,7 +206,7 @@ export function RecentTradesCard({ summary }: { summary: TrackerHubSummary | nul
             <li key={t.id} className="border-t">
               <Link
                 href={`/tracker/trades/${t.id}` as Route}
-                className="grid min-h-11 grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 px-5 py-2.5 hover:bg-white/5 md:grid-cols-[8rem_5rem_minmax(0,1fr)_auto]"
+                className="grid min-h-11 grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 px-5 py-2.5 hover:bg-foreground/5 md:grid-cols-[8rem_5rem_minmax(0,1fr)_auto]"
               >
                 <span className="font-medium">{t.symbol}</span>
                 <span className={cn('num text-right font-medium md:order-last', tone(net))}>{signed(net)}</span>

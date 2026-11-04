@@ -1,3 +1,4 @@
+import { ink } from '../chart-theme';
 import { overlayName, type ToolModule } from './types';
 
 /** Horizontal line: one click, price label on the axis, optional text label. */
@@ -23,14 +24,14 @@ export const horizontalTool: ToolModule = {
               { x: bounding.width, y },
             ],
           },
-          styles: { color: style.color, size: style.width },
+          styles: { color: ink(style.color), size: style.width },
         },
       ];
       if (label) {
         figures.push({
           type: 'text',
           attrs: { x: 8, y: y - 4, text: label, baseline: 'bottom' } as never,
-          styles: { color: style.color, backgroundColor: 'transparent', size: 12 } as never,
+          styles: { color: ink(style.color), backgroundColor: 'transparent', size: 12 } as never,
         });
       }
       return figures;

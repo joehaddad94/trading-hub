@@ -1,4 +1,5 @@
 import { formatSpan, measure } from '@trading/backtest-engine';
+import { ink } from '../chart-theme';
 import { hexToRgba, overlayName, type ToolModule } from './types';
 
 /** Measure: click-drag between two points; temporary unless Shift is held (spec §4). */
@@ -30,7 +31,7 @@ export const measureTool: ToolModule = {
             width: Math.abs(b.x - a.x),
             height: Math.abs(b.y - a.y),
           },
-          styles: { style: 'fill', color: hexToRgba(style.color, 0.15) },
+          styles: { style: 'fill', color: hexToRgba(ink(style.color), 0.15) },
         },
         {
           type: 'text',
@@ -44,7 +45,7 @@ export const measureTool: ToolModule = {
           },
           styles: {
             color: '#f9fafb',
-            backgroundColor: hexToRgba(style.color, 0.85),
+            backgroundColor: hexToRgba(ink(style.color), 0.85),
             size: 11,
             paddingLeft: 4,
             paddingRight: 4,

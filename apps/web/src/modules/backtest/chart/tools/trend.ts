@@ -1,3 +1,4 @@
+import { ink } from '../chart-theme';
 import { overlayName, type ToolModule } from './types';
 
 type Pt = { x: number; y: number };
@@ -34,7 +35,7 @@ export const trendTool: ToolModule = {
         {
           type: 'line',
           attrs: { coordinates: extendLine(a, b, bounding.width, style.extend ?? 'none') },
-          styles: { color: style.color, size: style.width },
+          styles: { color: ink(style.color), size: style.width },
         },
       ];
     },

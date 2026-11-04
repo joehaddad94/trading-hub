@@ -590,7 +590,10 @@ export function ChartWorkspace({
   return (
     <div
       ref={rootRef}
-      className={cn('tv-dark isolate flex flex-1 flex-col md:h-full', full && 'fixed inset-0 z-50 h-dvh bg-background')}
+      className={cn(
+        'chart-pane isolate flex flex-1 flex-col md:h-full',
+        full && 'fixed inset-0 z-50 h-dvh bg-background',
+      )}
       data-full-screen={full ? 'true' : 'false'}
     >
       {stale && (
@@ -769,7 +772,7 @@ export function ChartWorkspace({
         >
           <div
             aria-hidden
-            className="pointer-events-none absolute inset-0 flex select-none items-center justify-center font-semibold text-[clamp(3rem,10vw,8rem)] text-white/[0.025] tracking-tight"
+            className="pointer-events-none absolute inset-0 flex select-none items-center justify-center font-semibold text-[clamp(3rem,10vw,8rem)] text-foreground/[0.03] tracking-tight"
           >
             {instrument.code}
           </div>

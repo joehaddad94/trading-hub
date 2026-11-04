@@ -61,9 +61,9 @@ export function DayCell(props: DayCellProps) {
 
   const background =
     tone === 'win'
-      ? `rgb(62 207 142 / ${0.1 + 0.38 * intensity})`
+      ? `color-mix(in srgb, var(--profit) ${Math.round(10 + 38 * intensity)}%, transparent)`
       : tone === 'loss'
-        ? `rgb(255 141 161 / ${0.1 + 0.38 * intensity})`
+        ? `color-mix(in srgb, var(--loss) ${Math.round(10 + 38 * intensity)}%, transparent)`
         : undefined;
 
   const cancel = () => {
@@ -126,13 +126,7 @@ export function DayCell(props: DayCellProps) {
         </div>
         {value && (
           <div className="min-w-0">
-            <div
-              className={cn(
-                'truncate font-semibold text-[11px] num md:text-sm',
-                tone === 'win' && 'text-[#d2f7e4]',
-                tone === 'loss' && 'text-[#ffdbe1]',
-              )}
-            >
+            <div className="truncate font-semibold text-[11px] num md:text-sm">
               {/* Full value only when the cell is wide enough (phone, or Overview beside an open day). */}
               <span className="@[5rem]:hidden">{valueShort ?? value}</span>
               <span className="hidden @[5rem]:inline">{value}</span>

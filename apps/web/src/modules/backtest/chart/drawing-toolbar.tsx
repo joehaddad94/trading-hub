@@ -20,12 +20,14 @@ import {
 } from 'lucide-react';
 import { useDialogs } from '@/components/dialogs';
 import { cn } from '@/lib/utils';
+import { INK } from './chart-theme';
 import { TOOLS } from './tools/registry';
 import type { useDrawings } from './use-drawings';
 
 type Drawings = ReturnType<typeof useDrawings>;
 
-const COLOURS = ['#60a5fa', '#f87171', '#4ade80', '#facc15', '#a78bfa', '#f9fafb'];
+/** The last swatch is high-contrast ink: white on the dark pane, near-black on the light one. */
+const COLOURS = ['#60a5fa', '#f87171', '#4ade80', '#facc15', '#a78bfa', INK];
 const SHORT: Record<string, string> = { horizontal: 'H', trend: 'T', long: 'L', short: 'S', measure: 'M' };
 /** TradingView-style tool icons. */
 const ICONS: Record<string, LucideIcon> = {
@@ -171,7 +173,7 @@ export function DrawingProperties({ drawings, children }: { drawings: Drawings; 
           aria-pressed={sel.style.color === c}
           onClick={() => set({ color: c })}
           className="size-7 rounded-sm border-2 border-transparent aria-pressed:border-foreground"
-          style={{ backgroundColor: c }}
+          style={{ backgroundColor: c === INK ? 'var(--foreground)' : c }}
         />
       ))}
       <select

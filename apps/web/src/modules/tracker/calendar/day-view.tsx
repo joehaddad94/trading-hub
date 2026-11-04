@@ -275,11 +275,11 @@ function equityData(
     });
   }
   const series: EquitySeries[] = [
-    { key: 'combined', label: 'Combined', colour: '#f6f8fb' },
+    { key: 'combined', label: 'Combined', colour: 'var(--foreground)' },
     ...(accountIds.length > 1
       ? accountIds.map((id) => {
           const a = byId.get(id);
-          return { key: id, label: a ? accountLabel(a) : id, colour: a?.colour ?? '#888' };
+          return { key: id, label: a ? accountLabel(a) : id, colour: a?.colour ?? 'var(--muted-foreground)' };
         })
       : []),
   ];

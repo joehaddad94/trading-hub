@@ -4,6 +4,7 @@ import type { OrderView } from '@trading/backtest';
 import Decimal from 'decimal.js';
 import type { Chart, OverlayCreate, OverlayEvent, OverlayTemplate } from 'klinecharts';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { chartPalette } from './chart-theme';
 
 export const ORDER_LEVEL_OVERLAY = 'ord_level';
 
@@ -44,7 +45,11 @@ export type DraftLines = {
 /** Key prefix of the ticket preview's lines (orders use their id). */
 export const DRAFT_ID = 'draft';
 
-const COLOUR: Record<Level, string> = { sl: '#f87171', tp: '#4ade80', entry: '#60a5fa' };
+/** Stop and target share the order lines' loss and win colours. */
+const COLOUR = (level: Level) => {
+  const { order } = chartPalette();
+  return level === 'sl' ? order.loss : level === 'tp' ? order.win : order.entry;
+};
 const LABEL_BG: Record<Level, string> = {
   sl: 'rgba(153, 27, 27, 0.92)',
   tp: 'rgba(22, 101, 52, 0.92)',
@@ -103,8 +108,8 @@ export const orderLevelOverlay: OverlayTemplate<LevelData> = {
         // The ticket preview is solid; placed orders are dashed.
         styles:
           data.orderId === DRAFT_ID
-            ? { color: COLOUR[data.level], size: 1, style: 'solid' }
-            : { color: COLOUR[data.level], size: 1, style: 'dashed', dashedValue: [6, 4] },
+            ? { color: COLOUR(data.level), size: 1, style: 'solid' }
+            : { color: COLOUR(data.level), size: 1, style: 'dashed', dashedValue: [6, 4] },
       },
       // A wider invisible band so the thin line is easy to grab, also on touch.
       {

@@ -1,12 +1,13 @@
 import { INDICATORS, type IndicatorDefinition, normaliseSettings } from '@trading/indicators';
 import type { IndicatorTemplate } from 'klinecharts';
+import { chartPalette, INK, ink } from './chart-theme';
 
 /** One indicator as the chart shows it: settings are normalised, colour is a hex swatch. */
 export type ActiveIndicator = { id: string; settings: Record<string, number>; color: string };
 
 export type IndicatorPrefs = Record<string, { on: boolean; color: string; settings: Record<string, number> }>;
 
-export const INDICATOR_COLOURS = ['#facc15', '#a78bfa', '#60a5fa', '#f87171', '#4ade80', '#f9fafb'];
+export const INDICATOR_COLOURS = ['#facc15', '#a78bfa', '#60a5fa', '#f87171', '#4ade80', INK];
 const DEFAULT_COLOUR: Record<string, string> = { atr: '#facc15', rsi: '#a78bfa' };
 
 export const indicatorName = (id: string) => `BT_${id.toUpperCase()}`;
@@ -37,7 +38,7 @@ export function indicatorTemplate(def: IndicatorDefinition): IndicatorTemplate<V
         title: `${def.label}: `,
         type: 'line',
         styles: ({ indicator }) => ({
-          color: (indicator.extendData as IndicatorExtend | undefined)?.color ?? '#facc15',
+          color: ink((indicator.extendData as IndicatorExtend | undefined)?.color ?? '#facc15'),
         }),
       },
     ],
@@ -54,7 +55,7 @@ export function indicatorTemplate(def: IndicatorDefinition): IndicatorTemplate<V
       if (guides.length === 0) return false;
       ctx.save();
       ctx.setLineDash([4, 4]);
-      ctx.strokeStyle = 'rgba(148, 163, 184, 0.6)';
+      ctx.strokeStyle = chartPalette().guide;
       ctx.lineWidth = 1;
       for (const g of guides) {
         const y = Math.round(yAxis.convertToPixel(g)) + 0.5;

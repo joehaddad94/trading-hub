@@ -8,6 +8,7 @@ import { accountLabel } from '@/modules/tracker/scope-label';
 import { getTags } from '@/modules/tracker/server/journal';
 import { getSettings } from '@/modules/tracker/server/settings';
 import { listAccountRisk, listSymbolSpecs } from '@/modules/tracker/server/settings-admin';
+import { ThemeSwitch } from '@/shell/theme/theme-toggle';
 import {
   createTagAction,
   editTagAction,
@@ -37,6 +38,16 @@ export default async function SettingsPage() {
           Imports &amp; health
         </Link>
       </div>
+
+      <section className="glass rounded-xl p-4" aria-labelledby="appearance">
+        <h3 id="appearance" className="mb-1 font-medium">
+          Appearance
+        </h3>
+        <p className="mb-3 text-muted-foreground text-xs">
+          System follows your device's light or dark setting. Saved on this device.
+        </p>
+        <ThemeSwitch className="max-w-sm" />
+      </section>
 
       <section className="glass rounded-xl p-4">
         <h3 className="mb-3 font-medium">Days and scratches</h3>

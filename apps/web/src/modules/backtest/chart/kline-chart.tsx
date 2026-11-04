@@ -4,8 +4,10 @@ import { type Bar, MINUTE_MS, type Timeframe } from '@trading/backtest-engine';
 import { INDICATORS } from '@trading/indicators';
 import type { Chart, DataLoaderGetBarsParams, KLineData, Point } from 'klinecharts';
 import { ChevronsRight } from 'lucide-react';
-import { type RefObject, useCallback, useEffect, useRef, useState } from 'react';
+import { type RefObject, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { cn } from '@/lib/utils';
+import { useResolvedTheme } from '@/shell/theme/use-theme';
+import { setChartTheme } from './chart-theme';
 import { type ActiveIndicator, INDICATOR_TEMPLATES, indicatorName, indicatorPane } from './indicators';
 import { BARS_PAGE, fetchBars, liveUntil, toKLine } from './loader';
 import { type Marker, NEWS_INDICATOR, newsMarkers } from './news-markers';
@@ -160,6 +162,9 @@ export function KLineChart(props: ChartProps) {
   const localRef = useRef<{ bars: Bar[]; keep: { ts: number; x: number } | null } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [ready, setReady] = useState(false);
+  const theme = useResolvedTheme();
+  // Before the chart's own effects (and its async init) read the palette: canvas colours follow the app theme.
+  useLayoutEffect(() => setChartTheme(theme), [theme]);
   /** 'init' while a switch or replay jump reloads the window; 'page' while older bars load on scroll. */
   const [loading, setLoading] = useState<'init' | 'page' | null>('init');
   /** Mirrors "the window isn't loaded" for the replay API: loading it, or the load failed. */
@@ -501,12 +506,13 @@ export function KLineChart(props: ChartProps) {
     if (ready) chartRef.current?.setTimezone(timezone);
   }, [ready, timezone]);
 
+  // Also on a theme switch: the styles are built from the active palette, and setStyles redraws every layer.
   useEffect(() => {
-    if (ready)
+    if (ready && theme)
       chartRef.current?.setStyles(
         chartStyles({ label: `${instrument.code} · ${tf}m`, digits: instrument.priceDigits }),
       );
-  }, [ready, instrument.code, instrument.priceDigits, tf]);
+  }, [ready, instrument.code, instrument.priceDigits, tf, theme]);
 
   useEffect(() => {
     const chart = chartRef.current;
@@ -590,6 +596,7 @@ export function KLineChart(props: ChartProps) {
         className="h-full w-full"
         data-testid="kline-chart"
         data-ready={ready ? 'true' : 'false'}
+        data-theme={theme}
         data-last-bar={lastBar ? JSON.stringify(lastBar) : ''}
         data-markers={markers?.length ?? 0}
         data-order-marks={orderMarks?.length ?? 0}

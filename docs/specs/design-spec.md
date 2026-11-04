@@ -4,10 +4,15 @@ Joe's answers to the redesign questionnaire (https://claude.ai/artifact/EPGhRPzj
 
 ## Direction
 - **Mood:** premium broker app. Polished, roomy, soft glow; numbers first.
-- **Base:** "Fog" mid-tone. Not dark mode, not light mode. One theme only.
+- **Themes (Joe, 4 Nov 2026):** light and dark. "Fog" (the mid-tone below) is the **dark** theme; the light theme is a cool off-white (`#f1f4f8`) with white glass. Default follows the device setting; the user can pin Light or Dark (Settings > Appearance, the sun/moon button in the desktop rail, the phone "More" menu). Saved per device in localStorage, applied by an inline script before first paint (`apps/web/src/lib/theme.ts`), so there is no flash and no DB column.
+- **Base (dark):** "Fog" mid-tone.
 - **Surfaces:** frosted glass cards over a faint cyan glow. The glass is tinted slightly darker than the page so text keeps contrast.
 
 ## Tokens (`apps/web/src/app/globals.css`)
+Components use only these semantic tokens (Tailwind `bg-card`, `text-profit`, …), never raw hex or `white/`/`black/` classes, so both themes work. `:root` holds the light values, `.dark` the Fog values below. Extra tokens: `destructive-foreground`, `warning-foreground`, `field` (input fill), `bar` (phone tab bar), `glass-edge`/`glass-shadow`, `glow-1`/`glow-2` (page glow), `chart-1..6` (account colours).
+Light values: background `#f1f4f8`, card white/66%, foreground `#0f172a`, muted text `#525c6b`, accent `#0a7385`, profit `#077a4f`, loss `#c82a49`, warning `#9a5b00` (all at least 4.5:1 on the page).
+
+Dark (Fog) values:
 | Token | Value | Use |
 |---|---|---|
 | background | `#3b4250` + cyan/violet radial glow | page |
@@ -36,7 +41,7 @@ Account colours (multi-account charts): cyan, amber, violet, pink, lime, orange 
 ## Charts
 - Gradient area under lines (accent colour), faint grid, emphasised end point. Bars use profit/loss.
 - Axes and tooltips keep the PR #8 behaviour (date axes, readable tooltips).
-- **Backtest chart:** keep KLineCharts and our replay/trading/drawing code, restyled after TradingView's UX: drawing tools in a left toolbar, top toolbar with symbol, timeframe, indicators and replay; TradingView candle colours (`#089981` up, `#f23645` down) on a dark chart pane, crosshair with price/time labels, keyboard shortcuts. Not the TradingView library.
+- **Backtest chart:** keep KLineCharts and our replay/trading/drawing code, restyled after TradingView's UX: drawing tools in a left toolbar, top toolbar with symbol, timeframe, indicators and replay; TradingView candle colours (`#089981` up, `#f23645` down) on TradingView's dark pane in the dark theme and its white pane in the light theme (`chart-theme.ts`), crosshair with price/time labels, keyboard shortcuts. Not the TradingView library.
 
 ## Motion (lively)
 - Cards rise in with a short stagger, hero numbers count up, a soft glow on green days.

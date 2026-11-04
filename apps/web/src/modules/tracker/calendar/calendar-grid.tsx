@@ -25,7 +25,9 @@ export type CalendarGridProps = {
 /** The §8.2 month grid: Mon–Fri (weekends only when traded), weekly summary column, one component for any scope. */
 export function CalendarGrid({ data, cell, accounts, selectedDay, today, dayHref }: CalendarGridProps) {
   const { calendar, statusEvents, warningDays, startingBalanceTotal } = data;
-  const colourOf = new Map(accounts.map((a, i) => [a.id, ACCOUNT_COLOURS[i % ACCOUNT_COLOURS.length] ?? '#888']));
+  const colourOf = new Map(
+    accounts.map((a, i) => [a.id, ACCOUNT_COLOURS[i % ACCOUNT_COLOURS.length] ?? 'var(--muted-foreground)']),
+  );
   const loginOf = new Map(accounts.map((a) => [a.id, accountLabel(a)]));
   const statusDays = new Set(statusEvents.map((e) => e.day));
   const warnings = new Set(warningDays);
@@ -52,7 +54,7 @@ export function CalendarGrid({ data, cell, accounts, selectedDay, today, dayHref
         warning: warnings.has(d.date),
         status: d.inMonth && statusDays.has(d.date),
       },
-      dots: s ? s.accountIds.map((id) => colourOf.get(id) ?? '#888') : [],
+      dots: s ? s.accountIds.map((id) => colourOf.get(id) ?? 'var(--muted-foreground)') : [],
       preview: s
         ? {
             wl: `${s.wins} W · ${s.losses} L${s.scratches ? ` · ${s.scratches} scratch` : ''} · ${formatPct(s.winRate)} win rate`,
