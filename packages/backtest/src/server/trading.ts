@@ -338,6 +338,21 @@ export async function advanceSession(db: Executor, sessionId: string, cursor: Da
   return changed;
 }
 
+let replaySpansReady = false;
+
+/**
+ * True once the replay spans migration is applied. Until then (deployed before `db push`) replay keeps
+ * working and simply records nothing. Checked without raising an error, so a surrounding transaction is safe.
+ */
+export async function hasReplaySpans(db: Executor): Promise<boolean> {
+  if (replaySpansReady) return true;
+  const [row] = await db.execute<{ ok: boolean }>(
+    sql`select to_regclass('public.backtest_replay_spans') is not null as ok`,
+  );
+  replaySpansReady = row?.ok === true;
+  return replaySpansReady;
+}
+
 /** A cursor move longer than this is a jump (new start date, weekend), not replayed time. */
 export const MAX_REPLAY_STEP_MS = 6 * 3600_000;
 
@@ -347,6 +362,7 @@ export const MAX_REPLAY_STEP_MS = 6 * 3600_000;
  * the start is extended instead of adding a row.
  */
 export async function recordReplay(db: Executor, sessionId: string, prev: Date | null, cursor: Date): Promise<void> {
+  if (!(await hasReplaySpans(db))) return;
   const step = prev ? cursor.getTime() - prev.getTime() : -1;
   const from = prev && step > 0 && step <= MAX_REPLAY_STEP_MS ? prev : cursor;
   const [last] = await db
