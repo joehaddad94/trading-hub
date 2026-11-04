@@ -3,6 +3,7 @@
 import type { Drawing, OrderView, SessionView } from '@trading/backtest';
 import {
   type Bar,
+  bucketStart,
   followPrice,
   newTicket,
   parseTimeframe,
@@ -26,8 +27,8 @@ import { chartKeyFor } from './keys';
 import { type ChartApi, KLineChart } from './kline-chart';
 import { BARS_PAGE, liveUntil, prefetchBars } from './loader';
 import { NewsPanel } from './news-panel';
-import { type DraftLines, useOrderHandles } from './order-handles';
-import { orderMarks } from './order-lines';
+import { DRAFT_ID, type DraftLines, useOrderHandles } from './order-handles';
+import { type OrderMark, orderMarks } from './order-lines';
 import { BoxTicket, draftTitle, OrderTicket, quotes, readSizing, saveSizing, TradeButtons } from './order-ticket';
 import { PickBar } from './pick-line';
 import { ReplayControls } from './replay-controls';
@@ -452,10 +453,27 @@ export function ChartWorkspace({
     }, PREFETCH_DELAY_MS);
     return () => window.clearTimeout(t);
   }, [cursor, playing, tf, instrument?.code, instrumentCodes]);
-  const marks = useMemo(
-    () => orderMarks(trading.orders, instrument?.code ?? '', tf, pointValue),
-    [trading.orders, instrument?.code, tf, pointValue],
-  );
+  const marks = useMemo((): OrderMark[] => {
+    const list = orderMarks(trading.orders, instrument?.code ?? '', tf, pointValue);
+    // The ticket's preview is a box too, so a trade looks the same before and after it is placed.
+    if (!draft) return list;
+    return [
+      ...list,
+      {
+        kind: 'live',
+        id: DRAFT_ID,
+        from: bucketStart(draft.at, tf),
+        entry: draft.entry,
+        sl: draft.sl,
+        tp: draft.tp,
+        pending: true,
+        long: draft.long,
+        lots: draft.lots,
+        pointValue,
+        draft: true,
+      },
+    ];
+  }, [trading.orders, instrument?.code, tf, pointValue, draft]);
   const selected = drawings.selected;
   const selectedBox = selected && (selected.tool === 'long' || selected.tool === 'short') ? selected : null;
   /**

@@ -5,6 +5,7 @@ import Decimal from 'decimal.js';
 import type { Chart, OverlayCreate, OverlayEvent, OverlayTemplate } from 'klinecharts';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { chartPalette } from './chart-theme';
+import { previewLevel } from './order-lines';
 
 export const ORDER_LEVEL_OVERLAY = 'ord_level';
 
@@ -262,6 +263,11 @@ export function useOrderHandles(opts: {
           const current = event.overlay.extendData;
           if (current?.short) chart.overrideOverlay({ id: event.overlay.id, extendData: { ...current, short: false } });
         },
+        // The order's box follows the line while it moves (Joe, 4 Nov 2026: the box's edges are the stop and target).
+        onPressedMoving: (event: OverlayEvent<LevelData>) => {
+          const price = event.overlay.points[0]?.value;
+          if (price !== undefined) previewLevel(chart, { id: orderId, level, price });
+        },
         onPressedMoveEnd: (event: OverlayEvent<LevelData>) => {
           dragging.current = null;
           setResize();
@@ -269,13 +275,18 @@ export function useOrderHandles(opts: {
           if (price === undefined) return;
           if (orderId === DRAFT_ID) {
             draftMoveRef.current?.(level, Number(price.toFixed(instrument.priceDigits)));
+            previewLevel(chart, null);
             setRevision((r) => r + 1);
             return;
           }
           const order = ordersRef.current.find((x) => x.id === orderId);
           if (!order) return;
           const levels = movedLevels(order, level, price.toFixed(instrument.priceDigits));
-          void moveRef.current(order.id, levels).finally(() => setRevision((r) => r + 1));
+          void moveRef.current(order.id, levels).finally(() => {
+            // Saved: the new orders redraw the box. Refused: it goes back with the line.
+            previewLevel(chart, null);
+            setRevision((r) => r + 1);
+          });
         },
       } as OverlayCreate) as string | null;
       if (id) ids.current.set(key, id);
