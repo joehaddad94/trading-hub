@@ -86,9 +86,20 @@ test.describe('Backtest Lab for invited users', () => {
     // No other modules, no sync status, no setup tags.
     await expect(page.getByRole('link', { name: 'Tracker' })).toHaveCount(0);
     await expect(page.getByRole('link', { name: 'Settings' })).toHaveCount(0);
+    await expect(page.getByRole('link', { name: 'Back to hub' })).toHaveCount(0);
+    // Live vs backtest is built on Joe's live trades: no tab, and the page sends them back.
+    await expect(page.getByRole('link', { name: 'Live vs backtest' })).toHaveCount(0);
     await expect(page.getByRole('form', { name: 'New run' }).getByLabel('Setup')).toHaveCount(0);
 
-    for (const path of ['/', '/tracker', '/tracker/journal', '/news', '/settings', '/settings/users']) {
+    for (const path of [
+      '/',
+      '/tracker',
+      '/tracker/journal',
+      '/news',
+      '/settings',
+      '/settings/users',
+      '/backtest/live-vs-backtest',
+    ]) {
       await page.goto(path);
       await expect(page).toHaveURL(/\/backtest$/);
     }
@@ -125,7 +136,7 @@ test.describe('Backtest Lab for invited users', () => {
     await page.goto('/backtest');
     await expect(page.getByText('Guest run')).toBeVisible();
 
-    await page.getByRole('button', { name: 'Log out' }).locator('visible=true').click();
+    await page.getByRole('button', { name: 'Log out' }).click();
     await expect(page).toHaveURL(/\/login/);
     await page.goto('/backtest');
     await expect(page).toHaveURL(/\/login/);

@@ -1,17 +1,17 @@
 import type { ReactNode } from 'react';
 import { getViewer } from '@/lib/server/viewer';
 import { cn } from '@/lib/utils';
-import { getUnjournaledCount } from '@/modules/tracker/server/journal';
-import { AppBottomBar, AppRail } from './app-nav';
+import { AccountActions, HubLink } from './app-nav';
 import { ImportOnOpen } from './import-on-open';
 import { ModuleHeader } from './module-header';
 import type { NavItem } from './modules';
 import { SyncBanner } from './sync-banner';
 
 /**
- * Every screen sits in this frame (design spec): icon rail on desktop, bottom tab bar on phone, an optional
- * module header with the module's pages as tabs, and the sync status line. Invited users see the Backtest Lab
- * only: no other modules, no sync status, no import on open.
+ * Every screen sits in this frame: an optional module header (Hub button, title, the module's own pages as tabs)
+ * and the sync status line. Modules are reached from the hub only, so there is no app-wide menu (Joe, 4 Nov 2026).
+ * Invited users see the Backtest Lab only: no hub, no sync status, no import on open; their header carries theme
+ * and Log out instead of the Hub button.
  */
 export async function AppShell({
   title,
@@ -36,19 +36,20 @@ export async function AppShell({
   children: ReactNode;
 }) {
   const guest = (await getViewer())?.isOwner === false;
-  const toJournal = guest ? 0 : await getUnjournaledCount().catch(() => 0);
   return (
     <div className="flex min-h-dvh">
       {!guest && <ImportOnOpen />}
-      <AppRail journalBadge={toJournal} guest={guest} />
-      <div
-        className={cn(
-          'flex min-w-0 flex-1 flex-col pb-[calc(4rem+env(safe-area-inset-bottom,0px))] md:pb-0',
-          fill && 'h-dvh',
-        )}
-      >
+      <div className={cn('flex min-w-0 flex-1 flex-col', fill && 'h-dvh')}>
         {title && (
-          <ModuleHeader title={title} nav={nav} rootHref={rootHref} keep={keep}>
+          <ModuleHeader
+            title={title}
+            nav={nav}
+            rootHref={rootHref}
+            keep={keep}
+            leading={guest ? null : <HubLink />}
+            trailing={guest ? <AccountActions guest /> : null}
+            dockedStatus={fill}
+          >
             {controls}
           </ModuleHeader>
         )}
@@ -63,7 +64,6 @@ export async function AppShell({
         </div>
         {children}
       </div>
-      <AppBottomBar journalBadge={toJournal} guest={guest} />
     </div>
   );
 }

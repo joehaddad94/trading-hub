@@ -12,7 +12,7 @@ import {
 import { getLiveVsBacktest } from '@/modules/tracker/server/analytics';
 import { getPageScope } from '@/modules/tracker/server/scope';
 
-export const metadata = { title: 'Live vs backtest · Tracker' };
+export const metadata = { title: 'Live vs backtest · Backtest Lab' };
 
 /**
  * Live vs backtest (§8.3 screen 8, Joe 4 Nov 2026): by kill-zone session, per week / month / all time, with the

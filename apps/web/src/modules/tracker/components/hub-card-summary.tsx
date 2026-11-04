@@ -6,7 +6,6 @@ import Link from 'next/link';
 import { CountUpMoney } from '@/components/count-up';
 import { formatBeirut, formatMoney, formatPct } from '@/lib/format';
 import { cn } from '@/lib/utils';
-import { HubTile } from '@/shell/hub-tile';
 import { accountLabel } from '../scope-label';
 import { Sparkline } from './sparkline';
 
@@ -120,67 +119,58 @@ function MaxLossRoom({ room, limit }: HubMaxLoss) {
   );
 }
 
-/** Tracker tile: the month and the active account. */
-export function TrackerHubTile({ summary }: { summary: TrackerHubSummary | null }) {
+/**
+ * The Tracker's hub tile body: this month, green days, the active account, and trades still to journal (the
+ * Journal is a Tracker page, so its queue lives on the Tracker tile; one tile per module).
+ */
+export function TrackerHubTileBody({ summary }: { summary: TrackerHubSummary | null }) {
   const [first, ...rest] = summary?.activeAccounts ?? [];
   const net = new Decimal(summary?.monthNet ?? 0);
+  const toJournal = summary?.awaitingJournal ?? 0;
+  if (!summary?.hasData) return <p className="text-muted-foreground">No data yet.</p>;
   return (
-    <HubTile
-      title="Tracker"
-      icon={<ChartCandlestick className="size-4 text-primary" aria-hidden />}
-      href="/tracker"
-      linkLabel="Open Tracker"
-      index={1}
-    >
-      {!summary?.hasData ? (
-        <p className="text-muted-foreground">No data yet.</p>
-      ) : (
-        <dl className="flex flex-col gap-2" data-testid="tracker-hub-summary">
-          <div>
-            <dt className="text-muted-foreground">{summary.monthLabel}</dt>
-            <dd className={cn('num font-semibold text-2xl', tone(net))}>{signed(net)}</dd>
-          </div>
-          <div className="flex justify-between gap-2">
-            <dt className="text-muted-foreground">Green days</dt>
-            <dd className="num">
-              {summary.greenDays} / {summary.tradingDays}
-            </dd>
-          </div>
-          <div>
-            <dt className="text-muted-foreground">Active account</dt>
-            <dd className="num">
-              {first
-                ? `${accountLabel(first)} · ${first.balance ? formatMoney(first.balance) : 'no balance yet'}`
-                : 'None'}
-              {rest.length > 0 && <span className="text-muted-foreground"> +{rest.length} more</span>}
-            </dd>
-          </div>
-        </dl>
-      )}
-    </HubTile>
-  );
-}
-
-/** Journal tile: how many trades still need a journal entry, straight into the Quick journal queue. */
-export function JournalHubTile({ summary }: { summary: TrackerHubSummary | null }) {
-  const count = summary?.awaitingJournal ?? 0;
-  return (
-    <HubTile
-      title="Journal"
-      icon={<NotebookPen className="size-4 text-primary" aria-hidden />}
-      href={count > 0 ? '/tracker/journal?view=quick' : '/tracker/journal'}
-      linkLabel={count > 0 ? 'Journal now' : 'Open Journal'}
-      index={2}
-    >
-      {count > 0 ? (
-        <Link href="/tracker/journal?view=quick" className="flex flex-col" data-testid="hub-quick-journal">
-          <span className="num font-semibold text-4xl text-warning">{count}</span>
-          <span className="text-muted-foreground">{count === 1 ? 'trade' : 'trades'} to journal</span>
+    <div className="flex flex-col gap-3">
+      <dl className="flex flex-col gap-2" data-testid="tracker-hub-summary">
+        <div>
+          <dt className="text-muted-foreground">{summary.monthLabel}</dt>
+          <dd className={cn('num font-semibold text-2xl', tone(net))}>{signed(net)}</dd>
+        </div>
+        <div className="flex justify-between gap-2">
+          <dt className="text-muted-foreground">Green days</dt>
+          <dd className="num">
+            {summary.greenDays} / {summary.tradingDays}
+          </dd>
+        </div>
+        <div>
+          <dt className="text-muted-foreground">Active account</dt>
+          <dd className="num">
+            {first
+              ? `${accountLabel(first)} · ${first.balance ? formatMoney(first.balance) : 'no balance yet'}`
+              : 'None'}
+            {rest.length > 0 && <span className="text-muted-foreground"> +{rest.length} more</span>}
+          </dd>
+        </div>
+      </dl>
+      {toJournal > 0 ? (
+        <Link
+          href="/tracker/journal?view=quick"
+          className="flex min-h-11 items-center gap-2 rounded-lg border border-warning/40 bg-warning/10 px-3 md:min-h-9"
+          data-testid="hub-quick-journal"
+        >
+          <NotebookPen className="size-4 text-warning" aria-hidden />
+          <span>
+            <span className="num font-semibold text-warning">{toJournal}</span> {toJournal === 1 ? 'trade' : 'trades'}{' '}
+            to journal
+          </span>
+          <span className="ml-auto font-medium text-primary">Journal now</span>
         </Link>
       ) : (
-        <p className="text-muted-foreground">All trades journaled.</p>
+        <p className="flex items-center gap-2 text-muted-foreground">
+          <NotebookPen className="size-4" aria-hidden />
+          All trades journaled.
+        </p>
       )}
-    </HubTile>
+    </div>
   );
 }
 

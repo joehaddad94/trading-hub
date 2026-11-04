@@ -12,10 +12,9 @@ const OPTIONS: { value: ThemeChoice; label: string; icon: LucideIcon }[] = [
   { value: 'system', label: 'System', icon: Monitor },
 ];
 
-/** Light / Dark / System as one segmented control of real radios (Settings, phone "More" menu). */
+/** Light / Dark / System as one segmented control of real radios (Settings). */
 export function ThemeSwitch({ className }: { className?: string }) {
   const [choice, setChoice] = useThemeChoice();
-  // Settings and the phone "More" menu can both be on the page; each needs its own radio group.
   const name = useId();
   return (
     <fieldset className={cn('m-0 grid min-w-0 grid-cols-3 gap-1 rounded-lg border-0 bg-muted p-1', className)}>
@@ -41,18 +40,32 @@ export function ThemeSwitch({ className }: { className?: string }) {
   );
 }
 
-/** One tap flips to the other theme (desktop rail, phone guest bar). Settings still offers "System". */
-export function ThemeButton({ className, label = false }: { className: string; label?: boolean }) {
+/** One tap flips to the other theme (hub header, guest Backtest header). Settings still offers "System". */
+export function ThemeButton({
+  className,
+  label = false,
+  tooltip = true,
+}: {
+  className: string;
+  label?: boolean;
+  /** A hover label to the right; off in a header, where it would run past the screen edge. */
+  tooltip?: boolean;
+}) {
   const theme = useResolvedTheme();
   const [, setChoice] = useThemeChoice();
   const next = theme === 'dark' ? 'light' : 'dark';
   const name = next === 'light' ? 'Light mode' : 'Dark mode';
   const Icon = next === 'light' ? Sun : Moon;
   return (
-    <button type="button" onClick={() => setChoice(next)} className={cn('group relative', className)}>
+    <button
+      type="button"
+      onClick={() => setChoice(next)}
+      className={cn('group relative', className)}
+      title={tooltip || label ? undefined : name}
+    >
       <Icon className="size-5" aria-hidden strokeWidth={1.8} />
       {label ? name : <span className="sr-only">{name}</span>}
-      {!label && (
+      {!label && tooltip && (
         <span
           aria-hidden
           className="pointer-events-none absolute left-full z-50 ml-3 whitespace-nowrap rounded-md bg-popover px-2 py-1 text-foreground text-xs opacity-0 shadow-lg transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100"

@@ -19,7 +19,7 @@ export function lvbHref(links: LvbLinks, patch: Partial<Omit<LvbLinks, 'at'>> & 
   q.set('period', next.period);
   if (next.at && next.period !== 'all') q.set('at', next.at);
   q.set('view', next.view);
-  return `/tracker/live-vs-backtest?${q}` as Route;
+  return `/backtest/live-vs-backtest?${q}` as Route;
 }
 
 const segment =

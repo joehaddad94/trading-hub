@@ -25,7 +25,7 @@ export default async function AnalyticsPage({ searchParams }: { searchParams: Pr
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <h2 className="font-semibold text-xl">Analytics</h2>
         <Link
-          href={`/tracker/live-vs-backtest?scope=${serializeScope(scope.scope)}`}
+          href={`/backtest/live-vs-backtest?scope=${serializeScope(scope.scope)}`}
           className="text-primary text-sm hover:underline"
         >
           Compare with backtests

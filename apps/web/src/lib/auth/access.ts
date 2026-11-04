@@ -6,6 +6,8 @@ export type Access = { kind: 'allow' } | { kind: 'redirect'; to: string } | { ki
 const PUBLIC_PATHS = ['/login', '/auth/callback'];
 /** Everything an invited user may reach: the Backtest Lab and the market data it loads. */
 const GUEST_PATHS = ['/backtest', '/api/backtest'];
+/** Backtest Lab pages built on the owner's live trades: never for an invited user. */
+export const OWNER_ONLY_BACKTEST_PATHS = ['/backtest/live-vs-backtest'];
 
 const under = (pathname: string, paths: string[]) => paths.some((p) => pathname === p || pathname.startsWith(`${p}/`));
 
@@ -22,6 +24,9 @@ export function accessFor(pathname: string, role: Role): Access {
     return { kind: 'redirect', to: pathname === '/' ? '/login' : `/login?next=${encodeURIComponent(pathname)}` };
   }
   if (pathname === '/login') return { kind: 'redirect', to: homeOf(role) };
-  if (role === 'owner' || under(pathname, [...GUEST_PATHS, ...PUBLIC_PATHS])) return { kind: 'allow' };
+  if (role === 'owner') return { kind: 'allow' };
+  if (under(pathname, [...GUEST_PATHS, ...PUBLIC_PATHS]) && !under(pathname, OWNER_ONLY_BACKTEST_PATHS)) {
+    return { kind: 'allow' };
+  }
   return pathname.startsWith('/api/') ? { kind: 'forbidden' } : { kind: 'redirect', to: '/backtest' };
 }

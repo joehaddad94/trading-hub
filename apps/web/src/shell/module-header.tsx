@@ -4,7 +4,7 @@ import { ModuleTabs } from './module-nav';
 import type { NavItem } from './modules';
 
 /**
- * Sticky glass header for a module, kept to one slim row: title, the module's pages as tabs, then module
+ * Sticky glass header for a module, kept to one slim row: Hub button, title, the module's pages as tabs, then module
  * controls. On a phone a module with controls (Tracker's scope) puts its tabs on a second row instead.
  */
 export function ModuleHeader({
@@ -12,18 +12,42 @@ export function ModuleHeader({
   nav,
   rootHref,
   keep,
+  leading,
+  trailing,
+  dockedStatus = false,
   children,
 }: {
   title: string;
   nav?: NavItem[] | undefined;
   rootHref?: string | undefined;
   keep?: string[] | undefined;
+  /** Before the title: the Hub button. */
+  leading?: ReactNode;
+  /** After the controls: an invited user's theme and Log out. */
+  trailing?: ReactNode;
+  /** A phone docks the status dots in the top-right corner (Backtest Lab): keep the header's end clear of them. */
+  dockedStatus?: boolean;
   children?: ReactNode;
 }) {
   const tabs = nav && nav.length > 1;
+  const end = children || trailing;
   return (
-    <header className="sticky top-0 z-20 flex flex-wrap items-center border-b bg-chrome backdrop-blur-xl md:flex-nowrap">
-      <h1 className="flex h-11 shrink-0 items-center px-4 font-semibold text-base tracking-tight md:h-12 md:pr-2 md:pl-6">
+    <header
+      className={cn(
+        'sticky top-0 z-20 flex flex-wrap items-center border-b bg-chrome backdrop-blur-xl md:flex-nowrap',
+        // The docked status dots sit fixed in the top-right corner: tabs and buttons stop short of them.
+        dockedStatus && 'compact:pr-20',
+      )}
+    >
+      {leading && <div className="flex shrink-0 items-center pl-1 md:pl-3">{leading}</div>}
+      <h1
+        className={cn(
+          'flex h-11 shrink-0 items-center font-semibold text-base tracking-tight md:h-12 md:pr-2',
+          leading ? 'pr-2 pl-1 md:pl-1' : 'px-4 md:pl-6',
+          // Backtest Lab on a phone: the tabs need the room next to the docked dots; the tab shows where you are.
+          dockedStatus && tabs && 'compact:sr-only',
+        )}
+      >
         {title}
       </h1>
       {tabs && (
@@ -34,7 +58,14 @@ export function ModuleHeader({
           className={cn('min-w-0 flex-1', children ? 'order-last basis-full md:order-none md:basis-auto' : '')}
         />
       )}
-      {children && <div className="ml-auto flex min-w-0 items-center gap-2 pr-4 pl-2 md:pr-6">{children}</div>}
+      {end && (
+        <div
+          className={cn('ml-auto flex min-w-0 items-center gap-2 pr-4 pl-2 md:pr-6', dockedStatus && 'compact:pr-16')}
+        >
+          {children}
+          {trailing}
+        </div>
+      )}
     </header>
   );
 }

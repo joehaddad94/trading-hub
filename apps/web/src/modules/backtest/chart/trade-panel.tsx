@@ -142,11 +142,11 @@ export function TradePanel({
         </div>
       )}
       {trading.undo &&
-        // On <body>, above the phone tab bar: inside the chart workspace (its own stacking context) the bar covers it.
+        // On <body>: inside the chart workspace (its own stacking context) the docked chart chrome would cover it.
         createPortal(
           <div
             role="status"
-            className="fixed bottom-[calc(5rem+env(safe-area-inset-bottom,0px))] left-1/2 z-50 flex -translate-x-1/2 items-center gap-3 rounded-md border bg-popover px-4 py-2 shadow-lg md:bottom-4"
+            className="fixed bottom-[calc(1rem+env(safe-area-inset-bottom,0px))] left-1/2 z-50 flex -translate-x-1/2 items-center gap-3 rounded-md border bg-popover px-4 py-2 shadow-lg md:bottom-4"
           >
             Trade deleted.
             <button type="button" onClick={() => void trading.restore()} className="font-medium underline">
