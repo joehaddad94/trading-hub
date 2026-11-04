@@ -38,8 +38,10 @@ export {
   type CompareRow,
   type CompareSide,
   type CompareTrade,
+  type Coverage,
   gapR,
   isPeriodKey,
+  killZonesInSpan,
   type LiveVsBacktest,
   liveVsBacktestPeriod,
   onePickPerSession,
@@ -50,6 +52,7 @@ export {
   pickMatch,
   rangePosition,
   sessionKeyOf,
+  sessionStartOf,
   shiftPeriod,
   summarize,
 } from './metrics/live-vs-backtest';

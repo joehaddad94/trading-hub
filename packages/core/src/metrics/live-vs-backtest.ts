@@ -1,6 +1,6 @@
 import { TZDate } from '@date-fns/tz';
 import Decimal from 'decimal.js';
-import { SESSION_TZ, sessionOf } from '../time/sessions';
+import { SESSION_TZ, SESSIONS, sessionOf } from '../time/sessions';
 import type { AnalyticsTrade } from './analytics';
 import { DEFAULT_SCRATCH_THRESHOLD_R, rMultiple, tradeStats } from './metrics';
 
@@ -124,7 +124,6 @@ export function onePickPerSession<T extends AnalyticsTrade>(trades: T[]): T[] {
 }
 
 export type CompareSide = {
-  /** Fractional when the side is an expected average per period. */
   trades: number;
   sessions: number;
   winRate: Decimal | null;
@@ -138,8 +137,8 @@ export type CompareSide = {
   rTrades: number;
 };
 
-/** Side summary; `per` > 1 turns totals into an average per period (rates are unchanged). */
-export function summarize(trades: AnalyticsTrade[], scratchThresholdR: number, per = 1): CompareSide | null {
+/** One side's summary over its trades; null with no trades. */
+export function summarize(trades: AnalyticsTrade[], scratchThresholdR: number): CompareSide | null {
   if (trades.length === 0) return null;
   const s = tradeStats(trades, scratchThresholdR);
   const sessions = new Set(trades.map((t) => sessionKeyOf(t.openedAt))).size;
@@ -147,13 +146,13 @@ export function summarize(trades: AnalyticsTrade[], scratchThresholdR: number, p
     trades.filter((t) => rMultiple(t.netProfit, t.riskUsd) !== null).map((t) => sessionKeyOf(t.openedAt)),
   ).size;
   return {
-    trades: trades.length / per,
-    sessions: sessions / per,
+    trades: trades.length,
+    sessions,
     winRate: s.winRate,
     expectancyR: s.expectancyR,
-    netR: s.netR ? s.netR.div(per) : null,
+    netR: s.netR,
     rPerSession: s.netR && sessionsWithR ? s.netR.div(sessionsWithR) : null,
-    net: s.net.div(per),
+    net: s.net,
     rTrades: s.rTrades,
   };
 }
@@ -183,16 +182,27 @@ export type Adherence = {
   brokeSide: CompareSide | null;
 };
 
+export type Coverage = {
+  /** Sessions with a live trade in the period. */
+  liveSessions: number;
+  /** Of those, sessions that were backtested (replayed). */
+  coveredLiveSessions: number;
+  /** Backtested sessions in the period; the comparison runs on these only. */
+  backtestedSessions: number;
+  /** Backtested sessions where the backtest traded and live did not. */
+  missedByLive: number;
+  /** Live trades in sessions nobody backtested: left out of the comparison. */
+  uncoveredLiveTrades: number;
+  /** Start of the first live session that was not backtested, to open replay there. */
+  firstUncoveredAt: Date | null;
+};
+
 export type LiveVsBacktest = {
-  /**
-   * `period`: backtest trades in the same period. `expected`: none there, so the backtest is its all-time
-   * average per period that has backtest trades. `none`: no backtest trades at all.
-   */
-  basis: 'period' | 'expected' | 'none';
-  /** Periods averaged over when basis = expected. */
-  expectedOver: number;
+  coverage: Coverage;
+  /** Live and backtest on the backtested sessions only. */
   rows: CompareRow[];
   pickMatch: PickMatch;
+  /** Every live trade of the period (adherence does not depend on backtests). */
   adherence: Adherence;
 };
 
@@ -217,8 +227,69 @@ export function pickMatch(live: AnalyticsTrade[], backtest: AnalyticsTrade[]): P
 }
 
 /**
- * The comparison for one period. `live` and `backtest` are every trade of each side; this picks the period's.
- * Backtest trades fall in the period of their replay (market) time, not the day the backtest was run.
+ * Start of the kill zone a trade opened in (New York time). For a trade outside every zone, 30 minutes
+ * before it opened.
+ */
+export function sessionStartOf(openedAt: Date): Date {
+  const name = sessionOf(openedAt);
+  const zone = SESSIONS.find((z) => z.name === name);
+  if (!zone) return new Date(openedAt.getTime() - 30 * 60_000);
+  const ny = new TZDate(openedAt.getTime(), SESSION_TZ);
+  return new Date(
+    new TZDate(
+      ny.getFullYear(),
+      ny.getMonth(),
+      ny.getDate(),
+      Math.floor(zone.start / 60),
+      zone.start % 60,
+      SESSION_TZ,
+    ).getTime(),
+  );
+}
+
+/**
+ * Session keys of every kill zone a replay span touched (the cursor was inside the zone at some point).
+ * Outside time never counts as a backtested session.
+ */
+export function killZonesInSpan(from: Date, to: Date): string[] {
+  const keys: string[] = [];
+  const first = nyDay(from);
+  const last = nyDay(to);
+  for (let day = first; day <= last; day = new Date(day.getTime() + 86_400_000)) {
+    for (const zone of SESSIONS) {
+      const at = (minute: number) =>
+        new TZDate(
+          day.getUTCFullYear(),
+          day.getUTCMonth(),
+          day.getUTCDate(),
+          Math.floor(minute / 60),
+          minute % 60,
+          SESSION_TZ,
+        ).getTime();
+      const start = at(zone.start);
+      const end = at(zone.end);
+      if (start <= to.getTime() && end > from.getTime()) keys.push(`${isoDay(day)}|${zone.name}`);
+    }
+  }
+  return keys;
+}
+
+const ZERO_SIDE = (): CompareSide => ({
+  trades: 0,
+  sessions: 0,
+  winRate: null,
+  expectancyR: null,
+  netR: new Decimal(0),
+  rPerSession: new Decimal(0),
+  net: new Decimal(0),
+  rTrades: 0,
+});
+
+/**
+ * The comparison for one period (Joe, 4 Nov 2026: compare specific backtests to specific live weeks/months).
+ * Only sessions that were backtested count, on both sides: a backtested session where the backtest took no
+ * trade is a 0R session for the backtest, not a gap in the data. `backtested` holds the session keys that
+ * were replayed; sessions with a backtest trade always count as backtested.
  */
 export function liveVsBacktestPeriod(
   live: CompareTrade[],
@@ -226,34 +297,46 @@ export function liveVsBacktestPeriod(
   kind: PeriodKind,
   key: string,
   scratchThresholdR = DEFAULT_SCRATCH_THRESHOLD_R,
+  backtested: Iterable<string> = [],
 ): LiveVsBacktest {
-  const inPeriod = <T extends AnalyticsTrade>(t: T) => periodKeyOf(kind, t.openedAt) === key;
-  const l = live.filter(inPeriod);
-  const periodBt = backtest.filter(inPeriod);
-  let basis: LiveVsBacktest['basis'] = 'period';
-  let bt = periodBt;
-  let per = 1;
-  if (backtest.length === 0) basis = 'none';
-  else if (periodBt.length === 0) {
-    basis = 'expected';
-    bt = backtest;
-    per = new Set(backtest.map((t) => periodKeyOf(kind, t.openedAt))).size;
+  const inPeriod = (at: Date) => periodKeyOf(kind, at) === key;
+  const periodLive = live.filter((t) => inPeriod(t.openedAt));
+  const bt = backtest.filter((t) => inPeriod(t.openedAt));
+  const covered = new Set<string>(bt.map((t) => sessionKeyOf(t.openedAt)));
+  for (const k of backtested) {
+    // Session keys carry the New York day; noon New York on that day is safely inside it.
+    const [y, m, d] = (k.split('|')[0] ?? '').split('-').map(Number) as [number, number, number];
+    if (inPeriod(new TZDate(y, m - 1, d, 12, 0, SESSION_TZ))) covered.add(k);
   }
+  const l = periodLive.filter((t) => covered.has(sessionKeyOf(t.openedAt)));
+  const liveSessions = bySession(periodLive);
+  const uncovered = [...liveSessions.entries()].filter(([k]) => !covered.has(k));
+  const liveKeys = new Set(liveSessions.keys());
+  const btKeys = new Set(bt.map((t) => sessionKeyOf(t.openedAt)));
   const picks = onePickPerSession(bt);
   const symbols = [...new Set([...l, ...bt].map((t) => t.symbol))].sort();
+  const btSide = (trades: AnalyticsTrade[]) =>
+    summarize(trades, scratchThresholdR) ?? (covered.size ? ZERO_SIDE() : null);
   const row = (symbol: string, f: (t: AnalyticsTrade) => boolean): CompareRow => ({
     symbol,
-    live: summarize(l.filter(f), scratchThresholdR),
-    portfolio: summarize(bt.filter(f), scratchThresholdR, per),
-    onePick: summarize(picks.filter(f), scratchThresholdR, per),
+    live: summarize(l.filter(f), scratchThresholdR) ?? (covered.size ? ZERO_SIDE() : null),
+    portfolio: btSide(bt.filter(f)),
+    onePick: btSide(picks.filter(f)),
   });
-  const answered = l.filter((t) => t.followedPlan === true || t.followedPlan === false);
+  const answered = periodLive.filter((t) => t.followedPlan === true || t.followedPlan === false);
   const followed = answered.filter((t) => t.followedPlan);
+  const firstUncovered = uncovered[0]?.[1][0];
   return {
-    basis,
-    expectedOver: basis === 'expected' ? per : 0,
+    coverage: {
+      liveSessions: liveKeys.size,
+      coveredLiveSessions: liveKeys.size - uncovered.length,
+      backtestedSessions: covered.size,
+      missedByLive: [...btKeys].filter((k) => !liveKeys.has(k)).length,
+      uncoveredLiveTrades: uncovered.reduce((n, [, list]) => n + list.length, 0),
+      firstUncoveredAt: firstUncovered ? sessionStartOf(firstUncovered.openedAt) : null,
+    },
     rows: [row('all', () => true), ...symbols.map((s) => row(s, (t) => t.symbol === s))],
-    pickMatch: basis === 'period' ? pickMatch(l, periodBt) : { sessions: 0, matched: 0, rate: null },
+    pickMatch: pickMatch(l, bt),
     adherence: {
       answered: answered.length,
       followed: followed.length,

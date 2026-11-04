@@ -1,6 +1,14 @@
 import { createDb, type Tx } from '@trading/db';
 import { eq } from '@trading/db/orm';
-import { accounts, backtestOrders, candles1m, instruments, journalEntries, trades } from '@trading/db/schema';
+import {
+  accounts,
+  backtestOrders,
+  backtestReplaySpans,
+  candles1m,
+  instruments,
+  journalEntries,
+  trades,
+} from '@trading/db/schema';
 import { afterAll, describe, expect, it } from 'vitest';
 import {
   advanceSession,
@@ -14,6 +22,7 @@ import {
   getSessionView,
   listOrders,
   listSessions,
+  MAX_REPLAY_STEP_MS,
   modifyOrder,
   placeOrder,
   restoreBacktestTrade,
@@ -344,6 +353,33 @@ describe.skipIf(!url)('simulated trading', () => {
       expect(closed).toHaveLength(1);
       expect(closed[0]).toMatchObject({ exitReason: 'tp', ambiguous: false, netProfit: '100.00' });
       expect((await currentSession(tx, null, session.id)).id).toBe(session.id);
+    });
+  });
+
+  it('records replayed time: steps extend one span, a jump starts a new one', async () => {
+    await inTx(async (tx) => {
+      const session = await createSession(tx, null, { name: 'Spans' });
+      const spans = () =>
+        tx
+          .select({ from: backtestReplaySpans.fromTs, to: backtestReplaySpans.toTs })
+          .from(backtestReplaySpans)
+          .where(eq(backtestReplaySpans.sessionId, session.id))
+          .orderBy(backtestReplaySpans.fromTs);
+      await advanceSession(tx, session.id, at(0));
+      await advanceSession(tx, session.id, at(5));
+      await advanceSession(tx, session.id, at(30));
+      expect(await spans()).toEqual([{ from: at(0), to: at(30) }]);
+      // Rewound and stepped again inside the span: nothing new.
+      await advanceSession(tx, session.id, at(10));
+      await advanceSession(tx, session.id, at(20));
+      expect(await spans()).toHaveLength(1);
+      // A jump past the step limit covers only where it lands.
+      const far = new Date(at(20).getTime() + MAX_REPLAY_STEP_MS + M);
+      await advanceSession(tx, session.id, far);
+      expect(await spans()).toEqual([
+        { from: at(0), to: at(30) },
+        { from: far, to: far },
+      ]);
     });
   });
 });

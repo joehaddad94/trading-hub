@@ -11,10 +11,11 @@ import {
   validLevels,
 } from '@trading/backtest-engine';
 import type { Executor } from '@trading/db';
-import { and, asc, desc, eq, gt, inArray, lte, sql } from '@trading/db/orm';
+import { and, asc, desc, eq, gt, gte, inArray, lte, sql } from '@trading/db/orm';
 import {
   accounts,
   backtestOrders,
+  backtestReplaySpans,
   backtestSessions,
   candles1m,
   firms,
@@ -332,8 +333,39 @@ export async function advanceSession(db: Executor, sessionId: string, cursor: Da
     });
     if (state.status !== before) changed += 1;
   }
+  await recordReplay(db, sessionId, session.cursorTs, cursor);
   await db.update(backtestSessions).set({ cursorTs: cursor }).where(eq(backtestSessions.id, sessionId));
   return changed;
+}
+
+/** A cursor move longer than this is a jump (new start date, weekend), not replayed time. */
+export const MAX_REPLAY_STEP_MS = 6 * 3600_000;
+
+/**
+ * Records the time a replay moved through (live vs backtest coverage). A forward step from `prev` of at most
+ * MAX_REPLAY_STEP_MS covers [prev, cursor]; anything else covers only the cursor. A span that already reaches
+ * the start is extended instead of adding a row.
+ */
+export async function recordReplay(db: Executor, sessionId: string, prev: Date | null, cursor: Date): Promise<void> {
+  const step = prev ? cursor.getTime() - prev.getTime() : -1;
+  const from = prev && step > 0 && step <= MAX_REPLAY_STEP_MS ? prev : cursor;
+  const [last] = await db
+    .select({ id: backtestReplaySpans.id, toTs: backtestReplaySpans.toTs })
+    .from(backtestReplaySpans)
+    .where(
+      and(
+        eq(backtestReplaySpans.sessionId, sessionId),
+        lte(backtestReplaySpans.fromTs, from),
+        gte(backtestReplaySpans.toTs, from),
+      ),
+    )
+    .orderBy(desc(backtestReplaySpans.toTs))
+    .limit(1);
+  if (!last) {
+    await db.insert(backtestReplaySpans).values({ sessionId, fromTs: from, toTs: cursor });
+  } else if (cursor > last.toTs) {
+    await db.update(backtestReplaySpans).set({ toTs: cursor }).where(eq(backtestReplaySpans.id, last.id));
+  }
 }
 
 async function saveState(

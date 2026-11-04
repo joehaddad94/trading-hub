@@ -5,6 +5,7 @@ import {
   type CompareTrade,
   gapR,
   isPeriodKey,
+  killZonesInSpan,
   liveVsBacktestPeriod,
   onePickPerSession,
   periodKeyOf,
@@ -12,6 +13,7 @@ import {
   pickMatch,
   rangePosition,
   sessionKeyOf,
+  sessionStartOf,
   shiftPeriod,
 } from './live-vs-backtest';
 
@@ -87,7 +89,6 @@ describe('liveVsBacktestPeriod', () => {
       t('300', 'US30', '2026-10-13T13:40:00Z'), // next week
     ];
     const r = liveVsBacktestPeriod(live, bt, 'week', '2026-10-05');
-    expect(r.basis).toBe('period');
     const all = r.rows[0];
     expect(all?.symbol).toBe('all');
     expect(all?.live?.trades).toBe(2);
@@ -99,24 +100,58 @@ describe('liveVsBacktestPeriod', () => {
     expect(all?.onePick?.netR?.toNumber()).toBe(3);
     expect(gapR(all?.live ?? null, all?.onePick ?? null)?.toNumber()).toBe(1.5);
     expect(r.rows.map((x) => x.symbol)).toEqual(['all', 'NDX100', 'US30']);
-    expect(r.rows[1]?.live).toBeNull();
+    expect(r.rows[1]?.live?.trades).toBe(0);
     expect(r.pickMatch).toMatchObject({ sessions: 2, matched: 1 });
+    expect(r.coverage).toMatchObject({ liveSessions: 2, coveredLiveSessions: 2, backtestedSessions: 2 });
     expect(r.adherence.answered).toBe(2);
     expect(r.adherence.rate?.toNumber()).toBe(0.5);
     expect(r.adherence.followedSide?.netR?.toNumber()).toBe(1);
     expect(r.adherence.brokeSide?.netR?.toNumber()).toBe(-1);
   });
 
-  it('falls back to the backtest average per period when the period was not backtested', () => {
-    const bt = [t('200', 'US30', AM), t('100', 'US30', '2026-10-13T13:40:00Z')];
-    const r = liveVsBacktestPeriod([t('100', 'US30', '2026-10-20T13:40:00Z')], bt, 'week', '2026-10-19');
-    expect(r.basis).toBe('expected');
-    expect(r.expectedOver).toBe(2);
-    expect(r.rows[0]?.portfolio?.trades).toBe(1);
-    expect(r.rows[0]?.portfolio?.netR?.toNumber()).toBe(1.5);
-    expect(r.rows[0]?.portfolio?.expectancyR?.toNumber()).toBe(1.5);
-    expect(r.pickMatch.rate).toBeNull();
-    expect(liveVsBacktestPeriod([t('1', 'US30', AM)], [], 'all', 'all').basis).toBe('none');
+  it('compares only backtested sessions and shows what is left to backtest', () => {
+    // Live traded NY AM and NY PM on 6 Oct and NY AM on 7 Oct; only 6 Oct NY AM has a backtest trade.
+    const live = [t('100', 'US30', AM), t('-100', 'US30', PM), t('50', 'US30', '2026-10-07T13:40:00Z')];
+    const bt = [t('200', 'US30', AM)];
+    const r = liveVsBacktestPeriod(live, bt, 'week', '2026-10-05');
+    expect(r.rows[0]?.live?.trades).toBe(1);
+    expect(r.rows[0]?.live?.netR?.toNumber()).toBe(1);
+    expect(r.coverage).toMatchObject({
+      liveSessions: 3,
+      coveredLiveSessions: 1,
+      backtestedSessions: 1,
+      uncoveredLiveTrades: 2,
+      missedByLive: 0,
+    });
+    // First uncovered: 6 Oct NY PM, which opens 13:30 New York = 17:30Z.
+    expect(r.coverage.firstUncoveredAt?.toISOString()).toBe('2026-10-06T17:30:00.000Z');
+  });
+
+  it('counts a replayed session without a backtest trade as 0R for the backtest', () => {
+    const live = [t('-100', 'US30', PM), t('100', 'US30', '2026-10-13T13:40:00Z')];
+    const r = liveVsBacktestPeriod(live, [], 'week', '2026-10-05', 0.1, [
+      '2026-10-06|ny_pm',
+      '2026-10-06|ny_am',
+      '2026-10-13|ny_am', // other week: ignored
+    ]);
+    expect(r.coverage).toMatchObject({ liveSessions: 1, coveredLiveSessions: 1, backtestedSessions: 2 });
+    expect(r.rows[0]?.live?.netR?.toNumber()).toBe(-1);
+    expect(r.rows[0]?.onePick).toMatchObject({ trades: 0 });
+    expect(r.rows[0]?.onePick?.netR?.toNumber()).toBe(0);
+  });
+
+  it('shows no comparison when nothing in the period was backtested', () => {
+    const r = liveVsBacktestPeriod(
+      [t('100', 'US30', AM)],
+      [t('1', 'US30', '2026-10-13T13:40:00Z')],
+      'week',
+      '2026-10-05',
+    );
+    expect(r.coverage).toMatchObject({ liveSessions: 1, coveredLiveSessions: 0, backtestedSessions: 0 });
+    expect(r.rows[0]?.live).toBeNull();
+    expect(r.rows[0]?.portfolio).toBeNull();
+    expect(r.coverage.firstUncoveredAt?.toISOString()).toBe('2026-10-06T13:30:00.000Z');
+    expect(sessionStartOf(new Date('2026-10-07T01:00:00Z')).toISOString()).toBe('2026-10-07T00:00:00.000Z'); // Asia 20:00 ET
   });
 });
 
@@ -129,5 +164,22 @@ describe('rangePosition', () => {
     expect(rangePosition(row(2))?.position).toBe('inside');
     expect(rangePosition(row(5))?.by.toNumber()).toBe(2);
     expect(rangePosition({ symbol: 'all', live: null, onePick: null, portfolio: null })).toBeNull();
+  });
+});
+
+describe('killZonesInSpan', () => {
+  it('lists the kill zones a replay span entered', () => {
+    // 6 Oct 2026 09:00–14:00 New York: NY AM fully, NY PM from 13:30.
+    expect(killZonesInSpan(new Date('2026-10-06T13:00:00Z'), new Date('2026-10-06T18:00:00Z'))).toEqual([
+      '2026-10-06|ny_am',
+      '2026-10-06|ny_pm',
+    ]);
+    // A single point inside Asia (21:00 New York) and one outside every zone.
+    const asia = new Date('2026-10-07T01:00:00Z');
+    expect(killZonesInSpan(asia, asia)).toEqual(['2026-10-06|asia']);
+    const outside = new Date('2026-10-06T17:00:00Z');
+    expect(killZonesInSpan(outside, outside)).toEqual([]);
+    // Ending exactly at a zone's end does not reach the next zone.
+    expect(killZonesInSpan(new Date('2026-10-06T16:00:00Z'), new Date('2026-10-06T16:00:00Z'))).toEqual([]);
   });
 });
