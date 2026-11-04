@@ -16,6 +16,7 @@ import { ORDERS_INDICATOR, type OrderMark, orderLines } from './order-lines';
 import { PickLine } from './pick-line';
 import { SESSION_INDICATOR, sessionShading } from './session-shading';
 import { chartStyles } from './styles';
+import { applyRoundTimeAxis } from './time-axis';
 import { TOOLS } from './tools/registry';
 import {
   barX,
@@ -298,6 +299,7 @@ export function KLineChart(props: ChartProps) {
       if (!chart) return;
       chartRef.current = chart;
       crosshairOnLongPressOnly(chart);
+      applyRoundTimeAxis(chart);
       chart.subscribeAction('onVisibleRangeChange', remeasure);
       chart.subscribeAction('onCrosshairChange', (data) => {
         // The payload is the pointer position only; map it to the bar like a click.
