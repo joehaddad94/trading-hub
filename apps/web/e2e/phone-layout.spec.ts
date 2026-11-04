@@ -118,6 +118,27 @@ test.describe('Backtest Lab on a phone (audit 25 Oct)', () => {
     await expect(rows(page)).toHaveCount(0);
   });
 
+  test('a selected long box trades from a slim pill on the chart; the chart keeps its size', async ({
+    page,
+    isMobile,
+  }) => {
+    test.skip(!isMobile, 'phone layout');
+    await open(page);
+    const chart = page.getByTestId('kline-chart');
+    const before = await chart.boundingBox();
+    if (!before) throw new Error('no chart');
+    await page.keyboard.press('Alt+KeyL');
+    await page.mouse.click(before.x + before.width * 0.7, before.y + before.height * 0.45);
+    const card = page.getByTestId('box-ticket');
+    await expect(card).toHaveAttribute('data-compact', 'true');
+    await onScreen(page, card.getByRole('button', { name: /^Buy [\d.]+ · [\d.]+ lots$/ }));
+    expect((await chart.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(before.height - 1);
+    await card.getByRole('button', { name: 'More options' }).click();
+    await expect(card.getByRole('button', { name: /^Buy (limit|stop) order$/ })).toBeVisible();
+    await card.getByRole('button', { name: 'Fewer details' }).click();
+    await expect(card).toHaveAttribute('data-compact', 'true');
+  });
+
   test('a step pressed while the chart reloads a new date is kept, not dropped', async ({ page }) => {
     await open(page);
     const cursor = page.getByTestId('replay-cursor');
