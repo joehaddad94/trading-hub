@@ -1,4 +1,5 @@
 import 'server-only';
+import type { PeriodKind } from '@trading/core';
 import { analytics, liveVsBacktestReport, type ResolvedScope } from '@trading/tracker/server';
 import { DISPLAY_TZ } from '@/lib/format';
 import { getDb } from '@/lib/server/db';
@@ -11,9 +12,9 @@ export async function getAnalytics(scope: ResolvedScope) {
   return analytics(db, scope, { timezone: DISPLAY_TZ, scratchThresholdR });
 }
 
-export async function getLiveVsBacktest(scope: ResolvedScope) {
+export async function getLiveVsBacktest(scope: ResolvedScope, period: { kind: PeriodKind; key: string | null }) {
   const db = getDb();
   if (!db) return null;
   const { scratchThresholdR } = await getSettings();
-  return liveVsBacktestReport(db, scope, scratchThresholdR);
+  return liveVsBacktestReport(db, scope, scratchThresholdR, period);
 }
