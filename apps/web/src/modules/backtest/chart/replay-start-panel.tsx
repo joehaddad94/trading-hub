@@ -202,7 +202,7 @@ export function ReplayStartPanel({
         aria-label={replaying ? 'Replay from another date' : 'Start replay'}
         data-testid="replay-start-panel"
         className={cn(
-          'fixed inset-x-0 bottom-[calc(4rem+env(safe-area-inset-bottom,0px))] z-50 max-h-[80dvh] overflow-y-auto rounded-t-xl border-t bg-popover text-popover-foreground shadow-2xl',
+          'fixed inset-x-0 bottom-0 z-50 pb-[env(safe-area-inset-bottom,0px)] max-h-[80dvh] overflow-y-auto rounded-t-xl border-t bg-popover text-popover-foreground shadow-2xl',
           'md:absolute md:inset-x-auto md:top-full md:bottom-auto md:left-2 md:mt-1 md:max-h-none md:w-[38rem] md:rounded-lg md:border',
           // Phone on its side: the whole screen, scrolling, with Start pinned at the bottom (audit 25 Oct, #2).
           'short:fixed! short:inset-0! short:mt-0! short:max-h-none! short:w-auto! short:rounded-none! short:border-0!',

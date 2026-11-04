@@ -291,11 +291,12 @@ The app has **three separate modules**: **Tracker** (includes the Journal), **Ne
   - **News** — Week view, Event history, Restriction rules. Desktop: left sidebar. Phone: top tabs.
   - **Backtest Lab** — its own full-screen layout (chart, tools, session panel); no app sidebar. Phone: sessions and results only; replay shows "best on desktop".
 - **Header in every module:** logo / app name → **back to the hub**; current module name; module-specific controls (Tracker: the account scope selector §8.1; News: "Calendar last synced"; Backtest: session picker).
-- **Direct jump (shortcut):** a small module menu in the header (desktop) / in the hub-back menu (phone) lists the other two modules, so moving Tracker → News doesn't require going through the hub. Remove if Joe prefers strict hub-only navigation.
+- **Hub-only navigation (Joe, 4 Nov 2026):** no app-wide menu and no direct jump between modules; a module header has a **Hub** button, the module name and its own pages as tabs. Settings, theme and Log out are on the hub. The modules are a registry (`apps/web/src/shell/modules.ts`): one entry gives a module its hub tile and header tabs, so more modules can be added later. Journal stays a Tracker page; its "to journal" count is on the Tracker tile. (The 17 Oct redesign's icon rail and phone bottom bar were removed.)
+- **Live vs backtest** is a Backtest Lab page (`/backtest/live-vs-backtest`, owner only; invited users never see it). `/tracker/live-vs-backtest` redirects there.
 - Cross-module links stay as deep links (e.g. Tracker calendar day 📰 → News week view for that date; trade detail "news around this trade" → the event in News; backtest trade → its journal entry in Tracker).
 
 **Routes**
-- `/` hub · `/tracker` (overview), `/tracker/calendar`, `/tracker/trades`, `/tracker/trades/[id]`, `/tracker/journal`, `/tracker/accounts`, `/tracker/accounts/[login]`, `/tracker/analytics`, `/tracker/money` · `/news`, `/news/history`, `/news/rules` · `/backtest`, `/backtest/[session]`, `/backtest/[session]/replay` · `/settings`, `/settings/imports`.
+- `/` hub · `/tracker` (overview), `/tracker/calendar`, `/tracker/trades`, `/tracker/trades/[id]`, `/tracker/journal`, `/tracker/accounts`, `/tracker/accounts/[login]`, `/tracker/analytics`, `/tracker/money` · `/news`, `/news/history`, `/news/rules` · `/backtest`, `/backtest/[session]`, `/backtest/[session]/replay`, `/backtest/live-vs-backtest` · `/settings`, `/settings/imports`.
 
 **Code structure**
 - One Next.js app, one database, one login. Folders: `src/modules/tracker`, `src/modules/news`, `src/modules/backtest`, plus `src/shared` (accounts, trades, scope, metrics, UI shell). **Modules import only from `shared`, never from each other.**

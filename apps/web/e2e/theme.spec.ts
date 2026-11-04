@@ -30,6 +30,15 @@ test.describe('light and dark mode', () => {
     expect(await bodyBackground(page)).toBe('rgb(59, 66, 80)');
   });
 
+  test('the one-tap button on the hub flips the theme', async ({ page }) => {
+    await page.emulateMedia({ colorScheme: 'dark' });
+    await page.goto('/');
+    await page.getByRole('button', { name: 'Light mode' }).click();
+    await expect(html(page)).toHaveClass(/\blight\b/);
+    await page.goto('/news');
+    await expect(html(page)).toHaveClass(/\blight\b/);
+  });
+
   test('a choice in Settings beats the device setting and survives a reload', async ({ page }) => {
     await page.emulateMedia({ colorScheme: 'dark' });
     await page.goto('/settings');
@@ -46,15 +55,15 @@ test.describe('light and dark mode', () => {
     await expect(html(page)).toHaveClass(/\bdark\b/);
   });
 
-  test('the backtest chart switches palette with the app', async ({ page, isMobile }) => {
-    test.skip(isMobile, 'the one-tap button lives in the desktop rail');
+  test('the backtest chart switches palette with the app', async ({ page }) => {
     await page.emulateMedia({ colorScheme: 'dark' });
     await page.goto('/backtest/chart?i=US30&tf=5&at=2026-10-07T14:00:00.000Z');
     await chartReady(page);
     const chart = page.getByTestId('kline-chart');
     await expect(chart).toHaveAttribute('data-theme', 'dark');
 
-    await page.getByRole('button', { name: 'Light mode' }).click();
+    // "System" follows the device live, chart included.
+    await page.emulateMedia({ colorScheme: 'light' });
     await expect(chart).toHaveAttribute('data-theme', 'light');
     const pane = await chart.evaluate((el) => getComputedStyle(el.closest('.chart-pane') as Element).backgroundColor);
     expect(pane).toBe('rgb(255, 255, 255)');

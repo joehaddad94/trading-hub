@@ -1,214 +1,60 @@
-'use client';
-
-import {
-  ChartCandlestick,
-  Ellipsis,
-  FlaskConical,
-  LayoutDashboard,
-  LogOut,
-  type LucideIcon,
-  Newspaper,
-  NotebookPen,
-  Settings,
-} from 'lucide-react';
-import type { Route } from 'next';
+import { House, LogOut, Settings } from 'lucide-react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
 import { signOutAction } from '@/app/(auth)/sign-out-actions';
 import { cn } from '@/lib/utils';
-import { ThemeButton, ThemeSwitch } from './theme/theme-toggle';
+import { ThemeButton } from './theme/theme-toggle';
 
-type AppLink = { id: string; href: Route; label: string; icon: LucideIcon };
+/**
+ * Navigation between modules goes through the hub only (Joe, 4 Nov 2026: "separate features into a hub like it
+ * was before"). A module header carries a Hub button and the module's own pages, never links to other modules.
+ */
+const iconButton =
+  'flex size-11 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:ring-[3px] focus-visible:ring-ring/50 md:size-9';
 
-const HUB: AppLink = { id: 'hub', href: '/', label: 'Hub', icon: LayoutDashboard };
-const TRACKER: AppLink = { id: 'tracker', href: '/tracker', label: 'Tracker', icon: ChartCandlestick };
-const JOURNAL: AppLink = { id: 'journal', href: '/tracker/journal', label: 'Journal', icon: NotebookPen };
-const NEWS: AppLink = { id: 'news', href: '/news', label: 'News', icon: Newspaper };
-const BACKTEST: AppLink = { id: 'backtest', href: '/backtest', label: 'Backtest', icon: FlaskConical };
-const SETTINGS: AppLink = { id: 'settings', href: '/settings', label: 'Settings', icon: Settings };
-
-/** Which app-level destination the current path belongs to (Journal lives inside Tracker but has its own icon). */
-function activeId(pathname: string): string {
-  if (pathname === '/') return 'hub';
-  if (pathname.startsWith('/tracker/journal')) return 'journal';
-  for (const id of ['tracker', 'news', 'backtest', 'settings']) if (pathname.startsWith(`/${id}`)) return id;
-  return '';
+/** Back to the hub: a house on a phone, house + "Hub" on desktop. */
+export function HubLink({ className }: { className?: string }) {
+  return (
+    <Link
+      href="/"
+      aria-label="Back to hub"
+      className={cn(
+        'flex h-11 shrink-0 items-center gap-1.5 rounded-lg px-2.5 text-muted-foreground text-sm transition-colors hover:bg-accent hover:text-foreground focus-visible:ring-[3px] focus-visible:ring-ring/50 md:h-9',
+        className,
+      )}
+    >
+      <House className="size-5 md:size-4" aria-hidden strokeWidth={1.8} />
+      <span className="hidden md:inline">Hub</span>
+    </Link>
+  );
 }
 
 /** Log out, as a form so it works before the page has hydrated. */
-function LogOutButton({ className, label = true }: { className: string; label?: boolean }) {
+function LogOutButton() {
   return (
     <form action={signOutAction} className="contents">
-      <button type="submit" className={cn('group relative cursor-pointer', className)}>
-        <LogOut className="size-5" aria-hidden strokeWidth={1.8} />
-        {label ? 'Log out' : <span className="sr-only">Log out</span>}
-        {!label && (
-          <span
-            aria-hidden
-            className="pointer-events-none absolute left-full z-50 ml-3 whitespace-nowrap rounded-md bg-popover px-2 py-1 text-foreground text-xs opacity-0 shadow-lg transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100"
-          >
-            Log out
-          </span>
-        )}
+      <button type="submit" className={iconButton} title="Log out">
+        <LogOut className="size-5 md:size-4" aria-hidden strokeWidth={1.8} />
+        <span className="sr-only">Log out</span>
       </button>
     </form>
   );
 }
 
-function Badge({ count, className }: { count: number; className?: string }) {
-  if (!count) return null;
-  return (
-    <span
-      className={cn(
-        'num absolute rounded-full bg-warning px-1 font-semibold text-[10px] text-warning-foreground leading-4',
-        className,
-      )}
-    >
-      {count > 99 ? '99+' : count}
-    </span>
-  );
-}
-
 /**
- * Desktop: slim icon rail; labels show as tooltips on hover and focus. The rail is its own stacking context
- * (sticky + backdrop blur), so it needs z-40 to keep those labels above the glass cards and sticky header.
- * An invited user (`guest`) only has the Backtest Lab.
+ * Theme, Settings and Log out as a row of icon buttons: on the hub for the owner, in the Backtest Lab header for an
+ * invited user (who has no hub and no Settings).
  */
-export function AppRail({ journalBadge = 0, guest = false }: { journalBadge?: number; guest?: boolean }) {
-  const active = activeId(usePathname());
-  const item = (link: AppLink) => {
-    const Icon = link.icon;
-    const on = active === link.id;
-    return (
-      <Link
-        key={link.id}
-        href={link.href}
-        aria-current={on ? 'page' : undefined}
-        className={cn(
-          'group relative flex size-11 items-center justify-center rounded-xl text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:ring-[3px] focus-visible:ring-ring/50',
-          on && 'bg-primary/15 text-primary hover:bg-primary/20 hover:text-primary',
-        )}
-      >
-        <Icon className="size-5" aria-hidden strokeWidth={1.8} />
-        <span className="sr-only">{link.label}</span>
-        <span
-          aria-hidden
-          className="pointer-events-none absolute left-full z-50 ml-3 whitespace-nowrap rounded-md bg-popover px-2 py-1 text-foreground text-xs opacity-0 shadow-lg transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100"
-        >
-          {link.label}
-        </span>
-        {link.id === 'journal' && <Badge count={journalBadge} className="-top-0.5 -right-0.5" />}
-      </Link>
-    );
-  };
+export function AccountActions({ guest = false, className }: { guest?: boolean; className?: string }) {
   return (
-    <aside className="sticky top-0 z-40 hidden h-dvh w-16 shrink-0 flex-col items-center gap-2 border-r bg-chrome py-3 backdrop-blur-xl md:flex">
-      <Link
-        href={guest ? '/backtest' : '/'}
-        aria-label={guest ? 'Backtest Lab' : 'Back to hub'}
-        className="mb-2 flex size-10 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-chart-3 font-bold text-primary-foreground text-sm shadow-[0_6px_20px_-6px_color-mix(in_srgb,var(--primary)_70%,transparent)]"
-      >
-        TH
-      </Link>
-      <nav aria-label="Modules" className="flex flex-col items-center gap-1.5">
-        {(guest ? [BACKTEST] : [HUB, TRACKER, JOURNAL, NEWS, BACKTEST]).map(item)}
-      </nav>
-      <div className="mt-auto flex flex-col items-center gap-1.5">
-        <ThemeButton className="flex size-11 items-center justify-center rounded-xl text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:ring-[3px] focus-visible:ring-ring/50" />
-        {!guest && item(SETTINGS)}
-        <LogOutButton
-          label={false}
-          className="flex size-11 items-center justify-center rounded-xl text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:ring-[3px] focus-visible:ring-ring/50"
-        />
-      </div>
-    </aside>
-  );
-}
-
-/** Phone: bottom tab bar. "More" holds Backtest, Settings and Log out; an invited user gets Backtest and Log out. */
-export function AppBottomBar({ journalBadge = 0, guest = false }: { journalBadge?: number; guest?: boolean }) {
-  const active = activeId(usePathname());
-  const tab = (link: AppLink, ariaLabel?: string) => {
-    const Icon = link.icon;
-    const on = active === link.id;
-    return (
-      <Link
-        key={link.id}
-        href={link.href}
-        aria-label={ariaLabel}
-        aria-current={on ? 'page' : undefined}
-        className={cn(
-          'relative flex h-16 flex-col items-center justify-center gap-1 text-[11px] text-muted-foreground',
-          on && 'font-medium text-primary',
-        )}
-      >
-        <Icon className="size-5" aria-hidden strokeWidth={1.8} />
-        {link.label}
-        {link.id === 'journal' && <Badge count={journalBadge} className="top-2 left-1/2 ml-1.5" />}
-      </Link>
-    );
-  };
-  const moreOn = active === 'backtest' || active === 'settings';
-  if (guest) {
-    return (
-      <nav
-        aria-label="Modules"
-        className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-3 border-t bg-bar pb-[env(safe-area-inset-bottom,0px)] backdrop-blur-xl md:hidden"
-      >
-        {tab(BACKTEST)}
-        <ThemeButton
-          label
-          className="flex h-16 w-full flex-col items-center justify-center gap-1 text-[11px] text-muted-foreground"
-        />
-        <LogOutButton className="flex h-16 w-full flex-col items-center justify-center gap-1 text-[11px] text-muted-foreground" />
-      </nav>
-    );
-  }
-  return (
-    <nav
-      aria-label="Modules"
-      className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-5 border-t bg-bar pb-[env(safe-area-inset-bottom,0px)] backdrop-blur-xl md:hidden"
-    >
-      {tab(HUB, 'Back to hub')}
-      {tab(TRACKER)}
-      {tab(JOURNAL)}
-      {tab(NEWS)}
-      <details className="group relative">
-        <summary
-          className={cn(
-            'flex h-16 cursor-pointer list-none flex-col items-center justify-center gap-1 text-[11px] text-muted-foreground [&::-webkit-details-marker]:hidden',
-            moreOn && 'font-medium text-primary',
-          )}
-        >
-          <Ellipsis className="size-5" aria-hidden strokeWidth={1.8} />
-          More
-        </summary>
-        <div className="absolute right-2 bottom-[4.5rem] flex min-w-56 flex-col rounded-xl border bg-popover p-1 shadow-xl">
-          <ThemeSwitch className="mb-1" />
-          {[BACKTEST, SETTINGS].map((link) => {
-            const Icon = link.icon;
-            return (
-              <Link
-                key={link.id}
-                href={link.href}
-                className="flex h-11 items-center gap-3 rounded-lg px-3 text-sm hover:bg-accent"
-              >
-                <Icon className="size-4 text-muted-foreground" aria-hidden />
-                {link.label}
-              </Link>
-            );
-          })}
-          <form action={signOutAction}>
-            <button
-              type="submit"
-              className="flex h-11 w-full cursor-pointer items-center gap-3 rounded-lg px-3 text-sm hover:bg-accent"
-            >
-              <LogOut className="size-4 text-muted-foreground" aria-hidden />
-              Log out
-            </button>
-          </form>
-        </div>
-      </details>
-    </nav>
+    <div className={cn('flex shrink-0 items-center gap-1', className)}>
+      <ThemeButton className={iconButton} tooltip={false} />
+      {!guest && (
+        <Link href="/settings" className={iconButton} title="Settings">
+          <Settings className="size-5 md:size-4" aria-hidden strokeWidth={1.8} />
+          <span className="sr-only">Settings</span>
+        </Link>
+      )}
+      <LogOutButton />
+    </div>
   );
 }

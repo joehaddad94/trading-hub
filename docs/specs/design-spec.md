@@ -34,9 +34,8 @@ Account colours (multi-account charts): cyan, amber, violet, pink, lime, orange 
 - Balanced density: table rows ~40px, 44px minimum touch targets on phone.
 
 ## Layout and navigation
-- **Desktop:** slim icon rail on the left (Hub, Tracker, Journal, News, Backtest; Settings at the bottom), labels as tooltips. Each module shows its own pages as tabs in the header.
-- **Phone:** bottom tab bar (Hub, Tracker, Journal, News, More). Module pages are scrollable tabs under the header.
-- **Hub:** hero with today's P&L (big), week P&L and win rate, loss room bar, small equity curve. Module tiles below (Tracker, Journal, News, Backtest). Recent trades last.
+- **Hub only (Joe, 4 Nov 2026; replaces the icon rail and phone bottom bar):** modules are reached from the hub. A module header has a Hub button, the module name, and its own pages as tabs (scrollable on phone). Theme, Settings and Log out sit top-right on the hub; an invited user's Backtest Lab header has theme and Log out.
+- **Hub:** hero with today's P&L (big), week P&L and win rate, loss room bar, small equity curve. One tile per registered module (Tracker with its "to journal" count, News, Backtest Lab). Recent trades last.
 
 ## Charts
 - Gradient area under lines (accent colour), faint grid, emphasised end point. Bars use profit/loss.

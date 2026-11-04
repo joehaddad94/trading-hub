@@ -27,4 +27,9 @@ describe('accessFor', () => {
     expect(accessFor('/api/tracker/trades.csv', 'guest')).toEqual({ kind: 'forbidden' });
     expect(accessFor('/login', 'guest')).toEqual({ kind: 'redirect', to: '/backtest' });
   });
+
+  it("keeps Live vs backtest (the owner's live trades) out of an invited user's Backtest Lab", () => {
+    expect(accessFor('/backtest/live-vs-backtest', 'guest')).toEqual({ kind: 'redirect', to: '/backtest' });
+    expect(accessFor('/backtest/live-vs-backtest', 'owner')).toEqual({ kind: 'allow' });
+  });
 });

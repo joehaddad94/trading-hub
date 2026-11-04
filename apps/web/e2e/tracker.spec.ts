@@ -25,7 +25,7 @@ test.describe('tracker screens (M8)', () => {
     await expect(
       curve.locator('.recharts-cartesian-axis-tick-value', { hasText: /^\d{1,2} [A-Z][a-z]{2}$/ }).first(),
     ).toBeVisible();
-    // Centre the curve first: on phone the fixed bottom tab bar can cover its lower half.
+    // Centre the curve first so all of it is on screen.
     await curve.evaluate((el) => el.scrollIntoView({ block: 'center' }));
     const box = await curve.boundingBox();
     if (box) await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);

@@ -17,6 +17,10 @@ const nextConfig: NextConfig = {
     '@trading/tracker',
   ],
   serverExternalPackages: ['@googleapis/drive', 'dukascopy-node', 'lzma'],
+  // Live vs backtest moved from the Tracker to the Backtest Lab (4 Nov 2026); old links keep working (query kept).
+  async redirects() {
+    return [{ source: '/tracker/live-vs-backtest', destination: '/backtest/live-vs-backtest', permanent: true }];
+  },
 };
 
 export default nextConfig;
