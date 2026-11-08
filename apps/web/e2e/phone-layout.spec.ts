@@ -176,12 +176,13 @@ test.describe('Backtest Lab on a phone (audit 25 Oct)', () => {
     await open(page);
     const chips = page.locator('header [data-chip="true"]');
     test.skip((await chips.count()) === 0, 'no sync or market-data warning in this database');
-    const bar = await page.locator('header').first().boundingBox();
-    expect(bar?.height ?? 99).toBeLessThanOrEqual(60);
+    // One row: the glass bar itself (inside the header's equal gaps) stays a single 44px row plus its padding.
+    const bar = await page.locator('header > div').first().boundingBox();
+    expect(bar?.height ?? 99).toBeLessThanOrEqual(56);
     for (const chip of await chips.all()) {
       const box = await chip.boundingBox();
       expect(box?.height ?? 99).toBeLessThanOrEqual(34);
-      expect(box?.y ?? 99).toBeLessThan(52);
+      expect(box?.y ?? 99).toBeLessThan(56);
     }
   });
 });

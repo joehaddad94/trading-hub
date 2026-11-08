@@ -5,7 +5,8 @@ import { ModuleTabs } from './module-nav';
 import type { NavItem } from './modules';
 
 /**
- * The module bar (navbar redesign A, Joe 8 Nov 2026): a frosted glass bar floating just off the screen edges, like
+ * The module bar (navbar redesign A, Joe 8 Nov 2026): a frosted glass bar floating off the screen edges by the same
+ * gap on every side (top, sides and bottom; Joe 8 Nov: "the paddings are not matching"), like
  * the hub's tiles. Hub button, the module chip (icon + name), the module's pages as pill tabs, then the module's
  * controls, status chips, theme and account menu.
  *
@@ -43,7 +44,7 @@ export function ModuleHeader({
   const tabs = nav && nav.length > 1;
   const hideTitleOnPhone = Boolean(children) || (fill && tabs);
   return (
-    <header className="sticky top-0 z-20 shrink-0 px-1.5 pt-1.5 roomy:px-2 roomy:pt-2">
+    <header className="sticky top-0 z-20 shrink-0 p-1.5 roomy:p-2.5">
       <div
         className={cn(
           'flex flex-wrap items-center gap-1 rounded-xl border bg-chrome p-1 backdrop-blur-xl roomy:flex-nowrap roomy:gap-1.5',
