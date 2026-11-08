@@ -8,22 +8,21 @@ import { ThemeButton } from './theme/theme-toggle';
  * Navigation between modules goes through the hub only (Joe, 4 Nov 2026: "separate features into a hub like it
  * was before"). A module header carries a Hub button and the module's own pages, never links to other modules.
  */
-const iconButton =
+export const iconButton =
   'flex size-11 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:ring-[3px] focus-visible:ring-ring/50 md:size-9';
 
-/** Back to the hub: a house on a phone, house + "Hub" on desktop. */
+/** Back to the hub: a house, the first thing in every module bar. */
 export function HubLink({ className }: { className?: string }) {
   return (
     <Link
       href="/"
       aria-label="Back to hub"
       className={cn(
-        'flex h-11 shrink-0 items-center gap-1.5 rounded-lg px-2.5 text-muted-foreground text-sm transition-colors hover:bg-accent hover:text-foreground focus-visible:ring-[3px] focus-visible:ring-ring/50 md:h-9',
+        'flex size-11 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:ring-[3px] focus-visible:ring-ring/50 md:size-9',
         className,
       )}
     >
-      <House className="size-5 md:size-4" aria-hidden strokeWidth={1.8} />
-      <span className="hidden md:inline">Hub</span>
+      <House className="size-5 md:size-[1.125rem]" aria-hidden strokeWidth={1.8} />
     </Link>
   );
 }

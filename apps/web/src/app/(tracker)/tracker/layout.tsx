@@ -13,6 +13,7 @@ export default async function TrackerLayout({ children }: { children: ReactNode 
   return (
     <AppShell
       title={mod.name}
+      icon={mod.icon}
       nav={nav}
       rootHref={mod.href}
       keep={TRACKER_KEPT_PARAMS}

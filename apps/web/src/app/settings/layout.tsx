@@ -1,3 +1,4 @@
+import { Settings } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { AppShell } from '@/shell/app-shell';
 
@@ -9,7 +10,7 @@ const NAV = [
 
 export default function SettingsLayout({ children }: { children: ReactNode }) {
   return (
-    <AppShell title="Settings" nav={NAV} rootHref="/settings">
+    <AppShell title="Settings" icon={Settings} nav={NAV} rootHref="/settings">
       {children}
     </AppShell>
   );

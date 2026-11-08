@@ -1,71 +1,93 @@
+import type { LucideIcon } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { cn } from '@/lib/utils';
 import { ModuleTabs } from './module-nav';
 import type { NavItem } from './modules';
 
 /**
- * Sticky glass header for a module, kept to one slim row: Hub button, title, the module's pages as tabs, then module
- * controls. On a phone a module with controls (Tracker's scope) puts its tabs on a second row instead.
+ * The module bar (navbar redesign A, Joe 8 Nov 2026): a frosted glass bar floating just off the screen edges, like
+ * the hub's tiles. Hub button, the module chip (icon + name), the module's pages as pill tabs, then the module's
+ * controls, status chips, theme and account menu.
+ *
+ * On a phone the pages get their own row under the identity row, except in a full-height workspace (Backtest Lab),
+ * which keeps one row so the chart keeps its height. A module with controls (Tracker's scope) shows them in place
+ * of its name on a phone; the chip's icon still says where you are.
  */
 export function ModuleHeader({
   title,
+  icon: Icon,
   nav,
   rootHref,
   keep,
   leading,
+  status,
   trailing,
-  dockedStatus = false,
+  fill = false,
   children,
 }: {
   title: string;
+  icon?: LucideIcon | undefined;
   nav?: NavItem[] | undefined;
   rootHref?: string | undefined;
   keep?: string[] | undefined;
-  /** Before the title: the Hub button. */
+  /** Before the module chip: the Hub button. */
   leading?: ReactNode;
-  /** After the controls: an invited user's theme and Log out. */
+  /** Status chips (sync, market data), before the account buttons. */
+  status?: ReactNode;
+  /** At the end: theme and the account menu. */
   trailing?: ReactNode;
-  /** A phone docks the status dots in the top-right corner (Backtest Lab): keep the header's end clear of them. */
-  dockedStatus?: boolean;
+  /** Full-height workspace (Backtest Lab): one row on a phone too. */
+  fill?: boolean;
   children?: ReactNode;
 }) {
   const tabs = nav && nav.length > 1;
-  const end = children || trailing;
+  const hideTitleOnPhone = Boolean(children) || (fill && tabs);
   return (
-    <header
-      className={cn(
-        'sticky top-0 z-20 flex flex-wrap items-center border-b bg-chrome backdrop-blur-xl md:flex-nowrap',
-        // The docked status dots sit fixed in the top-right corner: tabs and buttons stop short of them.
-        dockedStatus && 'compact:pr-20',
-      )}
-    >
-      {leading && <div className="flex shrink-0 items-center pl-1 md:pl-3">{leading}</div>}
-      <h1
+    <header className="sticky top-0 z-20 shrink-0 px-1.5 pt-1.5 roomy:px-2 roomy:pt-2">
+      <div
         className={cn(
-          'flex h-11 shrink-0 items-center font-semibold text-base tracking-tight md:h-12 md:pr-2',
-          leading ? 'pr-2 pl-1 md:pl-1' : 'px-4 md:pl-6',
-          // Backtest Lab on a phone: the tabs need the room next to the docked dots; the tab shows where you are.
-          dockedStatus && tabs && 'compact:sr-only',
+          'flex flex-wrap items-center gap-1 rounded-xl border bg-chrome p-1 backdrop-blur-xl roomy:flex-nowrap roomy:gap-1.5',
+          'shadow-[inset_0_1px_0_var(--glass-edge),0_10px_30px_-12px_var(--glass-shadow)]',
+          fill && 'flex-nowrap',
         )}
       >
-        {title}
-      </h1>
-      {tabs && (
-        <ModuleTabs
-          items={nav}
-          rootHref={rootHref ?? nav[0]?.href ?? '/'}
-          keep={keep}
-          className={cn('min-w-0 flex-1', children ? 'order-last basis-full md:order-none md:basis-auto' : '')}
-        />
-      )}
-      {end && (
-        <div
-          className={cn('ml-auto flex min-w-0 items-center gap-2 pr-4 pl-2 md:pr-6', dockedStatus && 'compact:pr-16')}
+        {leading && (
+          <>
+            {leading}
+            <span aria-hidden className="h-5 w-px shrink-0 bg-border" />
+          </>
+        )}
+        <h1
+          className={cn(
+            'flex h-11 shrink-0 items-center gap-2 font-semibold text-[0.9375rem] tracking-tight roomy:h-9 roomy:pr-1.5 roomy:pl-1',
+            leading ? 'pl-1' : 'pl-2',
+            fill && tabs && 'compact:hidden',
+          )}
         >
-          {children}
+          {Icon && (
+            <span className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-primary/12 text-primary">
+              <Icon className="size-4" aria-hidden strokeWidth={1.9} />
+            </span>
+          )}
+          <span className={cn(hideTitleOnPhone && 'compact:sr-only')}>{title}</span>
+        </h1>
+        {tabs && (
+          <ModuleTabs
+            items={nav}
+            rootHref={rootHref ?? nav[0]?.href ?? '/'}
+            keep={keep}
+            className={cn(
+              'min-w-0 roomy:mx-auto',
+              fill ? 'flex-1 roomy:flex-none' : 'compact:order-last compact:basis-full',
+            )}
+          />
+        )}
+        <div className={cn('ml-auto flex min-w-0 items-center gap-1', children && 'compact:flex-1')}>
+          {children && <div className="flex min-w-0 items-center compact:flex-1 roomy:mr-1">{children}</div>}
+          {status}
           {trailing}
         </div>
-      )}
+      </div>
     </header>
   );
 }
