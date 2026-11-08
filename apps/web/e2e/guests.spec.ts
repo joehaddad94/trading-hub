@@ -136,6 +136,7 @@ test.describe('Backtest Lab for invited users', () => {
     await page.goto('/backtest');
     await expect(page.getByText('Guest run')).toBeVisible();
 
+    await page.getByRole('button', { name: 'Account' }).click();
     await page.getByRole('button', { name: 'Log out' }).click();
     await expect(page).toHaveURL(/\/login/);
     await page.goto('/backtest');

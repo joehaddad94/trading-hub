@@ -171,15 +171,17 @@ test.describe('Backtest Lab on a phone (audit 25 Oct)', () => {
     await expect(page.locator('[data-testid="order-row"][data-status="pending"]')).toHaveCount(0);
   });
 
-  test('status lines shrink to dots in the header on a phone', async ({ page, isMobile }) => {
+  test('status problems are chips inside the one-row bar on a phone', async ({ page, isMobile }) => {
     test.skip(!isMobile, 'phone layout');
     await open(page);
-    const docked = page.locator('[data-dock="true"]');
-    test.skip((await docked.count()) === 0, 'no sync or market-data warning in this database');
-    for (const strip of await docked.all()) {
-      const box = await strip.boundingBox();
+    const chips = page.locator('header [data-chip="true"]');
+    test.skip((await chips.count()) === 0, 'no sync or market-data warning in this database');
+    const bar = await page.locator('header').first().boundingBox();
+    expect(bar?.height ?? 99).toBeLessThanOrEqual(60);
+    for (const chip of await chips.all()) {
+      const box = await chip.boundingBox();
       expect(box?.height ?? 99).toBeLessThanOrEqual(34);
-      expect(box?.y ?? 99).toBeLessThan(44);
+      expect(box?.y ?? 99).toBeLessThan(52);
     }
   });
 });

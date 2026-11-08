@@ -39,6 +39,26 @@ test.describe('light and dark mode', () => {
     await expect(html(page)).toHaveClass(/\blight\b/);
   });
 
+  test('every module bar has the theme button and the account menu, the Backtest Lab too', async ({ page, isMobile }) => {
+    await page.emulateMedia({ colorScheme: 'dark' });
+    await page.goto('/backtest/chart');
+    if (isMobile) {
+      // The phone Backtest bar is one row: the theme lives in the account menu there.
+      await page.getByRole('button', { name: 'Account' }).click();
+      await page.getByRole('group', { name: 'Theme' }).getByText('Light', { exact: true }).click();
+    } else {
+      await page.getByRole('button', { name: 'Light mode' }).click();
+    }
+    await expect(html(page)).toHaveClass(/\blight\b/);
+    for (const path of ['/tracker', '/news', '/settings']) {
+      await page.goto(path);
+      await expect(page.getByRole('button', { name: 'Dark mode' })).toBeVisible();
+      await page.getByRole('button', { name: 'Account' }).click();
+      await expect(page.getByRole('link', { name: 'Settings' })).toBeVisible();
+      await expect(page.getByRole('button', { name: 'Log out' })).toBeVisible();
+    }
+  });
+
   test('a choice in Settings beats the device setting and survives a reload', async ({ page }) => {
     await page.emulateMedia({ colorScheme: 'dark' });
     await page.goto('/settings');

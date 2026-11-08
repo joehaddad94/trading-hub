@@ -4,7 +4,7 @@ Joe's answers to the redesign questionnaire (https://claude.ai/artifact/EPGhRPzj
 
 ## Direction
 - **Mood:** premium broker app. Polished, roomy, soft glow; numbers first.
-- **Themes (Joe, 4 Nov 2026):** light and dark. "Fog" (the mid-tone below) is the **dark** theme; the light theme is a cool off-white (`#f1f4f8`) with white glass. Default follows the device setting; the user can pin Light or Dark (Settings > Appearance, the sun/moon button in the desktop rail, the phone "More" menu). Saved per device in localStorage, applied by an inline script before first paint (`apps/web/src/lib/theme.ts`), so there is no flash and no DB column.
+- **Themes (Joe, 4 Nov 2026):** light and dark. "Fog" (the mid-tone below) is the **dark** theme; the light theme is a cool off-white (`#f1f4f8`) with white glass. Default follows the device setting; the user can pin Light or Dark (Settings > Appearance, the sun/moon button in every module bar and on the hub, Light/Dark/System in the account menu). Saved per device in localStorage, applied by an inline script before first paint (`apps/web/src/lib/theme.ts`), so there is no flash and no DB column.
 - **Base (dark):** "Fog" mid-tone.
 - **Surfaces:** frosted glass cards over a faint cyan glow. The glass is tinted slightly darker than the page so text keeps contrast.
 
@@ -35,6 +35,7 @@ Account colours (multi-account charts): cyan, amber, violet, pink, lime, orange 
 
 ## Layout and navigation
 - **Hub only (Joe, 4 Nov 2026; replaces the icon rail and phone bottom bar):** modules are reached from the hub. A module header has a Hub button, the module name, and its own pages as tabs (scrollable on phone). Theme, Settings and Log out sit top-right on the hub; an invited user's Backtest Lab header has theme and Log out.
+- **Module bar (navbar redesign A, Joe 8 Nov 2026):** a frosted glass bar floating 6–8px off the screen edges (rounded-xl, glass shadow). Left: Hub house button, divider, module chip (registry icon in a cyan tile + name). Middle: the module's pages as a pill segmented control (active pill = popover surface + ring); on a phone the pills get their own row, scroll sideways, fade at the edge that has more and start on the current page. Right: module controls (Tracker scope; replaces the name on a phone), status chips (sync, market data; the list opens under the chip, never full-width strips), theme button, account menu (email, Light/Dark/System, Settings for the owner, Log out). Backtest Lab on a phone stays one row (no name, theme inside the account menu) to keep chart height. Audit: https://claude.ai/artifact/S2UKznpLtRWcmmokYTaf2y
 - **Hub:** hero with today's P&L (big), week P&L and win rate, loss room bar, small equity curve. One tile per registered module (Tracker with its "to journal" count, News, Backtest Lab). Recent trades last.
 
 ## Charts
